@@ -1,0 +1,26 @@
+# --- Secrets ---
+.env
+.env.*
+!.env.exemple
+
+# --- Données (jamais dans le dépôt public) ---
+donnees/
+
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# --- Caches Hugging Face éventuels ---
+.cache/
+
+# --- Système et éditeurs ---
+.DS_Store
+.vscode/
+.idea/
