@@ -176,6 +176,34 @@ Ce format commun est le **contrat** entre les deux projets décrits au §5 : il 
 
 ### 4.2 Le format commun d'un document
 
+**Décisions issues de l'exploration de PARHAF :**
+
+- **Un dossier = un patient.** Dans PARHAF, chaque situation clinique comprend un à trois documents (CRH, compte rendu opératoire, de consultation, d'anatomopathologie…), qui forment un mini-dossier patient. Ces documents sont **concaténés en un seul texte**, que le testeur code comme un tout. Les limites de chaque document sont conservées (type et position de début et de fin dans le texte concaténé), et chaque document est précédé d'un intitulé visible indiquant son type.
+- **Quatre codages par dossier**, de même forme pour PARHAF et pour les CRH synthétiques :
+
+| Codage | PARHAF | CRH synthétiques |
+|---|---|---|
+| **Codage initial** | Le diagnostic principal du scénario | Les diagnostics figurant à la fin du document |
+| **Codage proposé par l'IA** | Les propositions du LLM, le cas échéant | Idem |
+| **Codage validé par l'utilisateur** | Le codage final du testeur | Idem |
+
+  Dans les deux cas, le codage initial correspond aux **diagnostics du scénario** qui a servi à rédiger ou à générer le texte. Pour PARHAF, on considère le diagnostic principal du scénario comme le vrai diagnostic principal : quelques vérifications ont montré qu'il correspondait bien au texte. Le codage initial est simplement plus complet pour les CRH synthétiques que pour PARHAF.
+
+- **Version de PARHAF chargée** : le JSON (version de référence déclarée par les auteurs). Les deux versions ne diffèrent que sur des patients d'anatomopathologie, qui sont exclus.
+- **Patients chargés** : tous, **sauf les patients dont le dossier ne comprend que de l'anatomopathologie**. Les consultations seules et les parcours obstétricaux sont conservés.
+- **Nettoyage du texte avant chargement.** Le texte de référence est établi **une fois, avant le chargement** ; toutes les positions sont calculées sur lui, et il n'est plus jamais modifié ensuite. Le nettoyage comprend :
+  - la normalisation des caractères (forme NFC, espaces insécables, caractères de largeur nulle, BOM) ;
+  - le retrait de tout ce qui n'est pas le compte rendu lui-même : résumé structuré recopié en fin de texte, listes de « diagnostics fréquemment associés », et tout autre bloc de même nature.
+  
+  Le fichier source n'est jamais modifié. Chaque retrait est tracé (règle appliquée, passage retiré), et le passage retiré est conservé à part, sans jamais être affiché.
+- **Ce que voit le testeur : uniquement ce qu'un codeur voit en réalité, c'est-à-dire le texte du compte rendu.** Toutes les autres informations restent dans la base.
+- **Peu de colonnes.** Les sources intégrées plus tard n'auront pas toutes le même niveau de détail que PARHAF. La table des dossiers garde donc un minimum de colonnes ; le reste est rangé dans des champs JSON, indexés et interrogeables.
+- **Un champ JSON « RUM »**, prévu dès maintenant, qui contiendra les variables du résumé d'unité médicale, **selon son format officiel** : données administratives, modes d'entrée et de sortie, etc. Il ne contient que des variables du RUM. Il servira au groupage et aux simulations de codage. À terme, ces informations seront soit fournies à l'outil, soit extraites automatiquement du texte par le modèle. Pour PARHAF, elles pourraient être reprises du scénario. **Dans le démonstrateur, le champ est créé mais son alimentation est reportée.**
+- **Deux colonnes pour trouver les dossiers à coder** : la **spécialité médicale** et le **type de prise en charge** (`type_of_care` pour PARHAF), qui n'est pas une variable du RUM. Elles servent à rechercher et filtrer les dossiers, comme un codeur cherche ses séjours. Elles ne sont pas affichées dans le dossier lui-même, à côté du texte.
+- **Forme des codes** : alignée sur celle des fiches recode-icd.
+
+Le détail du format reste à fixer lors de la séance sur le schéma.
+
 Chaque document est décrit par :
 
 - **son identité** : lot, source, identifiant d'origine ;
