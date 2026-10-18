@@ -64,6 +64,8 @@ Le diagnostic relié n'est pas saisi : il se déduit de la règle de hiérarchis
 
 ### 2.4 Les deux statuts de chaque code
 
+> **Remplacé par `docs/SCHEMA.md` (§3).** Lors de la séance sur le schéma, les statuts par code ont été abandonnés au profit d'un modèle par étapes : chaque étape (`ia_humain`, `revue_humain`, `revue_ia`, `revue_humain_ia`…) enregistre le codage complet, et ce qui est arrivé à chaque code se retrouve en comparant deux étapes successives. Le texte ci-dessous est conservé pour mémoire.
+
 Chaque code porte **deux statuts indépendants**.
 
 Le **statut d'origine** dit d'où vient le code :
@@ -202,6 +204,15 @@ Ce format commun est le **contrat** entre les deux projets décrits au §5 : il 
 - **Deux colonnes pour trouver les dossiers à coder** : la **spécialité médicale** et le **type de prise en charge** (`type_of_care` pour PARHAF), qui n'est pas une variable du RUM. Elles servent à rechercher et filtrer les dossiers, comme un codeur cherche ses séjours. Elles ne sont pas affichées dans le dossier lui-même, à côté du texte.
 - **Forme des codes** : alignée sur celle des fiches recode-icd.
 
+**Décisions issues de l'exploration des CRH synthétiques :**
+
+- **Les comptes rendus opératoires** produits par les gabarits chirurgicaux sont **conservés**.
+- **`coding_rule` à « other »** (56 745 lignes) : c'est normal, les règles du guide ne concernent que certaines situations. Ce n'est pas un critère d'exclusion.
+- **Nettoyage** : même logique que pour PARHAF. On retire les blocs « Dictionnaires des formulations », les JSON recopiés dans le texte et les codes entre parenthèses ; on écarte les 2 095 lignes dont le JSON n'est pas réparable simplement.
+- **`type_of_care`** : conservé sous sa valeur brute pour la recherche, sans correspondance avec les familles D, T et S du guide.
+- **Hôpitaux réels cités dans les textes** : sans objection, les personnes étant fictives.
+- **Les 5 CRH de PARHAF dont le corps contient des codes** : relus et corrigés par Rémi, plutôt qu'exclus.
+
 Le détail du format reste à fixer lors de la séance sur le schéma.
 
 Chaque document est décrit par :
@@ -226,6 +237,8 @@ Chaque élément facultatif peut être absent. Le format indique explicitement c
 Ainsi, comparer deux codages revient à comparer deux objets de même forme. Le format exact sera fixé lors de la séance de travail sur le schéma (§6), à partir d'un exemple réel.
 
 ### 4.3 Les tables de la base
+
+> **Remplacé par `docs/SCHEMA.md`**, qui fait foi pour la structure de la base. Le texte ci-dessous est conservé pour mémoire.
 
 **Les données de référence**, chargées par les scripts :
 
@@ -307,7 +320,7 @@ Le travail se répartit en **deux projets Claude Code distincts**, qui avancent 
 |---|---|
 | Création du dépôt `codeur` et du projet Supabase (guide pas à pas). | L'infrastructure existe. |
 | **Exploration des corpus avec Claude Code, pas à pas** : aller chercher les fichiers qui contiennent chaque corpus (PARHAF sur Hugging Face, CRH synthétiques sur Google Drive), en charger quelques documents, les regarder ensemble, faire l'inventaire de ce que chaque source contient (texte, codage, éléments de preuve, JSON de fin des CRH générés). | Une note d'inventaire de chaque source. |
-| **Séance de travail sur le schéma**, à partir de cet inventaire, avant d'écrire le code de l'outil : format JSON du codage, contenu des tables, règles d'accès. C'est aussi l'occasion de clarifier le besoin. | Le format commun et le schéma sont fixés et documentés. |
+| **Séance de travail sur le schéma**, à partir de cet inventaire, avant d'écrire le code de l'outil : format JSON du codage, contenu des tables, règles d'accès. C'est aussi l'occasion de clarifier le besoin. **Faite le 18 octobre 2026 : voir `docs/SCHEMA.md`.** | Le format commun et le schéma sont fixés et documentés. |
 | Création des tables par Claude Code, à partir du schéma validé. | Les deux projets peuvent démarrer. |
 
 ### Projet A — L'outil web
@@ -319,6 +332,7 @@ Le travail se répartit en **deux projets Claude Code distincts**, qui avancent 
 | **A3 — Décider** | Accepter, corriger, rejeter, ajouter ; recherche de codes par mots dans la table des synonymes ; changer la catégorie ; règle et code Z ; statuts d'origine. | Le codage complet est enregistré. |
 | **A4 — Revoir** | Contrôles fixes (codes valides, cohérence entre la règle et la pathologie principale), revue par le LLM, alertes, statuts de revue. | La revue signale les incohérences. |
 | **A5 — Noter et diffuser** | Grille de qualité, guide du testeur, finitions. | L'outil peut être diffusé. |
+| **A6 — Éditer les CRH** | Page d'édition du texte d'un document : correction, motif, enregistrement d'une nouvelle version. Possibilité de reprendre un codage existant sur la nouvelle version. | Un CRH peut être corrigé avant d'être codé. |
 
 ### Projet B — Les données et les prompts
 
@@ -348,11 +362,30 @@ Le lot A1 peut démarrer avec quelques CRH chargés à la main, sans attendre le
 
 - **Exploration des corpus** : faite pas à pas avec Claude Code, en regardant les documents réels ; le format du codage est décidé à l'issue de cette exploration.
 
+- **Format du champ RUM** : format officiel ATIH « RSS non groupé », version 023 (fichier `formats_mco_2026.xlsx`, à placer dans le dépôt, dans `docs/referentiels/`). Sa traduction en champ JSON sera faite lors de la séance sur le schéma.
+- **Codage et RUM : on garde les deux.** Le codage CIM est une étape de la construction du RUM. Les codages (initial, proposé par l'IA, validé par l'utilisateur) vivent dans le JSON du codage, avec leurs versions successives. Quand un codage est validé, ses diagnostics sont **reportés dans le RUM** (DP, DR et DA, déduits des quatre catégories selon la règle de hiérarchisation), à côté des variables administratives. Le RUM n'est jamais modifié directement : si le codage est modifié après validation, le RUM est reconstruit à partir de la nouvelle version, et l'on sait toujours de quelle version du codage il provient.
+
+- **Organisation de la base proposée par Rémi** (point de départ de la séance sur le schéma) :
+  - **table des documents** : un seul texte par situation clinique, avec quelques colonnes seulement (source, spécialité, type de prise en charge). **Pas de colonne « scénario »** : l'outil est un outil de codage, pas de génération. Les informations utiles du scénario sont réparties là où un outil de codage les attendrait : le diagnostic principal du scénario devient le codage initial (table des codages), les données administratives iront dans le RUM ;
+  - **table des codages** : toutes les versions successives du codage, sans jamais rien écraser. Chaque ligne porte le document, l'origine du codage (initial, IA, utilisateur), la date et l'utilisateur, et le codage lui-même au format JSON (codes et éléments de preuve) ;
+  - **table des RUM**, historisée de la même façon : chaque ligne porte le document, **la ligne de la table des codages dont elle reprend le codage**, la date et l'utilisateur, et le RUM au format JSON. Chaque codage validé peut ainsi produire son propre RUM, et plusieurs testeurs peuvent coder le même document.
+- **Édition des CRH et versions des documents.** On édite le texte **avant** de le coder. L'enregistrement crée une **nouvelle version** du document, reliée à la précédente ; on code ensuite cette version. Un codage est toujours lié à une version précise, dont le texte n'est plus modifiable. Pour modifier un texte déjà codé, on crée une nouvelle version et on fait un nouveau codage ; l'ancien codage peut être repris comme point de départ, ses éléments de preuve étant retrouvés dans le nouveau texte grâce au texte cité (ceux qui ne s'y retrouvent plus sont signalés). Le schéma prévoit les versions de documents dès le départ ; la page d'édition fait l'objet du lot A6.
+- **Pas de gestion des rôles dans cette version de test** : tout utilisateur connecté peut tout faire, y compris éditer un CRH. Les rôles identifiés au fil du travail sont simplement consignés ci-dessous, pour les versions suivantes.
+
+**Rôles identifiés (non mis en œuvre dans le prototype) :**
+
+| Rôle | Ce qu'il pourrait faire | Où il est apparu |
+|---|---|---|
+| Codeur (testeur) | Coder les dossiers, revoir son codage, noter la qualité du CRH | Rôle de base du prototype |
+| Éditeur | Corriger le texte d'un CRH, créant une nouvelle version | Page d'édition (lot A6) |
+| Responsable du projet | Paramétrer l'outil, charger les corpus, accéder à toutes les données et aux exports | Paramétrage, projet B |
+| Arbitre, collège d'experts, administrateur de campagne | Organiser un double codage et arbitrer les désaccords | Cahier des charges n° 1 |
+
 **À fournir au moment voulu :**
 
 - **Les calculs de mesures fixes** utilisés dans le projet de génération (lot A1).
 
-**Questions laissées ouvertes, à discuter pendant le développement :**
+**Questions laissées ouvertes, à discuter pendant le développement** (les deux premières sont réglées par `docs/SCHEMA.md`, dont le §9 liste les questions restantes) **:**
 
 1. **Le schéma de la base et le contenu des tables**, y compris le choix entre tables détaillées et objets JSON (séance dédiée, §6).
 2. **Le format JSON du codage**.

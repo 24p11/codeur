@@ -7,3 +7,9 @@ dependencies = [
     "polars>=2.0.0",
     "python-dotenv>=1.2.4",
 ]
+
+[dependency-groups]
+tests = [
+    "psycopg[binary]>=3.3.6",
+    "supabase>=2.33.0",
+]
