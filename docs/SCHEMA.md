@@ -1,5 +1,7 @@
 # Schéma de la base de données
 
+*Version 1.1 — 18 octobre 2026 (précisions de mise en œuvre de la base, §10).*
+
 *Version 1.0 — 18 octobre 2026. Établi lors de la séance sur le schéma, à partir de la note `docs/exploration/inventaire_corpus.md`. Ce document fait foi pour la structure de la base ; `CADRAGE.md` décrit le projet dans son ensemble.*
 
 Ce document décrit comment les informations sont rangées dans la base Supabase (PostgreSQL) : quelles tables, quelles colonnes, quel contenu dans les champs JSON, et qui a le droit de lire ou d'écrire quoi. Il est écrit pour être relu par un médecin DIM autant que par un développeur.
@@ -46,7 +48,7 @@ Une ligne correspond à **une version d'un texte à coder**. Pour PARHAF, un doc
 - **Intitulés.** Quand un document réunit plusieurs documents d'origine, chacun est précédé, dans le texte lui-même, d'un intitulé court et normalisé, sur sa propre ligne : `— Consultation —`, `— Compte rendu opératoire —`, `— Compte rendu d'hospitalisation —`, `— Urgences —`, `— Accouchement —`, `— Maternité —`. Ces intitulés font partie du texte de référence : le texte enregistré est exactement le texte affiché, ce qui garantit que les positions sont les mêmes à l'écran et dans la base. Un document qui ne réunit qu'un seul document d'origine n'a pas d'intitulé.
 - **Ordre.** Pour PARHAF, les documents d'origine sont mis bout à bout dans l'ordre du fichier, qui est l'ordre chronologique.
 - **Markdown.** Les marques de mise en forme des CRH synthétiques (`###`, `**`) sont conservées dans le texte. Elles comptent dans les positions. L'affichage pourra les rendre en mise en forme, à condition que le surlignage reste correctement placé (point à traiter avec la mise en forme de l'affichage).
-- **Normalisation au chargement**, avant de figer le texte : forme Unicode NFC (accents composés), suppression des caractères de largeur nulle, du BOM et du trait d'union conditionnel. Le sort des espaces insécables sera fixé lors de l'écriture des scripts de chargement.
+- **Normalisation au chargement**, avant de figer le texte : forme Unicode NFC (accents composés) ; suppression des caractères de largeur nulle (U+200B), du BOM (U+FEFF) et du trait d'union conditionnel (U+00AD) ; remplacement des espaces insécables (U+00A0, U+202F) par une espace simple.
 
 **Ce qui n'est pas dans la base :** le scénario de génération, les variantes d'un même scénario, le nom de l'auteur ou du relecteur, le résumé structuré de PARHAF. Toute la traçabilité de la génération reste dans la base source (aujourd'hui sur Google Drive, demain sur Hugging Face), à laquelle `lot` + `id_source` permettent de revenir.
 
@@ -225,14 +227,14 @@ Une ligne correspond à **un RUM construit à partir d'une ligne validée de la 
 | `version_format` | `023` (format ATIH « RSS non groupé ») |
 | `rum` | JSON : les variables officielles du RUM, sous leur nom, y compris DP, DR et DA |
 | `controles` | JSON : le résultat des contrôles qualité PMSI, avec la version des règles appliquées |
-| `derogation` | Vrai si l'utilisateur a passé outre une alerte bloquante, avec son motif |
+| `derogation`, `motif_derogation` | Vrai si l'utilisateur a passé outre une alerte bloquante ; le motif est alors obligatoire |
 
 **Règles :**
 
 - Le RUM **n'est jamais modifié directement**. Il est toujours construit à partir d'un codage validé. Si le codage est modifié après validation, un nouveau RUM est construit.
 - **Construction des diagnostics** : la règle de hiérarchisation sert à traduire les quatre catégories du codage (règle, mode de prise en charge, pathologie principale, diagnostics associés) en DP, DR et DA.
 - **Dans le prototype**, un **RUM partiel** est construit à chaque validation : les diagnostics sont remplis, les variables administratives restent vides tant que leur alimentation n'est pas mise en place. Les contrôles qui n'ont besoin que des diagnostics peuvent ainsi fonctionner.
-- Le format JSON reprend les noms, les types et les listes de valeurs du format officiel (fichier `docs/referentiels/formats_mco_2026.xlsx`), mais pas les positions fixes du fichier ATIH, qui ne serviront qu'à fabriquer le fichier attendu par la fonction groupage.
+- Le format JSON reprend les noms, les types et les listes de valeurs du format officiel (fichier `docs/referentiels/atih/formats_mco_2026.xlsx`), mais pas les positions fixes du fichier ATIH, qui ne serviront qu'à fabriquer le fichier attendu par la fonction groupage.
 - Un dossier correspond à un seul RUM (simplification assumée du prototype ; un séjour réel peut en compter plusieurs).
 
 **Deux sortes de contrôles, à ne pas confondre :**
@@ -250,7 +252,7 @@ Le résultat du groupage, quand il sera mis en place, sera rangé dans la table 
 
 ### 5.1 `profils`
 
-Les informations saisies à l'inscription : nom, prénom, statut (médecin DIM, TIM, autre médecin, interne, étudiant, autre), établissement, date de l'accord pour l'utilisation des annotations à des fins de recherche. Une ligne par compte.
+Les informations saisies à l'inscription. Une ligne par compte. Colonnes : `id` (le compte Supabase), `nom`, `prenom`, `statut` (medecin_dim, tim, autre_medecin, interne, etudiant, autre), `etablissement`, `accord_le` (date de l'accord pour l'utilisation des annotations à des fins de recherche), `cree_le`.
 
 ### 5.2 `appels_llm`
 
@@ -258,7 +260,8 @@ Chaque appel au LLM, pour toutes les tâches.
 
 | Colonne | Contenu |
 |---|---|
-| `id`, `cree_le`, `utilisateur`, `document` | |
+| `id` | **UUID fourni par la page avant l'insertion** (valeur par défaut générée par la base pour les scripts), afin que la page puisse relier un codage à son appel sans avoir à relire l'appel |
+| `cree_le`, `utilisateur`, `document` | `utilisateur` et `document` obligatoires |
 | `tache` | `evaluation_document`, `caracteristiques_sejour`, `codage`, `revue` |
 | `fournisseur`, `modele` | Par exemple `mistral`, `mistral-large-latest` ; la version exacte si le service l'indique |
 | `version_prompt` | Le nom et la version du fichier de prompt utilisé |
@@ -289,10 +292,10 @@ Une seule table pour les deux évaluations de la qualité d'un document : celle 
 
 | Table | Contenu |
 |---|---|
-| `lots` | Chaque lot chargé : identifiant (`parhaf-1.0.0`…), source, version, description de ce qu'il contient (texte seul, DP, DAS, règle, preuves…), règles de nettoyage appliquées, date de chargement |
-| `fiches` | L'index des codes de recode-icd et leurs fiches : code (complet, sans point), libellé, **codable ou non**, contenu de la fiche (vide si elle n'apporte rien), version de la livraison. La liste des codes codables est tirée de cette table. Le format exact dépend du chantier ouvert dans recode-icd pour les besoins de `codeur` |
-| `synonymes` | Les formulations associées à chaque code (libellé, inclusions, index, synonymes), avec un index de recherche par mot, insensible aux accents et tolérant aux fautes de frappe légères |
-| `regles_situations` | Le guide des situations cliniques, une ligne par règle |
+| `lots` | Chaque lot chargé : `id` (`parhaf-1.0.0`…), source, version, `description` (texte libre), `contenu` (JSON : ce que le lot apporte — texte seul, DP, DAS, règle, preuves…), `regles_nettoyage` (JSON : les règles appliquées), `charge_le` |
+| `fiches` | L'index des codes de recode-icd et leurs fiches : code (complet, sans point), libellé, **codable ou non**, contenu de la fiche (vide si elle n'apporte rien), version de la livraison (`version_livraison`), date de chargement (`charge_le`). La liste des codes codables est tirée de cette table. Le format exact dépend du chantier ouvert dans recode-icd pour les besoins de `codeur` |
+| `synonymes` | Les formulations associées à chaque code : `origine` (type : libelle, inclusion, index, synonyme), **`source` (provenance : CépiDc, AP-HP, LLM…)**, le code (qui doit exister dans `fiches`), et une forme normalisée indexée pour une recherche insensible aux accents et tolérante aux fautes de frappe |
+| `regles_situations` | Le guide des situations cliniques, une ligne par règle : code, famille (tirée de la colonne « Type d'hospitalisation » du guide), libellé, type, spécificité, pathologie, code Z, détails (JSON), version |
 
 ---
 
@@ -307,7 +310,7 @@ Ces règles sont appliquées **par la base elle-même**, et non seulement par l'
 | `rum` | lire et ajouter ses propres lignes |
 | `appels_llm` | ajouter ses propres lignes, sans pouvoir les relire |
 | `evaluations` | ajouter ses propres lignes ; relire uniquement celles dont il est l'auteur humain, jamais celles de l'IA |
-| `profils` | lire et modifier son propre profil |
+| `profils` | créer (à l'inscription), lire et modifier son propre profil |
 
 Le chargement des données de référence et du codage initial se fait par les scripts Python, avec la clé secrète, sur l'ordinateur du responsable du projet.
 
@@ -326,8 +329,36 @@ Pas de gestion des rôles dans le prototype : tous les testeurs ont les mêmes d
 
 ## 9. Questions restant ouvertes
 
-1. **Identifiant des CRH synthétiques** : `source_row_id` ou `generation_id` ? Retenir celui qui restera stable lors de la publication sur Hugging Face.
-2. *(Réglé : voir §3.7.)* Codes présents dans le JSON des CRH synthétiques mais absents du scénario.
-3. **Espaces insécables** : conservés ou remplacés par une espace simple.
-4. **Correspondance détaillée** entre les variables du scénario (modes d'entrée et de sortie) et les variables du RUM : à établir au moment de l'alimentation du RUM.
-5. **Les 5 CRH de PARHAF** contenant des codes dans leur corps : corrigés par Rémi, chargés directement dans leur version corrigée (version 1) avec le motif de correction, ou chargés en version 1 d'origine puis corrigés en version 2.
+*Réglées le 18 octobre 2026 :*
+
+1. **Identifiant des CRH synthétiques** : `generation_id`. Toutes les données sur la génération restent gérées dans le projet de génération.
+2. **Codes du JSON absents du scénario** : voir §3.7.
+3. **Espaces insécables** (U+00A0, U+202F) : remplacés par une espace simple au chargement.
+4. **Correspondance détaillée entre le scénario et le RUM** : reportée à l'alimentation du RUM.
+5. **Les 5 CRH de PARHAF contenant des codes dans leur corps** : chargés dans leur version d'origine (version 1), signalés « à corriger » dans le champ `nettoyage` (`"a_corriger": true`, avec le motif), et non proposés aux testeurs tant qu'ils n'ont pas de version corrigée. Rémi les corrige avec la page d'édition (lot A6), ce qui crée les versions 2 et éprouve le mécanisme des versions en conditions réelles.
+
+---
+
+## 10. Précisions de mise en œuvre
+
+Interprétations retenues lors de la création de la base (migrations de `supabase/migrations/`, 18 octobre 2026). Elles complètent les sections précédentes et font foi au même titre.
+
+1. **Identifiants** : entiers attribués par la base pour les tables de travail, sauf `appels_llm.id` (UUID fourni par la page). Pour `lots`, `fiches` et `regles_situations`, la clé est un texte (`parhaf-1.0.0`, `K409`, `T3`).
+2. **Auteurs** : `documents.cree_par`, `rum.cree_par`, `codages.utilisateur`, `appels_llm.utilisateur` et `evaluations.utilisateur` font référence au compte Supabase. Ils sont vides quand la ligne est écrite par un script, sauf pour les appels et les évaluations, où l'utilisateur est obligatoire.
+3. **Empreinte** : `documents.empreinte` est calculée automatiquement par la base (SHA-256 hexadécimal) ; elle ne peut être ni oubliée ni falsifiée.
+4. **Texte figé, garanti par la base** : un déclencheur refuse toute modification de `documents.texte`, quel que soit le rôle, y compris avec la clé secrète.
+5. **Versions de documents** : `version = 1` si et seulement si `version_precedente` est vide.
+6. **Codage initial** : `codages.utilisateur` est vide si et seulement si l'étape est `scenario`.
+7. **Dérogation** : `rum.derogation` (booléen) et `rum.motif_derogation` (obligatoire si la dérogation est vraie).
+8. **Appels au LLM** : `appels_llm.document` est obligatoire.
+9. **Fiches** : la table contient tout l'index de recode-icd (codes non codables et codes sans fiche compris), une seule livraison à la fois ; clé = code ; `codable` booléen obligatoire ; `contenu` texte, vide pour un code sans fiche ; `version_livraison` en colonne.
+10. **Synonymes** : `origine` ∈ {libelle, inclusion, index, synonyme} ; `source` obligatoire ; `code` doit exister dans `fiches` ; colonne calculée `formulation_normalisee`, indexée par trigrammes.
+11. **Guide des situations cliniques** : `famille` est un texte libre issu de la colonne « Type d'hospitalisation » du guide, sans liste de valeurs imposée.
+12. **Statuts des profils** : medecin_dim, tim, autre_medecin, interne, etudiant, autre.
+13. **Visiteurs non connectés** : aucun droit sur aucune table.
+14. **Nouvelle version de document par un testeur** : autorisée seulement pour une version supérieure à 1, signée de son compte ; la version 1 est réservée aux scripts de chargement.
+15. **Index JSON** : index GIN général sur `codages.codage` et `rum.rum` ; les requêtes par chapitre demanderont un index dédié le moment venu. Index supplémentaires sur les liens entre tables.
+16. **Aucun droit par défaut** (migration `20261018100500_droits_residuels.sql`) : les droits `TRUNCATE`, `TRIGGER` et `REFERENCES` accordés par défaut par Supabase sont retirés, et plus aucun droit n'est accordé automatiquement aux tables futures. **Toute nouvelle table doit définir explicitement, dans sa propre migration, ses droits, l'activation de la sécurité par ligne, ses règles par ligne et ses commentaires.**
+17. **Ne jamais créer de table depuis l'interface web de Supabase.** Le rôle interne `supabase_admin` conserve des droits par défaut vers les visiteurs et les testeurs : une table créée à la main hériterait de droits non prévus. Toute évolution du schéma passe par une migration du dépôt.
+
+*Base créée le 18 octobre 2026 : projet `codeur`, région Irlande (Union européenne), PostgreSQL 17 ; sept migrations appliquées (la septième ne fait que mettre à jour le commentaire de `rum.rum` après le déplacement du fichier ATIH) ; vérification du schéma conforme ; tests d'accès : 32 essais réussis sur 32 (commit `3918a2c`).*

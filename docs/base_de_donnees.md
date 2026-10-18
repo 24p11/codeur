@@ -13,7 +13,8 @@ Le schéma est écrit sous forme de **migrations** : des fichiers SQL numéroté
 | `20261018100200_tables_travail.sql` | `profils`, `appels_llm`, `codages`, `rum`, `evaluations` |
 | `20261018100300_index.sql` | Les index |
 | `20261018100400_acces.sql` | Les droits de table et les règles d'accès par ligne (RLS) |
-| `20261018100500_droits_residuels.sql` | Retrait des droits accordés par défaut par Supabase et non prévus (TRUNCATE, TRIGGER, REFERENCES) |
+| `20261018100500_droits_residuels.sql` | Retrait des droits accordés par défaut par Supabase et non prévus (TRUNCATE, TRIGGER, REFERENCES) ; plus aucun droit par défaut sur les tables futures |
+| `20261018110000_commentaire_rum_emplacement_atih.sql` | Mise à jour du commentaire de `rum.rum` après le déplacement du fichier ATIH dans `docs/referentiels/atih/` |
 
 ## 2. Ce qu'il faut sur l'ordinateur
 
