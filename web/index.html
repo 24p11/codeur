@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>codeur</title>
-  <link rel="stylesheet" href="style.css?v=A1-0.3">
+  <link rel="stylesheet" href="style.css?v=A1-0.5">
 </head>
 <body>
   <header class="entete">
@@ -136,22 +136,32 @@
         </div>
         <div class="dossier-boutons">
           <button id="bouton-retour-liste" class="secondaire">Retour à la liste</button>
-          <button id="bouton-tout-effacer" class="secondaire">Tout effacer</button>
         </div>
       </div>
       <p id="message-dossier" class="message" hidden></p>
       <div class="dossier-corps">
-        <div id="texte-dossier" class="texte-dossier" tabindex="0"></div>
+        <div class="colonne-texte">
+          <div class="barre-texte">
+            <span id="compte-passages" class="discret"></span>
+            <span class="barre-texte-boutons">
+              <button id="bouton-tout-effacer" class="secondaire">Tout effacer</button>
+              <!-- Le bouton « Faire le codage » viendra ici au lot A2. -->
+            </span>
+          </div>
+          <div id="texte-dossier" class="texte-dossier" tabindex="0"></div>
+        </div>
         <aside id="panneau-ensembles" class="panneau">
-          <h2>Ensembles</h2>
-          <p class="discret">Sélectionnez un passage dans le texte, puis « Nouvel ensemble » (touche N) ou « Ajouter à l'ensemble sélectionné » (touche A).</p>
-          <ol id="liste-ensembles" class="liste-ensembles"></ol>
+          <h2 id="panneau-titre">Passages surlignés</h2>
+          <p id="panneau-aide" class="discret">Sélectionnez un passage dans le texte, puis « Surligner » (touche N). Les passages seront regroupés par le LLM.</p>
+          <ol id="liste-passages" class="liste-ensembles"></ol>
+          <ol id="liste-ensembles" class="liste-ensembles" hidden></ol>
           <p id="sauvegarde-etat" class="discret"></p>
         </aside>
       </div>
       <div id="barre-selection" class="barre-selection" hidden>
-        <button id="bouton-nouvel-ensemble">Nouvel ensemble <kbd>N</kbd></button>
-        <button id="bouton-ajouter-ensemble" class="secondaire">Ajouter à l'ensemble <span id="barre-numero"></span> <kbd>A</kbd></button>
+        <button id="bouton-surligner">Surligner <kbd>N</kbd></button>
+        <button id="bouton-nouvel-ensemble" hidden>Nouvel ensemble <kbd>N</kbd></button>
+        <button id="bouton-ajouter-ensemble" class="secondaire" hidden>Ajouter à l'ensemble <span id="barre-numero"></span> <kbd>A</kbd></button>
       </div>
     </section>
 
@@ -168,8 +178,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@18.0.14/lib/marked.umd.js"></script>
-  <script src="positions.js?v=A1-0.3"></script>
-  <script src="config.js?v=A1-0.3"></script>
-  <script src="app.js?v=A1-0.3"></script>
+  <script src="positions.js?v=A1-0.5"></script>
+  <script src="config.js?v=A1-0.5"></script>
+  <script src="app.js?v=A1-0.5"></script>
 </body>
 </html>

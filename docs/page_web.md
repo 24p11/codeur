@@ -73,7 +73,19 @@ Noter pour chaque essai : navigateur et version, réussite ou échec, message é
 3. **Première connexion** : mention affichée, bouton « Continuer » inactif tant que les deux cases ne sont pas cochées, fiche d'inscription, arrivée sur la liste. **Mon profil** : date d'accord affichée, modification du nom ou de l'établissement enregistrée.
 4. **Liste** : 3 822 dossiers, pagination, filtres spécialité et type (valeurs en clair avec effectifs), recherche par identifiant, « Effacer ». Aucun texte ni code visible. Les dossiers à corriger (ex. `HEMATOLOGIE-CLINIQUE-00049`) sont absents.
 5. **Dossier** : texte lisible, intitulés présents sur un dossier à trois documents (ex. `CHIRURGIE-VISCERALE-00203`), aucun bloc « Résumé structuré ».
-6. **Surlignage** : nouvel ensemble à la souris puis avec N ; ajout à l'ensemble sélectionné avec le bouton puis avec A ; N et A inactifs dans le champ « Identifiant » de la liste ; passage à cheval sur deux documents ; deux ensembles sur le même mot (hachures) ; retrait d'un passage ; suppression d'un ensemble (les numéros suivants ne changent pas) ; positions affichées cohérentes avec le texte.
+6. **Surlignage** : sélectionner un passage à la souris : il est surligné au relâchement ; le compteur au-dessus du texte augmente ; passage à cheval sur deux documents ; une sélection qui chevauche un passage surligné le fusionne (un seul passage) ; au survol d'un passage surligné il passe en rouge barré, un clic le retire ; double-clic sur un mot : le mot est surligné.
 7. **Fermeture puis réouverture** du dossier, et du navigateur : surlignages retrouvés. « Tout effacer » avec confirmation.
 8. **Déconnexion** : retour à l'écran de connexion ; après reconnexion, les surlignages sont toujours là (ils sont attachés au compte, dans ce navigateur).
 9. **Deux navigateurs** (ou deux PC) : les surlignages ne se suivent pas d'un navigateur à l'autre (attendu au lot A1).
+
+## 9. Les modes de l'écran du dossier
+
+L'écran du dossier (dans `web/app.js`, section « Écran du dossier ») est réglé par deux constantes au début de cette section :
+
+| `MODE_PANNEAU` | `MODE_ENSEMBLES` | Comportement |
+|---|---|---|
+| `false` | (ignoré) | **Mode simple, en service au lot A1** : pas de panneau ni de barre. Le passage est surligné dès que la souris est relâchée ; au survol, un passage surligné passe en rouge barré ; un clic le retire ; une sélection qui chevauche un passage existant est fusionnée avec lui en un seul passage. Au-dessus du texte, une ligne discrète : le nombre de passages et « Tout effacer » (confirmation par un second clic). C'est là que viendra « Faire le codage » (lot A2). Fonctions `surlignerSimple`, `retirerPassageSimple`, `rendreCompte`. |
+| `true` | `false` | **Mode passages avec panneau** (désactivé) : barre « Surligner (N) » après sélection ; panneau listant les passages dans l'ordre du texte avec texte cité, positions et « Retirer » ; clic dans le panneau pour défiler, clic sur le texte pour mettre en évidence ; chevauchements conservés distincts (hachures). Fonctions `rendrePanneauPassages`, `surligner`. |
+| `true` | `true` | **Mode ensembles** (désactivé, conservé pour la revue, lot A3) : regroupement manuel en ensembles numérotés (nouvel ensemble N, ajout à l'ensemble sélectionné A, retrait, suppression, numéros jamais réattribués). Fonctions `rendrePanneauEnsembles`, `nouvelEnsemble`, `ajouterPassage`, `ajouterAuSelectionne`, `retirerPassage`, `supprimerEnsemble`. À reprendre au lot A3 pour déplacer un passage d'un ensemble à un autre, séparer ou fusionner des ensembles. |
+
+Pour réactiver un mode, changer la constante : l'interface (panneau, barre, titres, raccourcis) s'adapte toute seule. Dans tous les modes, la convention de positions, les contrôles, la sauvegarde locale (format version 2 : `passages` et `ensembles`, avec l'empreinte du texte) et le test sont les mêmes.

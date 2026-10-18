@@ -239,15 +239,27 @@
   // Le texte affiché est la chaîne de la base, sans transformation (white-space: pre-wrap). Les positions des
   // passages sont des points de code (web/positions.js ; docs/page_web.md). Les surlignages ne sont pas
   // enregistrés dans la base à ce stade : ils restent dans le navigateur (sauvegarde locale, protégée).
+  //
+  // DEUX MODES (docs/page_web.md §9) :
+  //  - MODE_ENSEMBLES = false (lot A1, CADRAGE.md §2.1 étape 7, SCHEMA.md §3.5) : l'utilisateur surligne des
+  //    passages sans les regrouper ; c'est le LLM qui formera les ensembles (lot A2).
+  //  - MODE_ENSEMBLES = true : regroupement manuel en ensembles numérotés (nouvel ensemble, ajout, retrait,
+  //    suppression). Code conservé, désactivé, pour la revue des ensembles après l'appel (lot A3).
+  //  - MODE_PANNEAU = false (lot A1, en service) : pas de panneau latéral ni de barre de sélection. Le passage est
+  //    surligné dès que la souris est relâchée ; un clic sur un passage surligné le retire ; une sélection qui
+  //    chevauche un passage existant est fusionnée avec lui. MODE_PANNEAU = true réactive le panneau (passages ou
+  //    ensembles selon MODE_ENSEMBLES) et la barre « Surligner / Nouvel ensemble / Ajouter ».
+  const MODE_ENSEMBLES = false;
+  const MODE_PANNEAU = false;
   const P = window.CodeurPositions;
-  const dossier = { doc: null, ensembles: [], prochainNumero: 1, actif: null, selection: null };
+  const dossier = { doc: null, passages: [], ensembles: [], prochainNumero: 1, actif: null, selection: null };
 
   // Sauvegarde locale : toute lecture ou écriture est protégée ; la page fonctionne sans.
   function cleLocale() { return "codeur.surlignages." + etat.utilisateur.id + "." + dossier.doc.id; }
   function sauvegarderLocal() {
     try {
-      const contenu = { version: 1, document: dossier.doc.id, empreinte: dossier.doc.empreinte, prochainNumero: dossier.prochainNumero,
-                        ensembles: dossier.ensembles, enregistreLe: new Date().toISOString() };
+      const contenu = { version: 2, document: dossier.doc.id, empreinte: dossier.doc.empreinte, enregistreLe: new Date().toISOString(),
+                        passages: dossier.passages, ensembles: dossier.ensembles, prochainNumero: dossier.prochainNumero };
       window.localStorage.setItem(cleLocale(), JSON.stringify(contenu));
       $("sauvegarde-etat").textContent = "Sauvegardé dans ce navigateur à " + new Date().toLocaleTimeString("fr-FR") + ".";
     } catch (e) {
@@ -263,32 +275,52 @@
         message("message-dossier", "Des surlignages enregistrés dans ce navigateur correspondent à une autre version de ce texte : ils ont été ignorés.", true);
         return null;
       }
-      const ensembles = (c.ensembles || []).map((e) => ({ numero: e.numero, passages: (e.passages || []).filter((p) => P.verifier(dossier.doc.texte, p)) }));
-      return { ensembles, prochainNumero: c.prochainNumero || (Math.max(0, ...ensembles.map((e) => e.numero)) + 1) };
+      const valide = (p) => P.verifier(dossier.doc.texte, p);
+      const ensembles = (c.ensembles || []).map((e) => ({ numero: e.numero, passages: (e.passages || []).filter(valide) }));
+      let passages = (c.passages || []).filter(valide);
+      // Compatibilité : surlignages de l'ancien format (version 1, ensembles seulement) relus comme passages.
+      if (!passages.length && !MODE_ENSEMBLES) passages = ensembles.flatMap((e) => e.passages);
+      return { passages: trierPassages(passages), ensembles, prochainNumero: c.prochainNumero || (Math.max(0, ...ensembles.map((e) => e.numero)) + 1) };
     } catch (e) {
       return null;
     }
   }
   function effacerLocal() { try { window.localStorage.removeItem(cleLocale()); } catch (e) { /* indisponible */ } }
+  function trierPassages(liste) { return liste.slice().sort((a, b) => a.debut - b.debut || a.fin - b.fin); }
 
   async function ouvrirDossier(id) {
     message("message-liste", "");
     const { data, error } = await base.from("documents")
       .select("id, id_source, version, specialite, type_prise_en_charge, texte, empreinte, nb_documents_origine").eq("id", id).single();
     if (error) { message("message-liste", "Le dossier n'a pas pu être chargé : " + error.message, true); return; }
-    dossier.doc = data; dossier.ensembles = []; dossier.prochainNumero = 1; dossier.actif = null; dossier.selection = null;
+    dossier.doc = data; dossier.passages = []; dossier.ensembles = []; dossier.prochainNumero = 1; dossier.actif = null; dossier.selection = null;
     $("dossier-titre").textContent = data.id_source;
     $("dossier-infos").textContent = enClair(data.specialite) + " — " + enClair(data.type_prise_en_charge) + " — " +
       nombre(data.nb_documents_origine) + " document(s) d'origine — " + nombre(P.longueur(data.texte)) + " caractères — version " + data.version;
     message("message-dossier", "");
     $("sauvegarde-etat").textContent = "";
     const local = chargerLocal();
-    if (local && local.ensembles.length) {
-      dossier.ensembles = local.ensembles; dossier.prochainNumero = local.prochainNumero;
+    if (local && (local.passages.length || local.ensembles.length)) {
+      dossier.passages = local.passages; dossier.ensembles = local.ensembles; dossier.prochainNumero = local.prochainNumero;
       $("sauvegarde-etat").textContent = "Surlignages retrouvés dans ce navigateur.";
     }
+    $("panneau-titre").textContent = MODE_ENSEMBLES ? "Ensembles" : "Passages surlignés";
+    $("panneau-aide").textContent = MODE_ENSEMBLES
+      ? "Sélectionnez un passage dans le texte, puis « Nouvel ensemble » (touche N) ou « Ajouter à l'ensemble sélectionné » (touche A)."
+      : "Sélectionnez un passage dans le texte, puis « Surligner » (touche N). Les passages seront regroupés par le LLM.";
+    $("liste-passages").hidden = MODE_ENSEMBLES; $("liste-ensembles").hidden = !MODE_ENSEMBLES;
+    $("bouton-surligner").hidden = MODE_ENSEMBLES; $("bouton-nouvel-ensemble").hidden = !MODE_ENSEMBLES;
+    $("panneau-ensembles").hidden = !MODE_PANNEAU;
+    document.querySelector(".dossier-corps").classList.toggle("sans-panneau", !MODE_PANNEAU);
+    $("texte-dossier").classList.toggle("mode-simple", !MODE_PANNEAU);
     montrer("ecran-dossier");
-    rendreTexte(); rendrePanneau(); cacherBarre();
+    rendre(); cacherBarre();
+  }
+
+  // Les « unités » surlignées : en mode passages, chaque passage ; en mode ensembles, chaque ensemble.
+  function unites() {
+    if (MODE_ENSEMBLES) return dossier.ensembles.map((e) => ({ cle: e.numero, couleur: e.numero % 8, passages: e.passages }));
+    return dossier.passages.map((p, i) => ({ cle: i, couleur: 0, passages: [p] }));
   }
 
   // Rendu du texte : découpe aux frontières des passages ; chaque morceau est soit un nœud texte, soit un <mark>
@@ -296,10 +328,10 @@
   function rendreTexte() {
     const texte = dossier.doc.texte;
     const frontieres = new Set([0, texte.length]);
-    const couvertures = []; // [debut16, fin16, numero]
-    for (const e of dossier.ensembles) for (const p of e.passages) {
+    const couvertures = []; // [debut16, fin16, cle, couleur]
+    for (const u of unites()) for (const p of u.passages) {
       const d = P.pointsVersU16(texte, p.debut), f = P.pointsVersU16(texte, p.fin);
-      frontieres.add(d); frontieres.add(f); couvertures.push([d, f, e.numero]);
+      frontieres.add(d); frontieres.add(f); couvertures.push([d, f, u.cle, u.couleur]);
     }
     const bornes = [...frontieres].sort((a, b) => a - b);
     const bloc = $("texte-dossier");
@@ -307,25 +339,103 @@
     for (let i = 0; i + 1 < bornes.length; i++) {
       const d = bornes[i], f = bornes[i + 1];
       const morceau = texte.slice(d, f);
-      const nums = couvertures.filter(([cd, cf]) => cd <= d && f <= cf).map((c) => c[2]);
-      if (!nums.length) { bloc.appendChild(document.createTextNode(morceau)); continue; }
+      const couv = couvertures.filter(([cd, cf]) => cd <= d && f <= cf);
+      if (!couv.length) { bloc.appendChild(document.createTextNode(morceau)); continue; }
+      const cles = couv.map((c) => c[2]);
       const m = document.createElement("mark");
-      m.className = "surl c" + (nums[0] % 8) + (nums.length > 1 ? " chevauche" : "") + (nums.includes(dossier.actif) ? " actif" : "");
-      m.dataset.ensembles = nums.join(",");
-      m.title = "Ensemble" + (nums.length > 1 ? "s " : " ") + nums.join(", ");
+      m.className = "surl c" + couv[0][3] + (couv.length > 1 ? " chevauche" : "") + (cles.includes(dossier.actif) ? " actif" : "");
+      m.dataset.cles = cles.join(",");
+      m.title = !MODE_PANNEAU ? "Cliquer pour retirer ce surlignage"
+        : MODE_ENSEMBLES ? "Ensemble" + (cles.length > 1 ? "s " : " ") + cles.join(", ") : "Passage" + (cles.length > 1 ? "s " : " ") + cles.map((k) => k + 1).join(", ");
       m.textContent = morceau;
       bloc.appendChild(m);
     }
   }
+  let dernierSurlignage = 0; // en mode simple, le clic qui suit un surlignage ne doit pas le retirer
   $("texte-dossier").addEventListener("click", (ev) => {
     const m = ev.target.closest("mark.surl");
     if (!m || window.getSelection().toString()) return;
-    const nums = m.dataset.ensembles.split(",").map(Number);
-    const i = nums.indexOf(dossier.actif);
-    choisirEnsemble(nums[(i + 1) % nums.length], false);
+    const cles = m.dataset.cles.split(",").map(Number);
+    if (!MODE_PANNEAU) {
+      if (Date.now() - dernierSurlignage < 400) return;
+      retirerPassageSimple(cles[0]);
+      return;
+    }
+    const i = cles.indexOf(dossier.actif);
+    choisir(cles[(i + 1) % cles.length], false);
   });
 
-  function rendrePanneau() {
+  // ---- Mode simple (lot A1, en service) : surlignage au relâchement de la souris, fusion des chevauchements ----
+  function surlignerSimple(passage) {
+    if (!P.verifier(dossier.doc.texte, passage)) { message("message-dossier", "Passage refusé : contrôle des positions en échec.", true); return; }
+    let debut = passage.debut, fin = passage.fin;
+    const restants = [];
+    for (const p of dossier.passages) {
+      if (p.debut < fin && debut < p.fin) { debut = Math.min(debut, p.debut); fin = Math.max(fin, p.fin); } // chevauchement : fusion
+      else restants.push(p);
+    }
+    const fusionne = { debut, fin, texte: P.extraire(dossier.doc.texte, debut, fin) };
+    if (!P.verifier(dossier.doc.texte, fusionne)) { message("message-dossier", "Passage refusé : contrôle des positions en échec après fusion.", true); return; }
+    dossier.passages = trierPassages(restants.concat([fusionne]));
+    dossier.actif = null;
+    dernierSurlignage = Date.now();
+    window.getSelection().removeAllRanges();
+    rendre(); sauvegarderLocal();
+  }
+  $("texte-dossier").addEventListener("mouseup", () => {
+    if (MODE_PANNEAU) return;
+    setTimeout(() => { // laisse au navigateur le temps de finaliser la sélection
+      const res = lireSelection();
+      if (!res) return;
+      if (res.refus) { message("message-dossier", "Passage refusé : " + res.refus + ".", true); window.getSelection().removeAllRanges(); return; }
+      message("message-dossier", "");
+      surlignerSimple(res.passage);
+    }, 0);
+  });
+  function rendreCompte() {
+    const n = dossier.passages.length;
+    $("compte-passages").textContent = n === 0 ? "Aucun passage surligné. Sélectionnez un passage avec la souris pour le surligner ; cliquez sur un passage surligné pour le retirer."
+      : nombre(n) + " passage" + (n > 1 ? "s" : "") + " surligné" + (n > 1 ? "s" : "") + " — cliquez sur un passage pour le retirer.";
+  }
+
+  // ---- Mode passages (lot A1) ----
+  function rendrePanneauPassages() {
+    const ol = $("liste-passages");
+    ol.textContent = "";
+    if (!dossier.passages.length) {
+      const li = document.createElement("li"); li.className = "discret"; li.textContent = "Aucun passage surligné pour l'instant."; ol.appendChild(li);
+    }
+    dossier.passages.forEach((p, i) => {
+      const li = document.createElement("li");
+      li.className = "passage-item" + (i === dossier.actif ? " actif" : "");
+      li.addEventListener("click", (ev) => { if (!ev.target.closest("button")) choisir(i, true); });
+      const cite = document.createElement("span"); cite.className = "cite";
+      const q = document.createElement("q"); q.textContent = p.texte.length > 120 ? p.texte.slice(0, 117) + "…" : p.texte;
+      const pos = document.createElement("span"); pos.className = "pos"; pos.textContent = (i + 1) + " — positions " + p.debut + "–" + p.fin;
+      cite.append(q, pos);
+      const ret = document.createElement("button"); ret.className = "secondaire"; ret.textContent = "Retirer";
+      ret.addEventListener("click", () => retirerPassageSimple(i));
+      li.append(cite, ret); ol.appendChild(li);
+    });
+  }
+  function surligner() {
+    if (!dossier.selection) return;
+    const passage = dossier.selection;
+    if (!P.verifier(dossier.doc.texte, passage)) { message("message-dossier", "Passage refusé : contrôle des positions en échec.", true); return; }
+    if (dossier.passages.some((p) => p.debut === passage.debut && p.fin === passage.fin)) { message("message-dossier", "Ce passage est déjà surligné.", true); return; }
+    dossier.passages = trierPassages(dossier.passages.concat([passage]));
+    dossier.actif = dossier.passages.findIndex((p) => p.debut === passage.debut && p.fin === passage.fin);
+    window.getSelection().removeAllRanges(); cacherBarre();
+    rendre(); sauvegarderLocal();
+  }
+  function retirerPassageSimple(i) {
+    dossier.passages.splice(i, 1);
+    dossier.actif = null;
+    rendre(); sauvegarderLocal();
+  }
+
+  // ---- Mode ensembles (désactivé au lot A1, conservé pour la revue, lot A3) ----
+  function rendrePanneauEnsembles() {
     const ol = $("liste-ensembles");
     ol.textContent = "";
     if (!dossier.ensembles.length) {
@@ -334,7 +444,7 @@
     for (const e of dossier.ensembles) {
       const li = document.createElement("li");
       li.className = "ensemble c" + (e.numero % 8) + (e.numero === dossier.actif ? " actif" : "");
-      li.addEventListener("click", (ev) => { if (!ev.target.closest("button")) choisirEnsemble(e.numero, true); });
+      li.addEventListener("click", (ev) => { if (!ev.target.closest("button")) choisir(e.numero, true); });
       const tete = document.createElement("div"); tete.className = "ensemble-tete";
       const titre = document.createElement("span"); titre.textContent = "Ensemble " + e.numero + " (" + e.passages.length + " passage" + (e.passages.length > 1 ? "s" : "") + ")";
       const suppr = document.createElement("button"); suppr.className = "secondaire"; suppr.textContent = "Supprimer";
@@ -351,16 +461,58 @@
       }
       ol.appendChild(li);
     }
-    $("bouton-ajouter-ensemble").hidden = dossier.actif === null;
+    $("bouton-ajouter-ensemble").hidden = !MODE_ENSEMBLES || dossier.actif === null;
     $("barre-numero").textContent = dossier.actif === null ? "" : dossier.actif;
   }
-
-  function choisirEnsemble(numero, defiler) {
+  function ajouterPassage(numero, passage) {
+    if (!P.verifier(dossier.doc.texte, passage)) { message("message-dossier", "Passage refusé : contrôle des positions en échec.", true); return; }
+    const e = dossier.ensembles.find((x) => x.numero === numero);
+    if (!e) return;
+    if (e.passages.some((p) => p.debut === passage.debut && p.fin === passage.fin)) { message("message-dossier", "Ce passage est déjà dans l'ensemble " + numero + ".", true); return; }
+    e.passages.push(passage); e.passages.sort((a, b) => a.debut - b.debut);
     dossier.actif = numero;
-    rendreTexte(); rendrePanneau();
+    window.getSelection().removeAllRanges(); cacherBarre();
+    rendre(); sauvegarderLocal();
+  }
+  function nouvelEnsemble() {
+    if (!dossier.selection) return;
+    const numero = dossier.prochainNumero++; // un numéro attribué ne change jamais
+    dossier.ensembles.push({ numero, passages: [] });
+    ajouterPassage(numero, dossier.selection);
+  }
+  function ajouterAuSelectionne() {
+    if (!dossier.selection || dossier.actif === null) return;
+    ajouterPassage(dossier.actif, dossier.selection);
+  }
+  function retirerPassage(numero, index) {
+    const e = dossier.ensembles.find((x) => x.numero === numero);
+    if (!e) return;
+    e.passages.splice(index, 1);
+    if (!e.passages.length) return supprimerEnsemble(numero);
+    rendre(); sauvegarderLocal();
+  }
+  function supprimerEnsemble(numero) {
+    dossier.ensembles = dossier.ensembles.filter((x) => x.numero !== numero);
+    if (dossier.actif === numero) dossier.actif = null;
+    rendre(); sauvegarderLocal();
+  }
+
+  // ---- Commun aux deux modes ----
+  function rendre() {
+    rendreTexte();
+    rendreCompte();
+    if (!MODE_PANNEAU) return;
+    if (MODE_ENSEMBLES) rendrePanneauEnsembles(); else rendrePanneauPassages();
+  }
+  function choisir(cle, defiler) {
+    dossier.actif = cle;
+    rendre();
     if (defiler) {
       const m = $("texte-dossier").querySelector("mark.surl.actif");
       if (m) m.scrollIntoView({ block: "center", behavior: "smooth" });
+    } else {
+      const el = MODE_ENSEMBLES ? $("liste-ensembles").querySelector(".ensemble.actif") : $("liste-passages").querySelector(".passage-item.actif");
+      if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
   }
 
@@ -405,7 +557,7 @@
   }
   function cacherBarre() { $("barre-selection").hidden = true; dossier.selection = null; }
   document.addEventListener("selectionchange", () => {
-    if ($("ecran-dossier").hidden) return;
+    if ($("ecran-dossier").hidden || !MODE_PANNEAU) return;
     const res = lireSelection();
     if (!res || res.refus) { cacherBarre(); if (res && res.refus) message("message-dossier", "Passage refusé : " + res.refus + ".", true); return; }
     message("message-dossier", "");
@@ -413,40 +565,8 @@
     montrerBarre(res.rect);
   });
 
-  function ajouterPassage(numero, passage) {
-    if (!P.verifier(dossier.doc.texte, passage)) { message("message-dossier", "Passage refusé : contrôle des positions en échec.", true); return; }
-    const e = dossier.ensembles.find((x) => x.numero === numero);
-    if (!e) return;
-    if (e.passages.some((p) => p.debut === passage.debut && p.fin === passage.fin)) { message("message-dossier", "Ce passage est déjà dans l'ensemble " + numero + ".", true); return; }
-    e.passages.push(passage); e.passages.sort((a, b) => a.debut - b.debut);
-    dossier.actif = numero;
-    window.getSelection().removeAllRanges(); cacherBarre();
-    rendreTexte(); rendrePanneau(); sauvegarderLocal();
-  }
-  function nouvelEnsemble() {
-    if (!dossier.selection) return;
-    const numero = dossier.prochainNumero++; // un numéro attribué ne change jamais
-    dossier.ensembles.push({ numero, passages: [] });
-    ajouterPassage(numero, dossier.selection);
-  }
-  function ajouterAuSelectionne() {
-    if (!dossier.selection || dossier.actif === null) return;
-    ajouterPassage(dossier.actif, dossier.selection);
-  }
-  function retirerPassage(numero, index) {
-    const e = dossier.ensembles.find((x) => x.numero === numero);
-    if (!e) return;
-    e.passages.splice(index, 1);
-    if (!e.passages.length) return supprimerEnsemble(numero);
-    rendreTexte(); rendrePanneau(); sauvegarderLocal();
-  }
-  function supprimerEnsemble(numero) {
-    dossier.ensembles = dossier.ensembles.filter((x) => x.numero !== numero);
-    if (dossier.actif === numero) dossier.actif = null;
-    rendreTexte(); rendrePanneau(); sauvegarderLocal();
-  }
-  $("bouton-nouvel-ensemble").addEventListener("mousedown", (ev) => ev.preventDefault());
-  $("bouton-ajouter-ensemble").addEventListener("mousedown", (ev) => ev.preventDefault());
+  for (const id of ["bouton-surligner", "bouton-nouvel-ensemble", "bouton-ajouter-ensemble"]) $(id).addEventListener("mousedown", (ev) => ev.preventDefault());
+  $("bouton-surligner").addEventListener("click", surligner);
   $("bouton-nouvel-ensemble").addEventListener("click", nouvelEnsemble);
   $("bouton-ajouter-ensemble").addEventListener("click", ajouterAuSelectionne);
   $("bouton-retour-liste").addEventListener("click", () => { cacherBarre(); afficherListe(); });
@@ -454,18 +574,18 @@
   $("bouton-tout-effacer").addEventListener("click", () => {
     const b = $("bouton-tout-effacer");
     if (confirmationEffacement) { clearTimeout(confirmationEffacement); confirmationEffacement = null; b.textContent = "Tout effacer";
-      dossier.ensembles = []; dossier.actif = null; dossier.prochainNumero = 1; effacerLocal();
-      rendreTexte(); rendrePanneau(); $("sauvegarde-etat").textContent = "Surlignages effacés."; return; }
+      dossier.passages = []; dossier.ensembles = []; dossier.actif = null; dossier.prochainNumero = 1; effacerLocal();
+      rendre(); $("sauvegarde-etat").textContent = "Surlignages effacés."; return; }
     b.textContent = "Confirmer l'effacement ?";
     confirmationEffacement = setTimeout(() => { confirmationEffacement = null; b.textContent = "Tout effacer"; }, 4000);
   });
   // Raccourcis N et A : seulement sur l'écran du dossier, jamais dans un champ de saisie.
   document.addEventListener("keydown", (ev) => {
-    if ($("ecran-dossier").hidden || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    if ($("ecran-dossier").hidden || !MODE_PANNEAU || ev.ctrlKey || ev.metaKey || ev.altKey) return;
     const cible = ev.target;
     if (cible && (cible.tagName === "INPUT" || cible.tagName === "SELECT" || cible.tagName === "TEXTAREA" || cible.isContentEditable)) return;
-    if (ev.key === "n" || ev.key === "N") { ev.preventDefault(); nouvelEnsemble(); }
-    if (ev.key === "a" || ev.key === "A") { ev.preventDefault(); ajouterAuSelectionne(); }
+    if (ev.key === "n" || ev.key === "N") { ev.preventDefault(); if (MODE_ENSEMBLES) nouvelEnsemble(); else surligner(); }
+    if ((ev.key === "a" || ev.key === "A") && MODE_ENSEMBLES) { ev.preventDefault(); ajouterAuSelectionne(); }
   });
 
   // --- Après connexion : profil existant ou parcours d'inscription --------------------------------------

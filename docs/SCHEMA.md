@@ -99,7 +99,7 @@ Une ligne correspond à **l'état complet du codage d'un document, à l'issue d'
 | `codage_precedent` | La ligne dont celle-ci est la suite ; permet de suivre le fil d'un même travail. Vide pour la première ligne d'un travail |
 | `appel_llm` | Pour une étape de l'IA, l'appel enregistré dans la table `appels_llm` |
 | `valide` | Vrai pour la ligne que l'utilisateur a validée comme codage final de son travail |
-| `compteurs` | JSON : l'écart avec la ligne précédente (§3.6), calculé à l'enregistrement |
+| `compteurs` | JSON : l'écart avec la ligne précédente (§3.7), calculé à l'enregistrement |
 | `codage` | JSON : le contenu du codage (§3.4) |
 
 Les lignes de cette table ne sont **jamais modifiées ni supprimées** ; seules des lignes nouvelles peuvent être ajoutées.
@@ -157,7 +157,19 @@ Les lignes de cette table ne sont **jamais modifiées ni supprimées** ; seules 
 
 Le même format sert pour **toutes les étapes**, ce qui rend toutes les versions comparables entre elles.
 
-### 3.5 Les appels répétés à l'IA
+### 3.5 Les passages surlignés et les ensembles
+
+Avant l'appel au LLM, l'utilisateur **surligne des passages sans les regrouper**. Ces passages restent dans le navigateur (sauvegarde locale) et n'entrent pas dans la base. Au clic sur « Faire le codage », la page envoie au LLM le texte et la liste des passages (positions et texte cité).
+
+**C'est le LLM qui forme les ensembles** : il regroupe les passages qui décrivent une même affection et propose un code pour chaque ensemble. Il peut aussi déclarer un passage **non codé**, avec une raison (par exemple, un antécédent sans incidence sur le séjour).
+
+**Garantie apportée par l'outil** : chaque passage envoyé doit se retrouver dans la réponse, rattaché à un ensemble ou déclaré non codé. Un passage absent de la réponse est signalé à l'utilisateur. La liste des passages envoyés est conservée dans la requête de `appels_llm`, et les ensembles produits dans la ligne `ia_humain` : on peut ainsi mesurer la capacité du LLM à faire les ensembles.
+
+Après l'appel, l'utilisateur revoit les ensembles dans le panneau prévu à cet effet : déplacer un passage d'un ensemble à un autre, retirer un passage, séparer ou fusionner des ensembles.
+
+*À préciser au lot A2* : le format exact des passages déclarés non codés dans le JSON du codage, et la possibilité, lors d'un appel répété, que le LLM propose de rattacher un nouveau passage à un ensemble déjà codé (simple proposition, sans modifier le code de l'ensemble).
+
+### 3.6 Les appels répétés à l'IA
 
 L'utilisateur peut surligner de nouveaux passages après une première revue et cliquer de nouveau sur « Faire le codage ». Pour **garantir** que ses choix sont conservés, la garantie repose sur l'outil et non sur le modèle :
 
@@ -170,7 +182,7 @@ Un passage surligné qui chevauche un ensemble déjà codé complète les preuve
 
 Chaque appel crée une nouvelle ligne `ia_humain` contenant le codage assemblé.
 
-### 3.6 Comparer deux versions : les compteurs
+### 3.7 Comparer deux versions : les compteurs
 
 Pour savoir ce qui est arrivé à chaque code entre deux lignes successives, on **apparie les ensembles par leurs éléments de preuve** : deux ensembles dont les preuves se chevauchent dans le texte portent sur la même chose.
 
@@ -190,15 +202,15 @@ Les compteurs sont enregistrés dans la ligne :
   "regle_modifiee": false, "mode_prise_en_charge_modifie": false }
 ```
 
-### 3.7 Le codage initial (étape `scenario`)
+### 3.8 Le codage initial (étape `scenario`)
 
 - **PARHAF** : un seul ensemble, le diagnostic principal du scénario, en `pathologie_principale`, avec le libellé du scénario, sans preuves. Règle et mode de prise en charge à `null`. Les libellés du scénario seront comparés aux libellés officiels de l'index au lot B3 (cinq codes ont deux libellés différents dans PARHAF).
 - **CRH synthétiques** : les codes sont tirés des **colonnes du scénario**, avec leur extension PMSI : DP (`pathologie_principale`), DAS (`diagnostic_associe`), mode de prise en charge (`case_management_type` : `DP` ou code Z), règle (`coding_rule`, laissée vide quand elle vaut `other`). **Le scénario fait référence pour les codes ; le JSON `formulations.diagnostics` ne fournit que les preuves.**
   - **Rattachement d'une clé du JSON à un code du scénario** (opération interne au chargement, qui ne sert qu'à retrouver les preuves) : d'abord en ignorant l'extension PMSI (`Z992` ↔ `Z992+0`), sinon au code du scénario qui commence par la clé (`M142` ↔ `M1427`). Les citations de la clé deviennent les preuves du code du scénario, **qui garde sa forme complète**. Les positions sont calculées au chargement, et les citations introuvables sont marquées `introuvable`.
-  - **Codes ajoutés par le générateur** (clés qui ne se rattachent à aucun code du scénario : `G20` à côté de `F023`, `G301` à côté de `F001`, `G992`, un `I10`) : **conservés dans le codage initial**, en `diagnostic_associe`, avec leurs citations, car ils enrichissent le codage. Chacun porte un commentaire d'auteur `generateur` (« Code ajouté par le générateur, absent du scénario »), pour rester repérable. Deux conditions : le code doit être **codable** (§3.9), et il ne doit pas être une simple reformulation d'un code du scénario (cas des 2 `M148` écrits pour `M1427` : leurs citations deviennent des preuves de `M1427`).
+  - **Codes ajoutés par le générateur** (clés qui ne se rattachent à aucun code du scénario : `G20` à côté de `F023`, `G301` à côté de `F001`, `G992`, un `I10`) : **conservés dans le codage initial**, en `diagnostic_associe`, avec leurs citations, car ils enrichissent le codage. Chacun porte un commentaire d'auteur `generateur` (« Code ajouté par le générateur, absent du scénario »), pour rester repérable. Deux conditions : le code doit être **codable** (§3.10), et il ne doit pas être une simple reformulation d'un code du scénario (cas des 2 `M148` écrits pour `M1427` : leurs citations deviennent des preuves de `M1427`).
   - L'analyse (script `14_codes_hors_scenario_synthetiques.py`) a montré que les 2 460 codes du JSON absents du scénario sont à 99,5 % des codes du scénario privés de leur extension (2 202) ou arrondis à un niveau moins fin (247).
 
-### 3.8 Les deux niveaux de comparaison des codes
+### 3.9 Les deux niveaux de comparaison des codes
 
 | Niveau | Usage |
 |---|---|
@@ -209,7 +221,7 @@ Un code privé de son extension (`Z992` au lieu de `Z992+0`) n'est **pas** une v
 
 **Les fiches d'identité** sont recherchées par le **code complet**. Les fiches de catégorie de recode-icd ne sont pas utilisées : l'objectif est de coder au niveau du code, pas de la catégorie.
 
-### 3.9 N'accepter que des codes codables
+### 3.10 N'accepter que des codes codables
 
 L'analyse des CRH synthétiques montre que les LLM connaissent mal la CIM-10 PMSI : ils omettent les extensions et arrondissent à un niveau moins précis. L'outil doit donc garantir que **seuls des codes codables** entrent dans un codage, quelle que soit leur origine. Cette garantie repose sur l'outil, pas sur le modèle :
 
@@ -314,7 +326,9 @@ Ces règles sont appliquées **par la base elle-même**, et non seulement par l'
 
 | Table | Un testeur connecté peut… |
 |---|---|
-| `documents`, `lots`, `fiches`, `synonymes`, `regles_situations` | lire ; ajouter une nouvelle version de document (page d'édition) |
+| `documents` | lire **toutes les colonnes sauf `nettoyage`** (droits accordés colonne par colonne) ; ajouter une nouvelle version de document (page d'édition) |
+| `dossiers_disponibles` (vue) | lire : pour chaque document, sa dernière version, sans les documents signalés `a_corriger`, avec le nombre de documents d'origine et la longueur, calculés par la base sans transmettre ni `nettoyage` ni le texte |
+| `lots`, `fiches`, `synonymes`, `regles_situations` | lire |
 | `codages` | lire et ajouter **ses propres lignes**, sauf l'étape `scenario`, qu'il ne peut ni lire ni écrire. Aucune ligne ne peut être modifiée ni supprimée |
 | `rum` | lire et ajouter ses propres lignes |
 | `appels_llm` | ajouter ses propres lignes, sans pouvoir les relire |
@@ -341,7 +355,7 @@ Pas de gestion des rôles dans le prototype : tous les testeurs ont les mêmes d
 *Réglées le 18 octobre 2026 :*
 
 1. **Identifiant des CRH synthétiques** : `generation_id`. Toutes les données sur la génération restent gérées dans le projet de génération.
-2. **Codes du JSON absents du scénario** : voir §3.7.
+2. **Codes du JSON absents du scénario** : voir §3.8.
 3. **Espaces insécables** (U+00A0, U+202F) : remplacés par une espace simple au chargement.
 4. **Correspondance détaillée entre le scénario et le RUM** : reportée à l'alimentation du RUM.
 5. **Les 5 CRH de PARHAF contenant des codes dans leur corps** : chargés dans leur version d'origine (version 1), signalés « à corriger » dans le champ `nettoyage` (`"a_corriger": true`, avec le motif), et non proposés aux testeurs tant qu'ils n'ont pas de version corrigée. Rémi les corrige avec la page d'édition (lot A6), ce qui crée les versions 2 et éprouve le mécanisme des versions en conditions réelles.
@@ -369,5 +383,8 @@ Interprétations retenues lors de la création de la base (migrations de `supaba
 15. **Index JSON** : index GIN général sur `codages.codage` et `rum.rum` ; les requêtes par chapitre demanderont un index dédié le moment venu. Index supplémentaires sur les liens entre tables.
 16. **Aucun droit par défaut** (migration `20261018100500_droits_residuels.sql`) : les droits `TRUNCATE`, `TRIGGER` et `REFERENCES` accordés par défaut par Supabase sont retirés, et plus aucun droit n'est accordé automatiquement aux tables futures. **Toute nouvelle table doit définir explicitement, dans sa propre migration, ses droits, l'activation de la sécurité par ligne, ses règles par ligne et ses commentaires.**
 17. **Ne jamais créer de table depuis l'interface web de Supabase.** Le rôle interne `supabase_admin` conserve des droits par défaut vers les visiteurs et les testeurs : une table créée à la main hériterait de droits non prévus. Toute évolution du schéma passe par une migration du dépôt.
+
+18. **`nettoyage` est fermé aux testeurs** (migration `20261018130000_dossiers_disponibles.sql`) : ce champ contient les blocs retirés au chargement, dont des codes du scénario. La lecture de `documents` est donc accordée **colonne par colonne** : **toute nouvelle colonne de `documents` doit recevoir explicitement son droit de lecture** dans sa migration, faute de quoi la page ne la verra pas.
+19. **Vue `dossiers_disponibles`**, lue par la page pour la liste des dossiers, avec les droits du testeur (`security_invoker`) : dernière version de chaque document, sans les documents `a_corriger` ; colonnes `id`, `lot`, `id_source`, `version`, `specialite`, `type_prise_en_charge`, `nb_documents_origine`, `longueur` (en caractères).
 
 *Base créée le 18 octobre 2026 : projet `codeur`, région Irlande (Union européenne), PostgreSQL 17 ; sept migrations appliquées (la septième ne fait que mettre à jour le commentaire de `rum.rum` après le déplacement du fichier ATIH) ; vérification du schéma conforme ; tests d'accès : 32 essais réussis sur 32 (commit `3918a2c`).*
