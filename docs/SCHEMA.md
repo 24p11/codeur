@@ -49,6 +49,14 @@ Une ligne correspond à **une version d'un texte à coder**. Pour PARHAF, un doc
 - **Ordre.** Pour PARHAF, les documents d'origine sont mis bout à bout dans l'ordre du fichier, qui est l'ordre chronologique.
 - **Markdown.** Les marques de mise en forme des CRH synthétiques (`###`, `**`) sont conservées dans le texte. Elles comptent dans les positions. L'affichage pourra les rendre en mise en forme, à condition que le surlignage reste correctement placé (point à traiter avec la mise en forme de l'affichage).
 - **Normalisation au chargement**, avant de figer le texte : forme Unicode NFC (accents composés) ; suppression des caractères de largeur nulle (U+200B), du BOM (U+FEFF) et du trait d'union conditionnel (U+00AD) ; remplacement des espaces insécables (U+00A0, U+202F) par une espace simple.
+- **Séparateur entre documents d'origine** : l'intitulé seul sur sa ligne, suivi d'une ligne vide ; une ligne vide entre la fin d'un document et l'intitulé suivant ; le premier intitulé en tout début de texte. Les blancs de fin de chaque document d'origine (dont son saut de ligne final) sont retirés ; le texte de référence ne se termine pas par un saut de ligne.
+- **Contenu du champ `nettoyage`** (JSON), quatre clés :
+  - `documents_origine` : pour chaque document d'origine, son type, son titre, son chemin dans la source, l'intitulé ajouté et ses positions dans le texte de référence (début de l'intitulé, début du texte, fin). Jamais affiché ; utile à l'analyse (de quel document vient une preuve) ;
+  - `retraits` : les passages retirés, avec la règle appliquée et leur position dans le texte d'origine du document (avant normalisation) ; les lignes vides qui précèdent un bloc retiré font partie du retrait ;
+  - `normalisations` : le nombre de caractères concernés, par type, pour les seules normalisations effectives ;
+  - `anomalies` : vide, ou par exemple `a_corriger` avec son motif et les codes concernés.
+- **Valeurs absentes** : `null`, jamais une chaîne vide (colonnes et champs JSON).
+- **Colonnes de recherche** : `specialite` et `type_prise_en_charge` gardent la valeur brute de la source (par exemple `CHIRURGIE VISCERALE` pour PARHAF). La mise en forme pour l'affichage et une éventuelle harmonisation entre sources sont l'affaire de la page, ou d'un travail ultérieur.
 
 **Ce qui n'est pas dans la base :** le scénario de génération, les variantes d'un même scénario, le nom de l'auteur ou du relecteur, le résumé structuré de PARHAF. Toute la traçabilité de la génération reste dans la base source (aujourd'hui sur Google Drive, demain sur Hugging Face), à laquelle `lot` + `id_source` permettent de revenir.
 
@@ -183,7 +191,7 @@ Les compteurs sont enregistrés dans la ligne :
 
 ### 3.7 Le codage initial (étape `scenario`)
 
-- **PARHAF** : un seul ensemble, le diagnostic principal du scénario, en `pathologie_principale`, sans preuves. Règle et mode de prise en charge vides.
+- **PARHAF** : un seul ensemble, le diagnostic principal du scénario, en `pathologie_principale`, avec le libellé du scénario, sans preuves. Règle et mode de prise en charge à `null`. Les libellés du scénario seront comparés aux libellés officiels de l'index au lot B3 (cinq codes ont deux libellés différents dans PARHAF).
 - **CRH synthétiques** : les codes sont tirés des **colonnes du scénario**, avec leur extension PMSI : DP (`pathologie_principale`), DAS (`diagnostic_associe`), mode de prise en charge (`case_management_type` : `DP` ou code Z), règle (`coding_rule`, laissée vide quand elle vaut `other`). **Le scénario fait référence pour les codes ; le JSON `formulations.diagnostics` ne fournit que les preuves.**
   - **Rattachement d'une clé du JSON à un code du scénario** (opération interne au chargement, qui ne sert qu'à retrouver les preuves) : d'abord en ignorant l'extension PMSI (`Z992` ↔ `Z992+0`), sinon au code du scénario qui commence par la clé (`M142` ↔ `M1427`). Les citations de la clé deviennent les preuves du code du scénario, **qui garde sa forme complète**. Les positions sont calculées au chargement, et les citations introuvables sont marquées `introuvable`.
   - **Codes ajoutés par le générateur** (clés qui ne se rattachent à aucun code du scénario : `G20` à côté de `F023`, `G301` à côté de `F001`, `G992`, un `I10`) : **conservés dans le codage initial**, en `diagnostic_associe`, avec leurs citations, car ils enrichissent le codage. Chacun porte un commentaire d'auteur `generateur` (« Code ajouté par le générateur, absent du scénario »), pour rester repérable. Deux conditions : le code doit être **codable** (§3.9), et il ne doit pas être une simple reformulation d'un code du scénario (cas des 2 `M148` écrits pour `M1427` : leurs citations deviennent des preuves de `M1427`).

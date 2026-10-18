@@ -70,7 +70,7 @@ donnees/referentiels/                   (hors du dépôt)
 | Élément | Usage | Lot | Emplacement |
 |---|---|---|---|
 | **Calculs des mesures fixes** du projet de génération | Évaluation du document | A1 | À reprendre dans le code de la page |
-| **Les 5 CRH de PARHAF corrigés** | Chargement de PARHAF | B1 | `donnees/parhaf/corrections/` |
+| **Les 5 CRH de PARHAF à corriger** | Chargés tels quels en version 1 et signalés `a_corriger` (lot B1, fait) ; corrigés par Rémi avec la page d'édition, ce qui crée leur version 2 (`docs/SCHEMA.md` §9.5) | A6 | Dans la base (versions 1 puis 2) |
 
 ### 3.5 Plus tard
 
