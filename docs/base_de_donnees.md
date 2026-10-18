@@ -15,6 +15,9 @@ Le schéma est écrit sous forme de **migrations** : des fichiers SQL numéroté
 | `20261018100400_acces.sql` | Les droits de table et les règles d'accès par ligne (RLS) |
 | `20261018100500_droits_residuels.sql` | Retrait des droits accordés par défaut par Supabase et non prévus (TRUNCATE, TRIGGER, REFERENCES) ; plus aucun droit par défaut sur les tables futures |
 | `20261018110000_commentaire_rum_emplacement_atih.sql` | Mise à jour du commentaire de `rum.rum` après le déplacement du fichier ATIH dans `docs/referentiels/atih/` |
+| `20261018120000_documents_mesures.sql` | Colonne `documents.mesures` ; insertion dans `documents` accordée colonne par colonne (jamais `mesures`) |
+| `20261018130000_dossiers_disponibles.sql` | Lecture de `documents` accordée colonne par colonne (jamais `nettoyage`) ; vue `dossiers_disponibles` pour la liste de la page |
+| `20261018140000_documents_colonnes_generees.sql` | Colonnes générées `nb_documents_origine` et `a_corriger`, lisibles ; la vue les lit à la place de `nettoyage` et reste en `security_invoker` |
 
 ## 2. Ce qu'il faut sur l'ordinateur
 
@@ -44,7 +47,13 @@ Pour faire évoluer le schéma : créer un nouveau fichier `supabase/migrations/
 3. ses règles par ligne (`create policy …`), une par opération autorisée ;
 4. un commentaire sur la table et sur chaque colonne.
 
-Sans ces instructions, la table est inaccessible aux testeurs, ce qui est le comportement voulu par défaut. Le script `scripts/tests/verifier_schema.py` affiche les droits et les règles de chaque table ; `scripts/tests/tester_acces.py` est à compléter avec les essais correspondant à la nouvelle table.
+Sans ces instructions, la table est inaccessible aux testeurs, ce qui est le comportement voulu par défaut.
+
+**Règle particulière à la table `documents`.** Depuis la migration `20261018130000_dossiers_disponibles.sql`, la lecture de `documents` par les testeurs est accordée **colonne par colonne** (toutes sauf `nettoyage`, jamais affichée), et l'insertion d'une nouvelle version l'est aussi colonne par colonne (depuis `20261018120000_documents_mesures.sql`). **Toute nouvelle colonne de `documents` doit donc recevoir explicitement, dans sa migration, son droit de lecture (`grant select (<colonne>) on public.documents to authenticated;`) et, le cas échéant, son droit d'insertion** ; sinon elle est invisible et non inscriptible pour les testeurs, ce qui est le comportement voulu par défaut. La vue `dossiers_disponibles` (liste des dossiers de la page) est à compléter si la nouvelle colonne doit y figurer.
+
+Deux colonnes de `documents` sont **générées par la base** à partir de `nettoyage` et lisibles par les testeurs : `nb_documents_origine` et `a_corriger` (migration `20261018140000_documents_colonnes_generees.sql`). C'est grâce à elles que la vue `dossiers_disponibles` reste en mode `security_invoker` (lue avec les seuls droits du testeur) sans jamais lire `nettoyage`.
+
+**Note pour le lot A6 (page d'édition).** Une version créée par la page d'édition ne doit pas hériter du signalement `a_corriger` de la version précédente : la colonne générée se calcule sur le champ `nettoyage` de la nouvelle ligne, dont le contenu sera à définir à ce moment-là (au minimum sans `anomalies.a_corriger`). Par ailleurs, l'insertion d'une nouvelle version doit demander en retour soit rien (`Prefer: return=minimal`), soit uniquement des colonnes lisibles (`select=id`), car le retour « toutes les colonnes » exigerait la lecture de `nettoyage`, refusée. Le script `scripts/tests/verifier_schema.py` affiche les droits et les règles de chaque table ; `scripts/tests/tester_acces.py` est à compléter avec les essais correspondant à la nouvelle table.
 
 ## 4. Vérifier le schéma
 

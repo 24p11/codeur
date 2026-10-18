@@ -24,3 +24,9 @@ __pycache__/
 .DS_Store
 .vscode/
 .idea/
+
+# --- Page web : copie de la mention faite par servir.sh et par la publication (seule version : docs/mention_information.md)
+web/mention_information.md
+
+# --- Livraisons recode-icd : jamais dans le dépôt (docs/referentiels/README.md : donnees/referentiels/)
+docs/referentiels/recode-icd/

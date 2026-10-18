@@ -39,6 +39,7 @@ Une ligne correspond à **une version d'un texte à coder**. Pour PARHAF, un doc
 | `texte` | Le texte de référence, nettoyé et figé | |
 | `empreinte` | Une « signature » calculée à partir du texte (SHA-256), qui permet de vérifier qu'il n'a jamais changé | |
 | `nettoyage` | JSON : les passages retirés au chargement, avec la règle appliquée et leur position dans le texte d'origine ; les anomalies signalées. Jamais affiché | |
+| `mesures` | JSON : les mesures fixes calculées sur le texte (nombre de mots, de phrases, rubriques présentes, passages répétés…), avec la version du calcul (`version_calcul`). **Vide pour l'instant** : elle sera remplie plus tard par un script Python reprenant les calculs du projet de génération, puis, à terme, par une API de diagnostic. Son contenu est un contrat entre le calcul et l'outil : quel que soit le calcul, le format reste le même. Lue par la page pour l'évaluation du document ; écrite uniquement par les scripts | |
 | `cree_le`, `cree_par` | Date et auteur de cette version (le script de chargement pour la version 1) | |
 
 **Règles :**
@@ -288,7 +289,7 @@ Une seule table pour les deux évaluations de la qualité d'un document : celle 
 | `id`, `cree_le`, `utilisateur`, `document` | |
 | `auteur` | `ia` ou `humain` |
 | `appel_llm` | Pour une évaluation de l'IA |
-| `mesures` | JSON : les mesures fixes calculées sur le texte (évaluation de l'IA uniquement) |
+| `mesures` | JSON : copie des mesures fixes du document (`documents.mesures`) transmises au LLM lors de cette évaluation (évaluation de l'IA uniquement) |
 | `notes` | JSON : une note de 1 à 5 pour chacune des cinq dimensions (organisation, langage, cohérence médicale, synthèse, qualité générale) |
 | `verdict` | Pour l'IA : `exploitable`, `douteux`, `non_exploitable` |
 | `commentaire` | La raison du verdict (IA) ou le commentaire libre (testeur) |

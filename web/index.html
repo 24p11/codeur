@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>codeur</title>
+  <link rel="stylesheet" href="style.css?v=A1-0.3">
+</head>
+<body>
+  <header class="entete">
+    <div class="entete-titre">
+      <strong>codeur</strong> <span class="sous-titre">prototype d'aide au codage CIM-10</span>
+    </div>
+    <div class="entete-droite">
+      <span id="utilisateur-courant" hidden></span>
+      <button id="bouton-profil" class="secondaire" hidden>Mon profil</button>
+      <button id="bouton-deconnexion" class="secondaire" hidden>Se déconnecter</button>
+    </div>
+  </header>
+
+  <main id="contenu">
+    <section id="ecran-chargement" class="ecran">
+      <p>Chargement…</p>
+    </section>
+
+    <section id="ecran-connexion" class="ecran" hidden>
+      <h1>Se connecter</h1>
+      <p>Saisissez votre adresse électronique professionnelle. Vous recevrez un courriel contenant un lien de connexion ; il n'y a pas de mot de passe.</p>
+      <form id="formulaire-connexion" autocomplete="on">
+        <label for="champ-email">Adresse électronique</label>
+        <input id="champ-email" type="email" required placeholder="prenom.nom@exemple.fr" autocomplete="email">
+        <button type="submit" id="bouton-lien">Recevoir un lien de connexion</button>
+      </form>
+      <p id="message-connexion" class="message" hidden></p>
+    </section>
+
+    <section id="ecran-mention" class="ecran" hidden>
+      <div id="mention-contenu" class="mention"></div>
+      <h2>Votre accord</h2>
+      <p>Pour utiliser l'outil, cochez les deux cases :</p>
+      <label class="case"><input type="checkbox" id="case-donnees-reelles"> J'ai lu cette information et je m'engage à n'introduire <strong>aucune donnée concernant un patient réel</strong>.</label>
+      <label class="case"><input type="checkbox" id="case-recherche"> J'accepte que mon travail dans l'outil (codages, commentaires, notes) soit utilisé <strong>à des fins de recherche</strong>, dans les conditions décrites ci-dessus.</label>
+      <button id="bouton-vers-inscription" disabled>Continuer vers la fiche d'inscription</button>
+      <p class="discret">La date de votre accord sera enregistrée avec votre profil.</p>
+    </section>
+
+    <section id="ecran-inscription" class="ecran" hidden>
+      <h1>Fiche d'inscription</h1>
+      <form id="formulaire-inscription" autocomplete="on">
+        <label for="champ-nom">Nom</label>
+        <input id="champ-nom" required autocomplete="family-name">
+        <label for="champ-prenom">Prénom</label>
+        <input id="champ-prenom" required autocomplete="given-name">
+        <label for="champ-statut">Statut</label>
+        <select id="champ-statut" required>
+          <option value="">Choisir…</option>
+          <option value="medecin_dim">Médecin DIM</option>
+          <option value="tim">TIM</option>
+          <option value="autre_medecin">Autre médecin</option>
+          <option value="interne">Interne</option>
+          <option value="etudiant">Étudiant</option>
+          <option value="autre">Autre</option>
+        </select>
+        <label for="champ-etablissement">Établissement</label>
+        <input id="champ-etablissement" required autocomplete="organization">
+        <button type="submit" id="bouton-inscription">Enregistrer et commencer</button>
+      </form>
+      <p id="message-inscription" class="message alerte" hidden></p>
+    </section>
+
+    <section id="ecran-profil" class="ecran" hidden>
+      <h1>Mon profil</h1>
+      <p id="profil-infos" class="discret"></p>
+      <form id="formulaire-profil">
+        <label for="profil-nom">Nom</label>
+        <input id="profil-nom" required>
+        <label for="profil-prenom">Prénom</label>
+        <input id="profil-prenom" required>
+        <label for="profil-statut">Statut</label>
+        <select id="profil-statut" required>
+          <option value="medecin_dim">Médecin DIM</option>
+          <option value="tim">TIM</option>
+          <option value="autre_medecin">Autre médecin</option>
+          <option value="interne">Interne</option>
+          <option value="etudiant">Étudiant</option>
+          <option value="autre">Autre</option>
+        </select>
+        <label for="profil-etablissement">Établissement</label>
+        <input id="profil-etablissement" required>
+        <button type="submit">Enregistrer les modifications</button>
+        <button type="button" id="bouton-profil-retour" class="secondaire">Retour aux dossiers</button>
+      </form>
+      <p id="message-profil" class="message" hidden></p>
+    </section>
+
+    <section id="ecran-liste" class="ecran large" hidden>
+      <h1>Dossiers</h1>
+      <form id="formulaire-recherche" class="recherche">
+        <div>
+          <label for="filtre-specialite">Spécialité</label>
+          <select id="filtre-specialite"><option value="">Toutes</option></select>
+        </div>
+        <div>
+          <label for="filtre-type">Type de prise en charge</label>
+          <select id="filtre-type"><option value="">Tous</option></select>
+        </div>
+        <div>
+          <label for="filtre-id">Identifiant</label>
+          <input id="filtre-id" placeholder="ex. CARDIOLOGIE-00133">
+        </div>
+        <div class="recherche-boutons">
+          <button type="submit">Rechercher</button>
+          <button type="button" id="bouton-effacer-recherche" class="secondaire">Effacer</button>
+        </div>
+      </form>
+      <p id="liste-resume" class="discret"></p>
+      <div class="tableau-conteneur">
+        <table id="tableau-dossiers">
+          <thead><tr><th>Identifiant</th><th>Spécialité</th><th>Type de prise en charge</th><th class="num">Documents</th><th class="num">Longueur</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <button id="page-precedente" class="secondaire">◀ Précédente</button>
+        <span id="page-position"></span>
+        <button id="page-suivante" class="secondaire">Suivante ▶</button>
+      </div>
+      <p id="message-liste" class="message alerte" hidden></p>
+    </section>
+
+    <section id="ecran-dossier" class="ecran large" hidden>
+      <div class="dossier-entete">
+        <div>
+          <h1 id="dossier-titre"></h1>
+          <p id="dossier-infos" class="discret"></p>
+        </div>
+        <div class="dossier-boutons">
+          <button id="bouton-retour-liste" class="secondaire">Retour à la liste</button>
+          <button id="bouton-tout-effacer" class="secondaire">Tout effacer</button>
+        </div>
+      </div>
+      <p id="message-dossier" class="message" hidden></p>
+      <div class="dossier-corps">
+        <div id="texte-dossier" class="texte-dossier" tabindex="0"></div>
+        <aside id="panneau-ensembles" class="panneau">
+          <h2>Ensembles</h2>
+          <p class="discret">Sélectionnez un passage dans le texte, puis « Nouvel ensemble » (touche N) ou « Ajouter à l'ensemble sélectionné » (touche A).</p>
+          <ol id="liste-ensembles" class="liste-ensembles"></ol>
+          <p id="sauvegarde-etat" class="discret"></p>
+        </aside>
+      </div>
+      <div id="barre-selection" class="barre-selection" hidden>
+        <button id="bouton-nouvel-ensemble">Nouvel ensemble <kbd>N</kbd></button>
+        <button id="bouton-ajouter-ensemble" class="secondaire">Ajouter à l'ensemble <span id="barre-numero"></span> <kbd>A</kbd></button>
+      </div>
+    </section>
+
+    <section id="ecran-erreur" class="ecran" hidden>
+      <h1>Un problème est survenu</h1>
+      <p id="message-erreur"></p>
+      <button id="bouton-recharger" class="secondaire">Recharger la page</button>
+    </section>
+  </main>
+
+  <footer class="pied">
+    <span id="version-page"></span>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@18.0.14/lib/marked.umd.js"></script>
+  <script src="positions.js?v=A1-0.3"></script>
+  <script src="config.js?v=A1-0.3"></script>
+  <script src="app.js?v=A1-0.3"></script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+# Publie le dossier web/ sur GitHub Pages à chaque push sur main.
+# Réglage à faire une fois dans le dépôt : Settings > Pages > Build and deployment > Source : « GitHub Actions ».
+name: Publier la page web
+
+on:
+  push:
+    branches: [main]
+    paths: ["web/**", "docs/mention_information.md", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copier la mention d'information dans web/
+        run: cp docs/mention_information.md web/mention_information.md
+      - name: Vérifier qu'aucun secret ne part avec la page
+        run: |
+          if grep -rE 'sb_secret_[A-Za-z0-9]' web/; then echo "Clé secrète détectée dans web/ : publication refusée"; exit 1; fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: deploiement
+        uses: actions/deploy-pages@v4

@@ -73,6 +73,7 @@ def main() -> None:
         anon = create_client(env["SUPABASE_URL"], env["SUPABASE_PUBLISHABLE_KEY"])
         essai("non connecté : lire les documents", "refus", lambda: rows(anon.table("documents").select("id").execute()))
         essai("non connecté : lire les fiches", "refus", lambda: rows(anon.table("fiches").select("code").execute()))
+        essai("non connecté : lire la vue dossiers_disponibles", "refus", lambda: rows(anon.table("dossiers_disponibles").select("id").execute()))
 
         print("\n=== 3. Premier compte connecté (clé publique) ===")
         c1 = create_client(env["SUPABASE_URL"], env["SUPABASE_PUBLISHABLE_KEY"])
@@ -145,11 +146,41 @@ def main() -> None:
         essai("créer un profil pour un autre compte (interdit)", "refus",
               lambda: rows(c1.table("profils").insert({"id": u2, "nom": "X", "prenom": "Y", "statut": "autre",
                                                        "etablissement": "Z", "accord_le": "2026-10-18T00:00:00Z"}, returning="minimal").execute()))
-        doc2 = essai("ajouter une version 2 du document, signée de son compte", "succès",
+        # L'insertion ne demande en retour que des colonnes lisibles (nettoyage ne l'est pas) : `select=id`.
+        doc2 = essai("ajouter une version 2 du document, signée de son compte (retour limité à id)", "succès",
                      lambda: rows(c1.table("documents").insert({"lot": lot_id, "id_source": "DOC-TEST", "version": 2, "version_precedente": doc_id,
-                                                                "motif_version": "test", "texte": "Texte corrigé.", "cree_par": u1}).execute()))
+                                                                "motif_version": "test", "texte": "Texte corrigé.", "cree_par": u1})
+                                  .execute()) if False else rows(c1.postgrest.from_("documents").insert(
+                                      {"lot": lot_id, "id_source": "DOC-TEST", "version": 2, "version_precedente": doc_id,
+                                       "motif_version": "test", "texte": "Texte corrigé.", "cree_par": u1}, returning="minimal").execute()) or [{"ok": True}])
+        essai("insérer une version en demandant toutes les colonnes en retour (refusé : nettoyage non lisible)", "refus",
+              lambda: rows(c1.table("documents").insert({"lot": lot_id, "id_source": "DOC-TEST-RET", "version": 2, "version_precedente": doc_id,
+                                                         "motif_version": "test", "texte": "x", "cree_par": u1}).execute()))
         if doc2:
-            doc2_id = c1.table("documents").select("id").eq("lot", lot_id).eq("version", 2).execute().data[0]["id"]
+            doc2_id = c1.table("documents").select("id").eq("lot", lot_id).eq("id_source", "DOC-TEST").eq("version", 2).execute().data[0]["id"]
+        essai("lire la colonne mesures d'un document", "succès",
+              lambda: rows(c1.table("documents").select("id, mesures").eq("id", doc_id).execute()))
+        essai("écrire mesures en créant une version 3 (interdit : colonne réservée aux scripts)", "refus",
+              lambda: rows(c1.table("documents").insert({"lot": lot_id, "id_source": "DOC-TEST", "version": 3, "version_precedente": doc2_id,
+                                                         "motif_version": "test", "texte": "Texte v3.", "cree_par": u1,
+                                                         "mesures": {"mots": 2}}, returning="minimal").execute()))
+        essai("lire les colonnes générées nb_documents_origine et a_corriger", "succès",
+              lambda: rows(c1.table("documents").select("id, nb_documents_origine, a_corriger").eq("id", doc_id).execute()))
+        essai("lire la colonne nettoyage d'un document (interdit : colonne jamais affichée)", "refus",
+              lambda: rows(c1.table("documents").select("id, nettoyage").eq("id", doc_id).execute()))
+        admin.table("documents").insert({"lot": lot_id, "id_source": "DOC-A-CORRIGER", "texte": "Texte à corriger [I10].",
+                                         "nettoyage": {"anomalies": {"a_corriger": True, "motif": "test"}}}).execute()
+        try:
+            vue = c1.table("dossiers_disponibles").select("id_source, nb_documents_origine, longueur").eq("lot", lot_id).execute().data
+        except Exception as e:  # noqa: BLE001
+            vue = []
+            print("         (lecture de la vue impossible :", str(getattr(e, "message", e))[:80] + ")")
+        essai("lire la vue dossiers_disponibles : le document de test y est (dernière version, 2)",
+              "succès", lambda: [v for v in vue if v["id_source"] == "DOC-TEST"])
+        essai("la vue ne montre pas le document signalé à corriger", "vide",
+              lambda: [v for v in vue if v["id_source"] == "DOC-A-CORRIGER"])
+        essai("la vue ne montre qu'une ligne par document (la dernière version)", "succès" if sum(1 for v in vue if v["id_source"] == "DOC-TEST") == 1 else "refus",
+              lambda: [v for v in vue if v["id_source"] == "DOC-TEST"])
         essai("ajouter une version 1 (réservé aux scripts)", "refus",
               lambda: rows(c1.table("documents").insert({"lot": lot_id, "id_source": "DOC-TEST-2", "texte": "x", "cree_par": u1}, returning="minimal").execute()))
         essai("modifier un document (interdit)", "refus",
@@ -167,6 +198,8 @@ def main() -> None:
                     admin.table(table).delete().in_("document", ids_docs).execute()
                 for d in ids_docs:
                     admin.table("documents").delete().eq("id", d).execute()
+                for src in ("DOC-A-CORRIGER", "DOC-TEST-RET"):
+                    admin.table("documents").delete().eq("lot", lot_id).eq("id_source", src).execute()
             admin.table("lots").delete().eq("id", lot_id).execute()
             for uid in ids_users:
                 admin.auth.admin.delete_user(uid)  # supprime aussi le profil (ON DELETE CASCADE)
