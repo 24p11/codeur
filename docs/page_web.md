@@ -11,7 +11,7 @@
 | `web/positions.js` | La convention de positions des passages (§6), partagée avec le test Python |
 | `web/style.css` | La mise en forme |
 | `web/config.js` | La configuration publique : adresse du projet Supabase et clé publique (`sb_publishable_…`). **La clé secrète n'y entre jamais.** |
-| `web/mention_information.md` | Copie de `docs/mention_information.md`, faite par `servir.sh` et par la publication ; ignorée par git (une seule version dans le dépôt) |
+| `web/mention_information.md` | Copie de `docs/mention_information.md`, faite par `servir.sh` (au lancement : relancer le serveur, ou recopier, après une modification de la mention) et par la publication ; ignorée par git (une seule version dans le dépôt). Le fichier porte deux repères obligatoires : `<!-- version: … -->` en tête et `<!-- fin-de-la-mention -->` avant la section « Votre accord » |
 | `scripts/web/servir.sh` | Lancement en local |
 | `scripts/admin/generer_lien.py` | Fabrication manuelle d'un lien de connexion |
 | `scripts/tests/tester_positions.py` | Test de la convention de positions (avec Node) |
@@ -47,7 +47,7 @@ uv run python -I scripts/admin/generer_lien.py adresse@exemple.fr           # re
 uv run python -I scripts/admin/generer_lien.py adresse@exemple.fr --local   # retour sur http://localhost:8000/
 ```
 
-Affiche un lien à usage unique, valable le temps réglé dans Supabase (une heure par défaut), **sans l'envoyer** : à copier dans un courriel envoyé par vos soins. Si l'adresse n'a pas de compte, Supabase le crée. Attention à bien remplacer l'adresse d'exemple par la vraie adresse du testeur.
+Affiche un lien à usage unique, valable le temps réglé dans Supabase (une heure par défaut), **sans l'envoyer** : à copier dans un courriel envoyé par vos soins. Si l'adresse n'a pas de compte, Supabase le crée. Attention à bien remplacer l'adresse d'exemple par la vraie adresse du testeur. Si le script s'arrête sur « ReadTimeout » (service d'authentification lent), le relancer. Le serveur local doit être lancé au moment où l'on ouvre un lien `--local`.
 
 ## 6. Convention de positions
 
@@ -71,6 +71,7 @@ Noter pour chaque essai : navigateur et version, réussite ou échec, message é
 1. **Accès réseau** depuis le réseau hospitalier : `https://24p11.github.io/codeur/` s'affiche ; dans la console du navigateur (F12 > Console), aucune erreur de chargement des bibliothèques (jsDelivr) ; la connexion à Supabase fonctionne (la liste des dossiers se charge) ; pour plus tard, `https://api.mistral.ai/v1/models` répond (une réponse « 401 Unauthorized » suffit : le service est joignable).
 2. **Connexion par lien** : saisir l'adresse, recevoir le courriel, cliquer, arriver connecté (adresse en haut à droite). Variante : lien fabriqué par le script.
 3. **Première connexion** : mention affichée, bouton « Continuer » inactif tant que les deux cases ne sont pas cochées, fiche d'inscription, arrivée sur la liste. **Mon profil** : date d'accord affichée, modification du nom ou de l'établissement enregistrée.
+   **Mention mise à jour** : quand la version du fichier (`<!-- version: … -->`) diffère de celle du profil, la mention est réaffichée avec un bandeau et le bouton « Confirmer mon accord » ; « Mon profil » montre ensuite la version acceptée et la nouvelle date. Si un repère (`version` ou `fin-de-la-mention`) manque dans le fichier, la page refuse d'afficher la mention et signale l'erreur.
 4. **Liste** : 3 822 dossiers, pagination, filtres spécialité et type (valeurs en clair avec effectifs), recherche par identifiant, « Effacer ». Aucun texte ni code visible. Les dossiers à corriger (ex. `HEMATOLOGIE-CLINIQUE-00049`) sont absents.
 5. **Dossier** : texte lisible, intitulés présents sur un dossier à trois documents (ex. `CHIRURGIE-VISCERALE-00203`), aucun bloc « Résumé structuré ».
 6. **Surlignage** : sélectionner un passage à la souris : il est surligné au relâchement ; le compteur au-dessus du texte augmente ; passage à cheval sur deux documents ; une sélection qui chevauche un passage surligné le fusionne (un seul passage) ; au survol d'un passage surligné il passe en rouge barré, un clic le retire ; double-clic sur un mot : le mot est surligné.

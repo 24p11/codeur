@@ -65,20 +65,37 @@
   // La page affiche le fichier docs/mention_information.md (copié dans web/ à la publication) jusqu'au
   // titre « Votre accord » ; les cases à cocher et le bouton sont ceux de la page, et la section
   // « Notes pour la mise en œuvre » n'est jamais affichée.
-  async function afficherMention() {
+  // Lit docs/mention_information.md (copié dans web/) : version (repère <!-- version: x -->) et texte à afficher
+  // (jusqu'au repère <!-- fin-de-la-mention -->). Les deux repères sont obligatoires.
+  const mention = { version: null, html: null, erreur: null };
+  async function lireMention() {
+    if (mention.html || mention.erreur) return mention;
     try {
       const rep = await fetch("mention_information.md", { cache: "no-store" });
       if (!rep.ok) throw new Error("HTTP " + rep.status);
-      let md = await rep.text();
-      const coupe = md.search(/^## Votre accord/m);
-      if (coupe >= 0) md = md.slice(0, coupe);
-      $("mention-contenu").innerHTML = window.marked ? window.marked.parse(md) : "<pre>" + md.replace(/</g, "&lt;") + "</pre>";
+      const md = await rep.text();
+      const v = md.match(/<!--\s*version:\s*([^\s>]+)\s*-->/);
+      if (!v) throw new Error("repère de version absent du fichier de la mention");
+      const fin = md.search(/<!--\s*fin-de-la-mention\s*-->/);
+      if (fin < 0) throw new Error("repère de fin de la mention absent du fichier");
+      mention.version = v[1];
+      const corps = md.slice(0, fin).replace(/<!--[\s\S]*?-->/g, "");
+      mention.html = window.marked ? window.marked.parse(corps) : "<pre>" + corps.replace(/</g, "&lt;") + "</pre>";
     } catch (e) {
-      $("mention-contenu").innerHTML = "<p class='message alerte'>La mention d'information n'a pas pu être chargée (" + e.message + "). Rechargez la page.</p>";
+      mention.erreur = e.message;
     }
+    return mention;
+  }
+  async function afficherMention(nouvelleVersion) {
+    const m = await lireMention();
+    if (m.erreur) { erreur("La mention d'information n'a pas pu être affichée (" + m.erreur + "). Signalez-le au responsable du projet."); return; }
+    $("mention-contenu").innerHTML = (nouvelleVersion
+      ? "<p class='message'>La mention d'information a été mise à jour (version " + m.version + "). Merci de la relire et de donner de nouveau votre accord.</p>" : "") + m.html;
     $("case-donnees-reelles").checked = false;
     $("case-recherche").checked = false;
     $("bouton-vers-inscription").disabled = true;
+    $("bouton-vers-inscription").textContent = nouvelleVersion ? "Confirmer mon accord" : "Continuer vers la fiche d'inscription";
+    etat.reacceptation = !!nouvelleVersion;
     montrer("ecran-mention");
   }
   function verifierCases() {
@@ -86,16 +103,26 @@
   }
   $("case-donnees-reelles").addEventListener("change", verifierCases);
   $("case-recherche").addEventListener("change", verifierCases);
-  $("bouton-vers-inscription").addEventListener("click", () => {
+  $("bouton-vers-inscription").addEventListener("click", async () => {
     if ($("bouton-vers-inscription").disabled) return;
-    etat.accordLe = new Date().toISOString(); // le moment où les deux cases étaient cochées
+    etat.accordDonne = true; // les deux cases étaient cochées
+    if (etat.reacceptation) {
+      // Nouvelle acceptation : seule voie de mise à jour de accord_le et version_mention (fonction de la base).
+      const { error } = await base.rpc("accepter_mention", { version: mention.version });
+      if (error) { erreur("Votre accord n'a pas pu être enregistré : " + error.message); return; }
+      const { data } = await base.from("profils").select("*").eq("id", etat.utilisateur.id).single();
+      etat.profil = data;
+      $("bouton-profil").hidden = false;
+      afficherListe();
+      return;
+    }
     montrer("ecran-inscription");
   });
 
   // --- Fiche d'inscription (crée la ligne de profils) --------------------------------------------------
   $("formulaire-inscription").addEventListener("submit", async (ev) => {
     ev.preventDefault();
-    if (!etat.accordLe) { await afficherMention(); return; }
+    if (!etat.accordDonne) { await afficherMention(); return; }
     $("bouton-inscription").disabled = true;
     message("message-inscription", "");
     const ligne = {
@@ -104,7 +131,8 @@
       prenom: $("champ-prenom").value.trim(),
       statut: $("champ-statut").value,
       etablissement: $("champ-etablissement").value.trim(),
-      accord_le: etat.accordLe,
+      accord_le: new Date().toISOString(), // remplacée par l'heure de la base (déclencheur)
+      version_mention: mention.version,
     };
     const { data, error } = await base.from("profils").insert(ligne).select().single();
     if (error) {
@@ -124,7 +152,7 @@
     $("profil-statut").value = p.statut;
     $("profil-etablissement").value = p.etablissement;
     $("profil-infos").textContent = "Adresse : " + etat.utilisateur.email + " — accord donné le " +
-      new Date(p.accord_le).toLocaleString("fr-FR") + " — statut : " + (STATUTS[p.statut] || p.statut);
+      new Date(p.accord_le).toLocaleString("fr-FR") + " (mention version " + (p.version_mention || "non enregistrée") + ") — statut : " + (STATUTS[p.statut] || p.statut);
     message("message-profil", "");
     montrer("ecran-profil");
   }
@@ -141,7 +169,7 @@
     etat.profil = data;
     message("message-profil", "Profil enregistré.");
     $("profil-infos").textContent = "Adresse : " + etat.utilisateur.email + " — accord donné le " +
-      new Date(data.accord_le).toLocaleString("fr-FR") + " — statut : " + (STATUTS[data.statut] || data.statut);
+      new Date(data.accord_le).toLocaleString("fr-FR") + " (mention version " + (data.version_mention || "non enregistrée") + ") — statut : " + (STATUTS[data.statut] || data.statut);
   });
 
   // --- Liste des dossiers (étape 5) ------------------------------------------------------------------
@@ -606,7 +634,10 @@
     const { data, error } = await base.from("profils").select("*").eq("id", session.user.id).maybeSingle();
     if (error) { erreur("Impossible de lire votre profil : " + error.message); return; }
     etat.profil = data;
-    if (!data) { await afficherMention(); return; }
+    if (!data) { await afficherMention(false); return; }
+    const m = await lireMention();
+    if (m.erreur) { erreur("La mention d'information n'a pas pu être lue (" + m.erreur + "). Signalez-le au responsable du projet."); return; }
+    if (data.version_mention !== m.version) { await afficherMention(true); return; }
     $("bouton-profil").hidden = false;
     afficherListe();
   }

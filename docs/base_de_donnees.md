@@ -18,6 +18,7 @@ Le schéma est écrit sous forme de **migrations** : des fichiers SQL numéroté
 | `20261018120000_documents_mesures.sql` | Colonne `documents.mesures` ; insertion dans `documents` accordée colonne par colonne (jamais `mesures`) |
 | `20261018130000_dossiers_disponibles.sql` | Lecture de `documents` accordée colonne par colonne (jamais `nettoyage`) ; vue `dossiers_disponibles` pour la liste de la page |
 | `20261018140000_documents_colonnes_generees.sql` | Colonnes générées `nb_documents_origine` et `a_corriger`, lisibles ; la vue les lit à la place de `nettoyage` et reste en `security_invoker` |
+| `20261018150000_profils_version_mention.sql` | Colonne `profils.version_mention` ; modification de `profils` limitée à nom, prénom, statut, établissement ; fonction `accepter_mention(version)` (seule voie pour `accord_le` et `version_mention`) ; déclencheur : `accord_le` à l'heure de la base à l'inscription |
 
 ## 2. Ce qu'il faut sur l'ordinateur
 
@@ -73,7 +74,8 @@ Le script crée deux comptes de test et des données de test avec la clé secrè
 
 Les bibliothèques nécessaires (`supabase`, `psycopg`) sont dans le groupe de dépendances `tests` du `pyproject.toml` ; `uv run` les installe automatiquement.
 
-## 6. Deux points à connaître pour la page web
+## 6. Points à connaître pour la page web
 
 - **Insérer sans relire.** Pour `appels_llm` et pour les évaluations de l'IA, le testeur peut écrire mais pas lire : la page doit demander une insertion « sans retour » (`Prefer: return=minimal`, ou `returning="minimal"` dans les bibliothèques Supabase), sinon la base refuse l'insertion.
 - **Identifiant des appels au LLM.** La page génère elle-même l'UUID de chaque appel avant de l'insérer, et le reporte dans `codages.appel_llm` ou `evaluations.appel_llm`.
+- **Acceptation de la mention.** `accord_le` et `version_mention` ne se modifient que par la fonction `accepter_mention(version)` (appel `rpc` depuis la page) ; à l'inscription, la base impose elle-même l'heure d'accord. Les fonctions en droits du propriétaire fixent toujours `set search_path = ''` et emploient des noms complets (`public.profils`).

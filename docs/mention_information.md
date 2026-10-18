@@ -1,3 +1,4 @@
+<!-- version: 0.1 -->
 # Mention d'information et accord des testeurs — premier jet
 
 *Proposition à relire et à compléter. Les passages entre crochets `[À COMPLÉTER]` demandent une information que je n'ai pas. Ce texte n'est pas un avis juridique : dans un cadre AP-HP, il est prudent de le faire relire par le délégué à la protection des données (DPO) avant la diffusion.*
@@ -45,6 +46,8 @@ Vous pouvez demander à consulter, corriger ou supprimer vos données, ou vous o
 [À COMPLÉTER : préciser ce que devient votre travail si vous demandez la suppression de vos données — par exemple suppression complète, ou conservation sous forme anonymisée.]
 
 ---
+
+<!-- fin-de-la-mention -->
 
 ## Votre accord
 

@@ -139,10 +139,19 @@ def main() -> None:
               lambda: rows(c1.table("rum").insert({"document": doc_id, "codage": ma_ligne, "cree_par": u1, "rum": {"DP": "I10"}}).execute()))
         essai("ne pas voir les RUM des autres (aucun autre ici)", "vide",
               lambda: rows(c1.table("rum").select("id").neq("cree_par", u1).execute()))
-        essai("créer son profil", "succès",
-              lambda: rows(c1.table("profils").insert({"id": u1, "nom": "Test", "prenom": "Un", "statut": "medecin_dim",
-                                                       "etablissement": "Test", "accord_le": "2026-10-18T00:00:00Z"}).execute()))
+        essai("créer son profil (accord_le envoyé = 2020 ; la base impose son heure)", "succès",
+              lambda: [p for p in rows(c1.table("profils").insert({"id": u1, "nom": "Test", "prenom": "Un", "statut": "medecin_dim",
+                                                       "etablissement": "Test", "accord_le": "2020-01-01T00:00:00Z", "version_mention": "0.1"}).execute())
+                       if not p["accord_le"].startswith("2020")])
         essai("modifier son profil", "succès", lambda: rows(c1.table("profils").update({"etablissement": "Test 2"}).eq("id", u1).execute()))
+        essai("modifier accord_le ou version_mention directement (interdit : colonnes réservées à accepter_mention)", "refus",
+              lambda: rows(c1.table("profils").update({"version_mention": "pirate"}).eq("id", u1).execute()))
+        essai("accepter la mention (fonction accepter_mention) : accord_le et version_mention mis à jour", "succès",
+              lambda: (c1.rpc("accepter_mention", {"version": "0.1-test"}).execute(),
+                       [p for p in c1.table("profils").select("version_mention, accord_le").eq("id", u1).execute().data
+                        if p["version_mention"] == "0.1-test"])[1])
+        essai("non connecté : appeler accepter_mention (interdit)", "refus",
+              lambda: rows(anon.rpc("accepter_mention", {"version": "x"}).execute()))
         essai("créer un profil pour un autre compte (interdit)", "refus",
               lambda: rows(c1.table("profils").insert({"id": u2, "nom": "X", "prenom": "Y", "statut": "autre",
                                                        "etablissement": "Z", "accord_le": "2026-10-18T00:00:00Z"}, returning="minimal").execute()))
