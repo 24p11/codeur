@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>codeur</title>
-  <link rel="stylesheet" href="style.css?v=A2-0.17">
+  <link rel="stylesheet" href="style.css?v=A2-0.18">
 </head>
 <body>
   <header class="entete">
@@ -106,8 +106,9 @@
         <input id="reglage-cle" type="password" required autocomplete="off" placeholder="votre clé API">
         <label for="reglage-affichage">Affichage du codage</label>
         <select id="reglage-affichage">
-          <option value="A">A — liste simple</option>
-          <option value="B">B — encadrés de couleur</option>
+          <option value="A">A — liste simple, sans encadré</option>
+          <option value="B">B — encadrés aux couleurs d'origine</option>
+          <option value="C">C — encadrés avec une couleur par code, reprise dans le texte</option>
         </select>
         <div class="recherche-boutons" style="margin-top:.75rem">
           <button type="submit">Enregistrer les réglages</button>
@@ -243,10 +244,10 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@18.0.14/lib/marked.umd.js"></script>
-  <script src="positions.js?v=A2-0.17"></script>
-  <script src="markdown.js?v=A2-0.17"></script>
-  <script src="codage.js?v=A2-0.17"></script>
-  <script src="config.js?v=A2-0.17"></script>
-  <script src="app.js?v=A2-0.17"></script>
+  <script src="positions.js?v=A2-0.18"></script>
+  <script src="markdown.js?v=A2-0.18"></script>
+  <script src="codage.js?v=A2-0.18"></script>
+  <script src="config.js?v=A2-0.18"></script>
+  <script src="app.js?v=A2-0.18"></script>
 </body>
 </html>

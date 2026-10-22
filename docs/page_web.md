@@ -188,3 +188,16 @@ Le bouton **Évaluation** sous le texte affiche, à la place du codage, la rubri
 **L'écran** : cinq lignes, cinq pastilles de 1 à 5 (le repère de chaque niveau au survol ; un second clic sur la pastille choisie retire la note) ; le repère du niveau choisi reste affiché sous la ligne, « Non notée. » sinon ; un commentaire libre facultatif (1 000 caractères au plus, compte affiché, rappel « Aucune donnée concernant un patient réel ») ; le bouton « Enregistrer ma note », indépendant du codage.
 
 **Règles** : la notation est facultative et ne bloque rien. Une note **incomplète** est acceptée : les dimensions non notées sont enregistrées à `null` (jamais 0), la ligne d'état le rappelle (« 2 dimensions notées sur 5 : une note incomplète peut être enregistrée ») ; l'enregistrement est refusé seulement si aucune dimension n'est notée et le commentaire vide. Chaque enregistrement **ajoute une ligne** dans `evaluations` (auteur `humain`, `notes`, `commentaire`, `version_grille`) ; à la réouverture du dossier, la page relit et affiche la dernière note du testeur (date dans l'en-tête, version de grille signalée si elle diffère de la grille courante). La page ne lit jamais une évaluation de l'IA (la base le refuse, §7 du schéma) et ne montre rien du codage de référence.
+
+## 16. Les trois affichages du codage (brief 7, étape 2, A2-0.18)
+
+Le réglage « Affichage du codage » (navigateur) propose trois variantes, mêmes données et mêmes actions ; la variante utilisée est enregistrée dans `affichage` (`A`, `B` ou `C`) de chaque ligne écrite par la page. **Décidé le 22 octobre 2026 sur l'essai `web/essais/dossier.html`** :
+
+- **A** : le pavé gris, liste simple sans encadré de couleur.
+- **B** : chaque code dans un cadre de sa couleur sur fond blanc (le format des cadres de `web/essais/maquette_codage.html` : bord de 2 px, coins arrondis, fond teinté), couleurs d'origine selon le rang du code ; dans le texte, le surlignage reste jaune.
+- **C, variante par défaut** : mêmes cadres, avec **une couleur par code, reprise dans le texte** une fois le codage fait.
+  - **Palette** : huit teintes claires dérivées d'Okabe-Ito (orange, bleu ciel, vert, jaune, lavande, saumon, mauve, gris), distinguables en vision daltonienne et lisibles sous un texte noir ; au-delà de huit codes, les couleurs reprennent au début.
+  - **Stabilité** : la couleur est attribuée par ordre d'apparition et conservée pendant la séance (supprimer un code ne change pas les autres ; un code ajouté prend la première couleur libre ; changer le code d'un ensemble lui garde sa couleur) ; à la réouverture, l'ordre du codage enregistré est repris.
+  - **Passage partagé** par deux codes : bandes obliques des deux couleurs, infobulle « Passage partagé par … ».
+  - **Après le codage** : les passages surlignés pas encore codés restent jaunes ; les passages déclarés non codés par l'IA sont marqués en gris clair (infobulle avec la raison), en C seulement. Avant le codage, le surlignage garde sa couleur habituelle.
+  - Un code à choisir (sans code) est en gris neutre.

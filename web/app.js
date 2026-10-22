@@ -211,9 +211,9 @@
   const CLE_AFFICHAGE = "codeur.affichage_codage";
   function varianteAffichage() {
     const imposee = null; // réservé : valeur imposée par le responsable (lot ultérieur)
-    if (imposee === "A" || imposee === "B") return imposee;
-    try { const v = window.localStorage.getItem(CLE_AFFICHAGE); if (v === "A" || v === "B") return v; } catch (e) { /* indisponible */ }
-    return "A";
+    if (imposee === "A" || imposee === "B" || imposee === "C") return imposee;
+    try { const v = window.localStorage.getItem(CLE_AFFICHAGE); if (v === "A" || v === "B" || v === "C") return v; } catch (e) { /* indisponible */ }
+    return "C"; // variante par défaut (brief 7, étape 2) : une couleur par code, reprise dans le texte
   }
   function enregistrerVariante(v) { try { window.localStorage.setItem(CLE_AFFICHAGE, v); } catch (e) { /* indisponible */ } }
   function reglagesDepuisFormulaire() {
@@ -496,7 +496,7 @@
     document.querySelector(".dossier-corps").classList.toggle("sans-panneau", !MODE_PANNEAU);
     $("texte-dossier").classList.toggle("mode-simple", !MODE_PANNEAU);
     montrer("ecran-dossier");
-    codageUI.commentairesOuverts = new Set();
+    codageUI.commentairesOuverts = new Set(); codageUI.couleurs = new Map();
     montrerVue("codage");
     rendre(); cacherBarre();
     await chargerCodageExistant();
@@ -531,10 +531,17 @@
       const d = P.pointsVersU16(texte, p.debut), f = P.pointsVersU16(texte, p.fin);
       frontieres.add(d); frontieres.add(f); preuvesCodes.push([d, f, i]);
     } });
+    // Variante C : les passages déclarés non codés par l'IA sont marqués en gris (ils ne le sont pas en A et B).
+    const nonCodes = []; // [debut16, fin16, raison]
+    if (travail.courant && varianteAffichage() === "C") for (const x of travail.courant.passages_non_codes || []) {
+      if (x.auteur === "outil" || !P.verifier(texte, x)) continue;
+      const d = P.pointsVersU16(texte, x.debut), f = P.pointsVersU16(texte, x.fin);
+      frontieres.add(d); frontieres.add(f); nonCodes.push([d, f, x.raison || ""]);
+    }
     // Mise en forme markdown sans retirer un caractère (web/markdown.js) : des intervalles à décorer, qui
     // ajoutent leurs bornes ; chaque morceau est enveloppé dans un <span> portant les classes qui le couvrent.
     const decos = Markdown.decorations(texte);
-    const bornes = Markdown.bornes(texte, [...couvertures, ...preuvesCodes, ...decos].concat([...frontieres].map((x) => [x, x])));
+    const bornes = Markdown.bornes(texte, [...couvertures, ...preuvesCodes, ...nonCodes, ...decos].concat([...frontieres].map((x) => [x, x])));
     const bloc = $("texte-dossier");
     bloc.textContent = "";
     bloc.classList.add("mise-en-forme");
@@ -548,13 +555,17 @@
       const morceau = texte.slice(d, f);
       const couv = couvertures.filter(([cd, cf]) => cd <= d && f <= cf);
       const couvCodes = preuvesCodes.filter(([cd, cf]) => cd <= d && f <= cf);
-      if (!couv.length && !couvCodes.length) { poser(d, f, document.createTextNode(morceau)); continue; }
+      const couvNonCodes = nonCodes.filter(([cd, cf]) => cd <= d && f <= cf);
+      if (!couv.length && !couvCodes.length && !couvNonCodes.length) { poser(d, f, document.createTextNode(morceau)); continue; }
       const m = document.createElement("mark");
       if (couvCodes.length) {
         const idx = couvCodes.map((c) => c[2]);
-        m.className = "preuve " + couleurCode(idx[0]) + (couvCodes.length > 1 ? " chevauche" : "") + (idx.includes(codageUI.ressort) ? " ressort" : "");
+        m.className = "preuve " + couleurCode(idx[0]) + (couvCodes.length > 1 ? " chevauche partage" : "") + (idx.includes(codageUI.ressort) ? " ressort" : "");
+        if (couvCodes.length > 1) m.style.setProperty("--c2", couleurHex(couleurCode(idx[1]))); // bandes des deux couleurs (variante C)
         m.dataset.codes = idx.join(",");
         m.title = (couvCodes.length > 1 ? "Passage partagé par " : "") + idx.map((k) => (travail.courant.ensembles[k].code || "code à choisir")).join(", ") + " — cliquer pour voir le code";
+      } else if (!couv.length) {
+        m.className = "non-code"; m.title = "Passage non codé selon l'IA" + (couvNonCodes[0][2] ? " — " + couvNonCodes[0][2] : "");
       } else {
         const cles = couv.map((c) => c[2]);
         m.className = "surl c" + couv[0][3] + (couv.length > 1 ? " chevauche" : "") + (cles.includes(dossier.actif) ? " actif" : "");
@@ -568,9 +579,24 @@
   }
   // La mise en forme markdown (titres, gras, traits) est toujours active depuis le style « Neutre » ; le texte de la
   // page reste le texte de référence, seul le style change (web/markdown.js).
+  // Couleur d'un code. Variante C : une couleur par code, attribuée par ordre d'apparition et conservée pendant la
+  // séance (un code supprimé ne change pas la couleur des autres ; un code ajouté prend la première couleur libre ;
+  // au-delà de huit, les couleurs reprennent au début). Variante B : couleurs d'origine, selon le rang du code.
   function couleurCode(i) {
     const e = travail.courant && travail.courant.ensembles[i];
-    return (!e || !e.code) ? "cCX" : "cC" + (i % 8);
+    if (!e || !e.code) return "cCX";
+    if (varianteAffichage() !== "C") return "cC" + (i % 8);
+    const attribuees = codageUI.couleurs;
+    if (!attribuees.has(e.code)) {
+      const presents = new Set(travail.courant.ensembles.filter((x) => x.code && x.code !== e.code && attribuees.has(x.code)).map((x) => attribuees.get(x.code) % 8));
+      let k = 0; while (k < 8 && presents.has(k)) k++;
+      attribuees.set(e.code, k < 8 ? k : attribuees.size % 8);
+    }
+    return "cK" + (attribuees.get(e.code) % 8);
+  }
+  function couleurHex(classe) {
+    const el = document.createElement("span"); el.className = classe; document.body.appendChild(el);
+    const v = getComputedStyle(el).getPropertyValue("--c").trim(); el.remove(); return v;
   }
   let dernierSurlignage = 0; // en mode simple, le clic qui suit un surlignage ne doit pas le retirer
   $("texte-dossier").addEventListener("click", (ev) => {
@@ -1145,7 +1171,7 @@
   // travail.base : la dernière ligne de codage enregistrée du testeur sur ce document (référence des compteurs) ;
   // travail.courant : la copie de travail, modifiable ; sauvegardée dans le navigateur jusqu'à « Enregistrer mon codage ».
   const travail = { base: null, courant: null, modifie: false, localEnAttente: null };
-  const codageUI = { ressort: null, recherche: null, commentairesOuverts: new Set(), vue: "codage", appelEnCours: false };
+  const codageUI = { ressort: null, recherche: null, commentairesOuverts: new Set(), vue: "codage", appelEnCours: false, couleurs: new Map() };
   const CLE_CODAGE = () => "codeur.codage." + etat.utilisateur.id + "." + dossier.doc.id;
   function copier(o) { return JSON.parse(JSON.stringify(o)); }
 
@@ -1216,7 +1242,7 @@
     const variante = varianteAffichage();
     $("bloc-codage").hidden = false;
     $("bloc-codage").className = "bloc-codage " + variante;
-    $("texte-dossier").classList.toggle("B", variante === "B");
+    for (const v of ["A", "B", "C"]) $("texte-dossier").classList.toggle(v, variante === v);
     // pathologie principale en tête
     c.ensembles.sort((a, b) => (b.categorie === "pathologie_principale") - (a.categorie === "pathologie_principale"));
     const zone = $("codage-contenu"); zone.textContent = "";
@@ -1344,6 +1370,8 @@
     e.commentaires = (e.commentaires || []).filter((k) => !(k.auteur === "outil" && /(à choisir|plus précis possible)/.test(k.texte)));
   }
   function changerCode(i, fiche) {
+    const ancien = travail.courant.ensembles[i].code;
+    if (ancien && codageUI.couleurs.has(ancien) && !codageUI.couleurs.has(fiche.code)) { codageUI.couleurs.set(fiche.code, codageUI.couleurs.get(ancien)); }
     const e = travail.courant.ensembles[i];
     e.code = fiche.code; e.libelle = fiche.libelle; delete e.code_propose_non_codable; delete e.libelle_propose;
     nettoyerCommentairesChoix(e);

@@ -157,10 +157,18 @@ button.bascule.actif { background: var(--accent); color: #fff; }
 .etiquette { display: inline-block; font-size: .72rem; padding: 0 .4rem; border-radius: 4px; background: var(--accent); color: #fff; }
 .etiquette.cat { cursor: pointer; } .etiquette.associe { background: var(--fond); color: var(--accent); border: 1px solid var(--accent); }
 .etiquette.alerte { background: var(--alerte); } .etiquette.info { background: var(--encre-douce); } .etiquette.vide { background: #b45309; }
-.bloc-codage.B .code { border: 2px solid var(--c); padding: .5rem .75rem; background: color-mix(in srgb, var(--c) 12%, #fff); }
+/* Trois affichages (brief 7, étape 2). A : pavé gris, liste simple. B et C : le format des cadres de la première maquette
+   (web/essais/maquette_codage.html), chaque code dans un cadre de sa couleur sur fond blanc, sans le pavé gris. */
 .bloc-codage.A .code { border: 1px solid var(--bord); padding: .4rem .75rem; }
+.bloc-codage.B, .bloc-codage.C { background: none; border: 0; padding: 0; }
+.bloc-codage.B .code, .bloc-codage.C .code { border: 2px solid var(--c); border-radius: 8px; padding: .5rem .75rem; margin: .6rem 0; background: color-mix(in srgb, var(--c) 12%, #fff); }
+.bloc-codage.B .non-codes, .bloc-codage.C .non-codes { margin-top: 1rem; }
 .texte-dossier mark.preuve { background: #ffe08a; }
-.texte-dossier.B mark.preuve { background: var(--c, #ffe08a); }
+/* B : le surlignage du texte reste jaune. C : chaque passage prend la couleur de son code ; un passage partagé par deux
+   codes est en bandes des deux couleurs ; un surlignage pas encore codé reste jaune ; un passage non codé selon l'IA est gris. */
+.texte-dossier.C mark.preuve { background: var(--c, #ffe08a); }
+.texte-dossier.C mark.preuve.partage { background: repeating-linear-gradient(135deg, var(--c) 0 6px, var(--c2, var(--c)) 6px 12px); }
+.texte-dossier mark.non-code { background: #ececec; color: inherit; padding: .05em 0; border-radius: 2px; }
 /* Un passage partagé par plusieurs codes garde la couleur du premier code (infobulle : « Passage partagé par … »). */
 .texte-dossier mark.preuve.ressort, .texte-dossier mark.surl.ressort { outline: 2px solid var(--accent); }
 .texte-dossier.mode-simple mark.preuve:hover { background: var(--c, #ffe08a); text-decoration: none; cursor: pointer; }
@@ -180,6 +188,9 @@ button.bascule.actif { background: var(--accent); color: #fff; }
 .recherche-code li .rc-code { font-family: ui-monospace, Menlo, Consolas, monospace; min-width: 5.5rem; }
 .recherche-code li .rc-form { color: var(--encre-douce); font-size: .85rem; margin-left: auto; }
 .recherche-code .rc-titre { font-size: .8rem; color: var(--encre-douce); margin-top: .3rem; }
+/* Palette C : huit teintes claires dérivées d'Okabe-Ito (distinguables en vision daltonienne, lisibles sous un texte noir) */
+.cK0 { --c: #ffd9a3; } .cK1 { --c: #b9e0f7; } .cK2 { --c: #bfe8cf; } .cK3 { --c: #fff0a3; } .cK4 { --c: #c9d6ff; } .cK5 { --c: #ffc8bd; } .cK6 { --c: #f0cfe9; } .cK7 { --c: #dedede; }
+/* Couleurs d'origine (variante B, selon le rang du code) */
 .cC0 { --c: #ffd27a; } .cC1 { --c: #a8e0b8; } .cC2 { --c: #b9cdff; } .cC3 { --c: #f7b9c9; } .cC4 { --c: #d9c9f4; } .cC5 { --c: #ffd4b0; } .cC6 { --c: #a9e4ea; } .cC7 { --c: #dde3a0; } .cCX { --c: #d0d7de; }
 
 .barre-bas { margin-top: 1rem; }

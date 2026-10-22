@@ -42,6 +42,27 @@
   .marge .rappel { font-size: .78rem; color: #8b949e; margin: .15rem 0 0; display: flex; justify-content: space-between; }
   @media (max-width: 1150px) { .marge { position: static; width: auto; margin: .3rem 0 .4rem 1rem; } }
   .barre-enregistrer-colonne .discret { display: block; margin-bottom: .35rem; }
+  /* Étape 2 : trois affichages. A liste simple ; B encadrés aux couleurs d'origine (surlignage jaune) ; C encadrés avec une couleur
+     par code, reprise dans le texte. Palette C (8 teintes claires dérivées d'Okabe-Ito) : */
+  .cK0 { --c: #ffd9a3; } .cK1 { --c: #b9e0f7; } .cK2 { --c: #bfe8cf; } .cK3 { --c: #fff0a3; }
+  .cK4 { --c: #c9d6ff; } .cK5 { --c: #ffc8bd; } .cK6 { --c: #f0cfe9; } .cK7 { --c: #dedede; }
+  /* B et C : le format des cadres de la première maquette (web/essais/maquette_codage.html) : chaque code est un cadre
+     de sa couleur, sur fond blanc, sans le pavé gris (qui reste à la variante A) */
+  .bloc-codage.B, .bloc-codage.C { background: none; border: 0; padding: 0; }
+  .bloc-codage.B .code, .bloc-codage.C .code { border: 2px solid var(--c); border-radius: 8px; padding: .5rem .75rem; margin: .6rem 0; background: color-mix(in srgb, var(--c) 12%, #fff); }
+  .bloc-codage.B .non-codes, .bloc-codage.C .non-codes { margin-top: 1rem; }
+  /* B : couleurs d'origine (celles de la première maquette), surlignage du texte inchangé (jaune) */
+  .bloc-codage.B .cK0 { --c: #ffd27a; } .bloc-codage.B .cK1 { --c: #a8e0b8; } .bloc-codage.B .cK2 { --c: #b9cdff; } .bloc-codage.B .cK3 { --c: #f7b9c9; }
+  .texte-dossier.B mark.preuve { background: #ffe08a; }
+  /* C : palette automatique ci-dessus, reprise dans le texte */
+  .texte-dossier.C mark.preuve { background: var(--c, var(--surl)); }
+  /* passage partagé par deux codes : bandes des deux couleurs */
+  .texte-dossier.C mark.preuve.partage { background: repeating-linear-gradient(135deg, var(--c) 0 6px, var(--c2) 6px 12px); }
+  /* après le codage : les surlignages pas encore codés restent jaunes ; les passages déclarés non codés par l'IA sont en gris */
+  .texte-dossier mark.non-code { background: #ececec; }
+  .selecteur { display: inline-flex; gap: .25rem; margin-left: auto; }
+  .selecteur button { margin: 0; padding: .1rem .55rem; font-size: .85rem; }
+  .selecteur button.actif { background: var(--accent); color: #fff; }
 </style>
 </head>
 <body>
@@ -58,15 +79,15 @@
     <div class="dossier-corps sans-panneau">
       <div class="colonne-texte">
         <p class="discret infos-texte">Hépato-gastro-entérologie<br>Chirurgie adultes &lt; 3 nuits, en hospitalisation complète<br>1 document d'origine — 1 012 caractères — version 1</p>
-<div id="texte-dossier" class="texte-dossier mode-simple mise-en-forme" tabindex="0"><span class="md-titre"><span class="md-marque">###</span> Compte rendu d'hospitalisation</span>
+<div id="texte-dossier" class="texte-dossier mode-simple mise-en-forme C" tabindex="0"><span class="md-titre"><span class="md-marque">###</span> Compte rendu d'hospitalisation</span>
 <span class="md-gras"><span class="md-marque">**</span>Motif d'hospitalisation<span class="md-marque">**</span></span>
-Monsieur T., 68 ans, est admis pour la prise en charge chirurgicale programmée d'une <mark class="surl">hernie inguinale droite non compliquée</mark>, gênante à l'effort depuis six mois.
+Monsieur T., 68 ans, est admis pour la prise en charge chirurgicale programmée d'une <mark class="preuve cK0">hernie inguinale droite non compliquée</mark>, gênante à l'effort depuis six mois.
 
 <span class="md-gras"><span class="md-marque">**</span>Antécédents<span class="md-marque">**</span></span>
-- <mark class="surl">Hypertension artérielle traitée</mark> par un inhibiteur de l'enzyme de conversion, bien équilibrée.
-- <mark class="surl">Diabète de type 2 sous metformine</mark>, sans complication connue.
-- Tabagisme sevré depuis quatre ans, estimé à vingt paquets-années.
-- Appendicectomie dans l'enfance.
+- <mark class="preuve cK1">Hypertension artérielle traitée</mark> par un inhibiteur de l'enzyme de conversion, bien équilibrée.
+- <mark class="preuve cK2 partage" style="--c2:#ffd9a3" title="Passage partagé par E119 et K409">Diabète de type 2 sous metformine</mark>, sans complication connue.
+- <mark class="surl" title="Surligné, pas encore codé">Tabagisme sevré depuis quatre ans</mark>, estimé à vingt paquets-années.
+- <mark class="non-code" title="Passage non codé selon l'IA">Appendicectomie dans l'enfance</mark>.
 
 <span class="md-gras"><span class="md-marque">**</span>Intervention<span class="md-marque">**</span></span>
 Cure de hernie inguinale droite par voie ouverte avec mise en place d'une prothèse, sous anesthésie générale. Suites opératoires simples. Douleur postopératoire modérée, contrôlée par les antalgiques de palier 1.
@@ -93,10 +114,10 @@ Dr A. Exemple, chirurgie digestive</div>
           <p class="discret">La grille de notation (cinq dimensions, de 1 à 5, un repère par niveau) arrive à l'étape 4.</p>
         </div>
 
-        <div id="bloc-codage" class="bloc-codage A">
-          <div class="codage-tete"><h2>Codage</h2><span class="discret">Dernier codage enregistré : proposition de l'IA, le 22/10/2026 14:32.</span></div>
+        <div id="bloc-codage" class="bloc-codage C">
+          <div class="codage-tete"><h2>Codage</h2><span class="discret">Dernier codage enregistré : proposition de l'IA, le 22/10/2026 14:32.</span><span class="selecteur" title="Affichage du codage"><button class="secondaire" data-v="A">A</button><button class="secondaire" data-v="B">B</button><button class="secondaire actif" data-v="C">C</button></span></div>
           <div id="codage-contenu">
-            <div class="code cC0">
+            <div class="code cK0">
               <div class="tete"><strong>K409 – Hernie inguinale unilatérale ou SAI, sans occlusion ni gangrène</strong></div>
               <div class="fonctions"><span class="etiquette cat">Principal ▾</span><button class="ico" title="Supprimer ce code">Supprimer</button><button class="ico" title="Changer le code (recherche)">🔍</button><button class="ico bulle" data-cible="c1" title="Commentaires (1)">💬<span class="n">1</span></button></div>
               <ul class="preuves"><li class="preuve">hernie inguinale droite non compliquée</li></ul>
@@ -107,7 +128,7 @@ Dr A. Exemple, chirurgie digestive</div>
                 <p class="rappel"><span>Aucune donnée concernant un patient réel.</span><span>0 / 500</span></p>
               </div>
             </div>
-            <div class="code cC1">
+            <div class="code cK1">
               <div class="tete"><strong>I10 – Hypertension essentielle (primitive)</strong></div>
               <div class="fonctions"><span class="etiquette cat associe">Associé ▾</span><button class="ico" title="Supprimer ce code">Supprimer</button><button class="ico" title="Changer le code (recherche)">🔍</button><button class="ico bulle" data-cible="c2" title="Commenter">💬</button></div>
               <ul class="preuves"><li class="preuve">Hypertension artérielle traitée</li></ul>
@@ -117,7 +138,7 @@ Dr A. Exemple, chirurgie digestive</div>
                 <p class="rappel"><span>Aucune donnée concernant un patient réel.</span><span>0 / 500</span></p>
               </div>
             </div>
-            <div class="code cC2">
+            <div class="code cK2">
               <div class="tete"><strong>E119 – Diabète sucré de type 2, sans complication</strong></div>
               <div class="fonctions"><span class="etiquette cat associe">Associé ▾</span><button class="ico" title="Supprimer ce code">Supprimer</button><button class="ico" title="Changer le code (recherche)">🔍</button><button class="ico bulle ouvert" data-cible="c3" title="Commentaires (1)">💬<span class="n">1</span></button><button class="ico info" title="Code plus précis possible : un code plus fin existe pour ce diabète (E11 avec cinquième caractère) ; vérifiez avec 🔍.">◎</button></div>
               <ul class="preuves"><li class="preuve">Diabète de type 2 sous metformine</li></ul>
@@ -148,7 +169,7 @@ Dr A. Exemple, chirurgie digestive</div>
   const codageFait = true; // dans cet essai, un codage existe déjà
   function nombre(n) { return new Intl.NumberFormat("fr-FR").format(n); }
   function rafraichir() {
-    const n = texte.querySelectorAll("mark.surl").length;
+    const n = texte.querySelectorAll("mark.surl, mark.preuve").length;
     document.getElementById("compte-passages").textContent = n === 0
       ? "Aucun passage surligné : sélectionnez un passage avec la souris pour pouvoir faire le codage."
       : nombre(n) + " passage" + (n > 1 ? "s" : "") + " surligné" + (n > 1 ? "s" : "") + " — cliquez sur un passage pour le retirer.";
@@ -167,6 +188,13 @@ Dr A. Exemple, chirurgie digestive</div>
   document.querySelectorAll("[data-cible]").forEach((b) => b.addEventListener("click", () => {
     const m = document.getElementById(b.dataset.cible); m.hidden = !m.hidden;
     document.querySelectorAll('.bulle[data-cible="' + b.dataset.cible + '"]').forEach((x) => x.classList.toggle("ouvert", !m.hidden));
+  }));
+  // sélecteur d'affichage A / B / C (même codage, mêmes actions)
+  document.querySelectorAll(".selecteur button").forEach((b) => b.addEventListener("click", () => {
+    const v = b.dataset.v;
+    document.getElementById("bloc-codage").className = "bloc-codage " + v;
+    texte.classList.remove("A", "B", "C"); texte.classList.add(v);
+    document.querySelectorAll(".selecteur button").forEach((x) => x.classList.toggle("actif", x === b));
   }));
   rafraichir(); montrer("codage");
 </script>
