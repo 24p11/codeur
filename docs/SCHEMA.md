@@ -165,7 +165,7 @@ Les lignes de cette table ne sont **jamais modifiées ni supprimées** ; seules 
 | `confiance`, `explication` | Remplis par l'IA quand elle propose un code ; vides sinon |
 | `commentaires` | Commentaires sur ce code |
 | `passages_non_codes` | Les passages surlignés que l'IA (ou l'utilisateur) a déclarés **non codés** : position, texte cité, `raison` et `auteur` (`ia` ou `humain`). Liste vide si aucun. Absente des codages `scenario` |
-| `affichage` | La variante d'affichage utilisée par le codeur (`A` liste simple, `B` encadrés de couleur), dans les lignes écrites par la page ; permet de comparer les affichages |
+| `affichage` | La variante d'affichage utilisée par le codeur (`A` liste simple sans encadré, `B` encadrés aux couleurs d'origine, `C` encadrés avec une couleur par code, reprise dans le surlignage du texte), dans les lignes écrites par la page ; permet de comparer les affichages |
 
 **Les commentaires** portent toujours leur auteur (`ia`, `humain`, `generateur` pour les remarques issues du chargement des CRH synthétiques, ou `outil` pour les remarques de la page : correction d'un code « M142 → M1427 », « code à choisir », « code plus précis possible », passage non traité par l'IA) et l'étape où ils ont été écrits. Ils passent d'une version à la suivante, sauf si le code auquel ils sont attachés est retiré. Les commentaires d'auteur `outil` qui portent sur le choix du code (« code à choisir », « code plus précis possible ») disparaissent quand le codeur change le code ; la trace d'une correction (« M142 → M1427 ») est conservée.
 
@@ -333,7 +333,7 @@ Chaque appel au LLM, pour toutes les tâches.
 
 ### 5.3 `evaluations`
 
-Une seule table pour les deux évaluations de la qualité d'un document : celle du LLM à l'ouverture du dossier, celle du testeur à la fin.
+Une seule table pour les deux évaluations de la qualité d'un document : celle du LLM à l'ouverture du dossier, celle du testeur à la fin. La notation par le testeur est facultative ; chaque enregistrement ajoute une ligne, la plus récente faisant foi.
 
 | Colonne | Contenu |
 |---|---|
@@ -342,6 +342,7 @@ Une seule table pour les deux évaluations de la qualité d'un document : celle 
 | `appel_llm` | Pour une évaluation de l'IA |
 | `mesures` | JSON : copie des mesures fixes du document (`documents.mesures`) transmises au LLM lors de cette évaluation (évaluation de l'IA uniquement) |
 | `notes` | JSON : une note de 1 à 5 pour chacune des cinq dimensions (organisation, langage, cohérence médicale, synthèse, qualité générale) |
+| `version_grille` | *(à ajouter par migration)* La version du fichier de la grille de qualité (`web/grille_qualite.md`) utilisée, avec ses repères par niveau ; la même grille sert au testeur et, plus tard, à l'évaluation par le LLM |
 | `verdict` | Pour l'IA : `exploitable`, `douteux`, `non_exploitable` |
 | `commentaire` | La raison du verdict (IA) ou le commentaire libre (testeur) |
 | `poursuite` | Pour l'IA : le testeur a-t-il choisi de coder le document après l'avertissement ? |
