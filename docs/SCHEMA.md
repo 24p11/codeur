@@ -1,5 +1,7 @@
 # Schéma de la base de données
 
+*Version 1.4 — 22 octobre 2026 : champs `affichage` et `libelle_propose` (§3.4), table `recherches` (§5.4), colonnes MCO de `fiches`, table `descendants_codables` et fonctions de recherche (§6), fin du lot A2-A3 (commit `1811f57`).*
+
 *Version 1.3 — 22 octobre 2026 : ordre d'appariement (§3.7), auteur `outil`, code à choisir, tours de correction (§3.4, §3.10, §5.2, §10 points 25 à 27).*
 
 *Version 1.2 — 21 octobre 2026 : passages non codés (§3.4, §3.5), affichage du codage et modifications par l'utilisateur (§3.5), version de la mention acceptée (§5.1, §7), précisions 20 à 24 (§10).*
@@ -156,12 +158,14 @@ Les lignes de cette table ne sont **jamais modifiées ni supprimées** ; seules 
 | `ensembles` | La liste des codes, chacun avec ses éléments de preuve |
 | `code` | Sans point, extension PMSI collée. Peut être `null` dans une ligne `ia_humain` quand le code proposé par l'IA est resté non codable après la boucle de correction (« code à choisir », §3.10) ; le codeur choisit alors le code |
 | `code_propose_non_codable` | Facultatif : le code non codable proposé par l'IA, conservé quand `code` est `null` |
+| `libelle_propose` | Facultatif : le libellé donné par l'IA pour ce code non codable ; sert à la recherche du codeur |
 | `libelle` | Le libellé officiel, au moment du codage |
 | `categorie` | `pathologie_principale` (une seule par codage) ou `diagnostic_associe` |
 | `preuves` | Les éléments de preuve : position de début et de fin dans le texte, et texte cité. Un champ facultatif `introuvable: true` signale une citation qui n'a pas pu être retrouvée dans le texte |
 | `confiance`, `explication` | Remplis par l'IA quand elle propose un code ; vides sinon |
 | `commentaires` | Commentaires sur ce code |
 | `passages_non_codes` | Les passages surlignés que l'IA (ou l'utilisateur) a déclarés **non codés** : position, texte cité, `raison` et `auteur` (`ia` ou `humain`). Liste vide si aucun. Absente des codages `scenario` |
+| `affichage` | La variante d'affichage utilisée par le codeur (`A` liste simple, `B` encadrés de couleur), dans les lignes écrites par la page ; permet de comparer les affichages |
 
 **Les commentaires** portent toujours leur auteur (`ia`, `humain`, `generateur` pour les remarques issues du chargement des CRH synthétiques, ou `outil` pour les remarques de la page : correction d'un code « M142 → M1427 », « code à choisir », « code plus précis possible », passage non traité par l'IA) et l'étape où ils ont été écrits. Ils passent d'une version à la suivante, sauf si le code auquel ils sont attachés est retiré. Les commentaires d'auteur `outil` qui portent sur le choix du code (« code à choisir », « code plus précis possible ») disparaissent quand le codeur change le code ; la trace d'une correction (« M142 → M1427 ») est conservée.
 
@@ -342,6 +346,22 @@ Une seule table pour les deux évaluations de la qualité d'un document : celle 
 | `commentaire` | La raison du verdict (IA) ou le commentaire libre (testeur) |
 | `poursuite` | Pour l'IA : le testeur a-t-il choisi de coder le document après l'avertissement ? |
 
+### 5.4 `recherches`
+
+Chaque recherche de code faite par un testeur avec 🔍. Sert à mesurer l'efficacité de la recherche et à **alimenter le futur dictionnaire de synonymes** (lot B6) : une recherche suivie du choix d'un code est une équivalence candidate ; une recherche sans résultat montre un manque.
+
+| Colonne | Contenu |
+|---|---|
+| `id`, `cree_le`, `utilisateur` | |
+| `document` | Le document en cours, s'il y en a un |
+| `texte` | Ce que le testeur a tapé |
+| `mode` | `code` (début de code), `morceaux` (formulations contenant tous les morceaux), `ressemblance` (secours, orthographe approchée) |
+| `nb_resultats` | Nombre de codes proposés |
+| `code_choisi` | Le code retenu, ou vide si aucun |
+| `contexte` | `changement_code`, `nouveau_code`, `code_a_choisir` |
+
+Le testeur ajoute ses propres lignes, sans pouvoir les relire.
+
 ---
 
 ## 6. Les tables de référence
@@ -349,9 +369,12 @@ Une seule table pour les deux évaluations de la qualité d'un document : celle 
 | Table | Contenu |
 |---|---|
 | `lots` | Chaque lot chargé : `id` (`parhaf-1.0.0`…), source, version, `description` (texte libre), `contenu` (JSON : ce que le lot apporte — texte seul, DP, DAS, règle, preuves…), `regles_nettoyage` (JSON : les règles appliquées), `charge_le` |
-| `fiches` | L'index des codes de recode-icd et leurs fiches : code (complet, sans point), libellé, **codable ou non**, contenu de la fiche (vide si elle n'apporte rien), version de la livraison (`version_livraison`), date de chargement (`charge_le`). La liste des codes codables est tirée de cette table. Le format exact dépend du chantier ouvert dans recode-icd pour les besoins de `codeur` |
-| `synonymes` | Les formulations associées à chaque code : `origine` (type : libelle, inclusion, index, synonyme), **`source` (provenance : CépiDc, AP-HP, LLM…)**, le code (qui doit exister dans `fiches`), et une forme normalisée indexée pour une recherche insensible aux accents et tolérante aux fautes de frappe |
+| `fiches` | L'index des codes de recode-icd et leurs fiches : code (complet, sans point), libellé, **codable ou non**, contenu de la fiche (vide si elle n'apporte rien), version de la livraison (`version_livraison`), date de chargement (`charge_le`). La liste des codes codables est tirée de cette table. Le format exact dépend du chantier ouvert dans recode-icd pour les besoins de `codeur`. Colonnes ajoutées au lot B3 : `statut_mco` (codable, cause_externe, pere_interdit, interdit_dp_dr, interdit_dp, supprime), `interdit_dp`, `interdit_dr`, `interdit_das` (migration 12) |
+| `synonymes` | Les formulations associées à chaque code : `origine` (type : libelle, inclusion, index, synonyme), **`source` (provenance : CépiDc, AP-HP, LLM…)**, le code (qui doit exister dans `fiches`), et une forme normalisée indexée pour une recherche insensible aux accents et tolérante aux fautes de frappe. Contient les formulations de recode-icd et une ligne par code pour son libellé officiel (origine `libelle`, source « ATIH kit 2025 »), avec `version_livraison`. *Malgré son nom, ce sont des formulations rattachées à un code, pas un dictionnaire d'équivalences entre mots (lot B6, où la table pourra être renommée `formulations`)* |
+| `descendants_codables` | Pour chaque code non codable ou souche (nœud), ses descendants codables avec libellé et ordre du kit, tels que livrés par recode-icd (jamais recalculés) ; sert à la boucle de correction et aux suggestions de 🔍 |
 | `regles_situations` | Le guide des situations cliniques, une ligne par règle : code, famille (tirée de la colonne « Type d'hospitalisation » du guide), libellé, type, spécificité, pathologie, code Z, détails (JSON), version |
+
+**Fonctions de recherche** (droits de l'appelant, chemin de recherche fixé, exécutables par les testeurs connectés) : `rechercher_codes(recherche, limite, seuil)` par ressemblance (trigrammes ; seuil 0,15 pour la boucle de correction, 0,3 pour 🔍), et `rechercher_codes_morceaux` : formulations contenant tous les morceaux tapés, accents et casse ignorés, morceaux de trois lettres ou moins en début de mot seulement ; classement : mot entier, début de mot, libellé officiel, autre formulation, formulation la plus courte ; codes codables seulement, un résultat par code.
 
 ---
 

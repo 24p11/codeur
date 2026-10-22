@@ -936,22 +936,32 @@
     $("bloc-codage").hidden = !travail.base && !travail.courant;
   }
   $("bouton-faire-codage").addEventListener("click", faireCodage);
-  let confirmationEffacement = null;
-  $("bouton-tout-effacer").addEventListener("click", () => {
-    const b = $("bouton-tout-effacer");
-    if (confirmationEffacement) { clearTimeout(confirmationEffacement); confirmationEffacement = null; b.textContent = "Tout effacer";
+  // « Tout effacer » : un panneau de confirmation dit précisément ce qui sera effacé (surlignages non codés ;
+  // codage de travail non enregistré) et rappelle que les lignes enregistrées dans la base ne changent pas.
+  $("bouton-tout-effacer").addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    const libres = passagesLibres().length;
+    const codes = travail.courant ? travail.courant.ensembles.length : 0;
+    if (!libres && !codes) { message("message-dossier", "Rien à effacer.", false); return; }
+    const menu = $("menu-flottant"); menu.textContent = "";
+    const t = document.createElement("div"); t.className = "titre"; t.style.whiteSpace = "normal"; t.style.maxWidth = "24rem";
+    const lignes = [];
+    if (libres) lignes.push(libres + " surlignage" + (libres > 1 ? "s" : "") + " non codé" + (libres > 1 ? "s" : ""));
+    if (codes) lignes.push("le codage de travail (" + codes + " code" + (codes > 1 ? "s" : "") + ")" + (travail.modifie ? ", avec des modifications NON ENREGISTRÉES" : ""));
+    t.textContent = "Effacer : " + lignes.join(" ; ") + ". Les codages déjà enregistrés dans la base ne changent pas" + (codes ? " ; rouvrir le dossier ramènera le dernier codage enregistré" : "") + ".";
+    menu.appendChild(t);
+    bouton(menu, "Effacer", () => {
       dossier.passages = []; dossier.ensembles = []; dossier.actif = null; dossier.prochainNumero = 1; effacerLocal();
       if (travail.courant) {
-        // Avec un codage : le codage de travail est vidé (tous les codes retirés) ; c'est une modification à enregistrer,
-        // les lignes déjà enregistrées dans la base ne changent pas.
         travail.courant.ensembles = []; travail.courant.passages_non_codes = [];
         travail.modifie = true; codageUI.ressort = null;
         rendreCodage(); sauvegarderLocalCodage();
-        $("codage-sauvegarde").textContent = "Surlignages et codage en cours effacés (non enregistré : cliquez sur « Enregistrer mon codage » pour enregistrer ce retrait, ou rouvrez le dossier pour revenir au dernier codage enregistré).";
+        $("codage-sauvegarde").textContent = "Surlignages et codage en cours effacés (non enregistré : « Enregistrer mon codage » pour enregistrer ce retrait, ou rouvrir le dossier pour revenir au dernier codage enregistré).";
       } else { rendre(); }
-      $("sauvegarde-etat").textContent = "Surlignages effacés."; return; }
-    b.textContent = travail.courant ? "Confirmer : effacer surlignages et codage en cours ?" : "Confirmer l'effacement ?";
-    confirmationEffacement = setTimeout(() => { confirmationEffacement = null; b.textContent = "Tout effacer"; }, 4000);
+      $("sauvegarde-etat").textContent = "Surlignages effacés.";
+    });
+    bouton(menu, "Annuler", () => {});
+    placerMenu(menu, ev.target.getBoundingClientRect());
   });
   // Raccourcis N et A : seulement sur l'écran du dossier, jamais dans un champ de saisie.
   document.addEventListener("keydown", (ev) => {
@@ -1244,7 +1254,7 @@
       if (!liste.children.length) { const li = document.createElement("li"); li.className = "discret"; li.textContent = "Aucun code codable trouvé."; liste.appendChild(li); }
     };
     let derniereRecherche = null; // pour le journal des recherches
-    const contexte = e ? (e.code ? "changement de code" : "code à choisir") : "nouveau code";
+    const contexte = e ? (e.code ? "changement_code" : "code_a_choisir") : "nouveau_code"; // valeurs de SCHEMA.md §5.4
     // Suggestions avant toute frappe : pour un code à choisir, les candidats de la boucle de correction (descendants du
     // code proposé, codables de sa catégorie, ressemblance avec le libellé du modèle) ; pour un code plus précis possible,
     // ses descendants codables. Dès la frappe, la recherche normale les remplace.
