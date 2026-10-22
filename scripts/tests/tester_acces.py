@@ -199,6 +199,14 @@ def main() -> None:
               lambda: rows(c1.table("descendants_codables").select("noeud, code").eq("noeud", "Z992").execute()))
         essai("écrire dans descendants_codables (interdit)", "refus",
               lambda: rows(c1.table("descendants_codables").insert({"noeud": "Z992", "code": "Z992+0", "libelle": "x", "ordre_kit": 1, "version_livraison": "x"}, returning="minimal").execute()))
+        essai("journal des recherches : ajouter sa propre ligne (sans relecture)", "vide",
+              lambda: rows(c1.table("recherches").insert({"utilisateur": u1, "document": doc_id, "texte": "hta", "mode": "morceaux", "nb_resultats": 5, "code_choisi": "I10", "contexte": "test"}, returning="minimal").execute()))
+        essai("journal des recherches : ajouter une ligne au nom du second compte (interdit)", "refus",
+              lambda: rows(c1.table("recherches").insert({"utilisateur": u2, "texte": "hta", "mode": "morceaux", "nb_resultats": 0}, returning="minimal").execute()))
+        essai("journal des recherches : relire (interdit)", "refus", lambda: rows(c1.table("recherches").select("id").execute()))
+        essai("recherche par morceaux « hernie ing » (fonction, connecté)", "succès",
+              lambda: [x for x in rows(c1.rpc("rechercher_codes_morceaux", {"recherche": "hernie ing", "limite": 10}).execute()) if x["code"] == "K409"])
+        essai("non connecté : recherche par morceaux (interdit)", "refus", lambda: rows(anon.rpc("rechercher_codes_morceaux", {"recherche": "hta"}).execute()))
         essai("écrire dans une table de référence (interdit)", "refus",
               lambda: rows(c1.table("lots").insert({"id": "x", "source": "x", "version": "x"}, returning="minimal").execute()))
 
@@ -208,7 +216,7 @@ def main() -> None:
         try:
             if doc_id is not None:
                 ids_docs = [d for d in (doc2_id, doc_id) if d is not None]
-                for table in ("rum", "evaluations", "codages", "appels_llm"):
+                for table in ("rum", "evaluations", "codages", "appels_llm", "recherches"):
                     admin.table(table).delete().in_("document", ids_docs).execute()
                 for d in ids_docs:
                     admin.table("documents").delete().eq("id", d).execute()

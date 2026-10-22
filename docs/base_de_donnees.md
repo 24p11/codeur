@@ -20,6 +20,10 @@ Le schéma est écrit sous forme de **migrations** : des fichiers SQL numéroté
 | `20261018140000_documents_colonnes_generees.sql` | Colonnes générées `nb_documents_origine` et `a_corriger`, lisibles ; la vue les lit à la place de `nettoyage` et reste en `security_invoker` |
 | `20261018150000_profils_version_mention.sql` | Colonne `profils.version_mention` ; modification de `profils` limitée à nom, prénom, statut, établissement ; fonction `accepter_mention(version)` (seule voie pour `accord_le` et `version_mention`) ; déclencheur : `accord_le` à l'heure de la base à l'inscription |
 | `20261022100000_referentiels_recode_icd.sql` | `fiches` : `statut_mco`, `interdit_dp/dr/das` ; `synonymes` : `version_livraison`, unicité (code, formulation, source) ; table `descendants_codables` (lecture seule pour les testeurs) |
+| `20261022110000_appels_llm_appel_initial.sql` | `appels_llm.appel_initial` : relie les tours de correction au premier appel |
+| `20261022120000_rechercher_codes.sql` / `20261022130000_…operateur.sql` | Fonction `rechercher_codes(recherche, limite, seuil)` : codes codables par ressemblance (trigrammes) ; la seconde corrige l'opérateur qualifié et ajoute le seuil en paramètre |
+| `20261022140000_recherche_morceaux_et_recherches.sql` / `20261022150000_…correction.sql` | Fonction `rechercher_codes_morceaux(recherche, limite)` (recherche 🔍 par morceaux de mots) ; table `recherches` (journal des recherches, insertion seule) ; la seconde corrige la fonction et ajoute le critère « mot entier » |
+| `20261022160000_recherche_source_formulation.sql` | Les deux fonctions de recherche renvoient aussi la source et l'origine de la formulation |
 
 ## 2. Ce qu'il faut sur l'ordinateur
 
@@ -52,6 +56,8 @@ Pour faire évoluer le schéma : créer un nouveau fichier `supabase/migrations/
 Sans ces instructions, la table est inaccessible aux testeurs, ce qui est le comportement voulu par défaut.
 
 **Règle particulière à la table `documents`.** Depuis la migration `20261018130000_dossiers_disponibles.sql`, la lecture de `documents` par les testeurs est accordée **colonne par colonne** (toutes sauf `nettoyage`, jamais affichée), et l'insertion d'une nouvelle version l'est aussi colonne par colonne (depuis `20261018120000_documents_mesures.sql`). **Toute nouvelle colonne de `documents` doit donc recevoir explicitement, dans sa migration, son droit de lecture (`grant select (<colonne>) on public.documents to authenticated;`) et, le cas échéant, son droit d'insertion** ; sinon elle est invisible et non inscriptible pour les testeurs, ce qui est le comportement voulu par défaut. La vue `dossiers_disponibles` (liste des dossiers de la page) est à compléter si la nouvelle colonne doit y figurer.
+
+**Fonctions de la base** : les fonctions appelées par la page (`accepter_mention`, `rechercher_codes`, `rechercher_codes_morceaux`) sont réservées aux testeurs connectés (`revoke … from public, anon` puis `grant execute … to authenticated`), fixent `set search_path = ''` et n'emploient que des noms complets ; `greatest`, `least`, `coalesce` et les opérateurs sont des constructions du langage et ne se qualifient pas, sauf les opérateurs d'extensions (`operator(extensions.%)`). Les réglages de session (seuil de ressemblance) se posent par `set_config(…, true)` dans le corps de la fonction, le rôle des migrations ne pouvant pas les fixer dans sa définition.
 
 Deux colonnes de `documents` sont **générées par la base** à partir de `nettoyage` et lisibles par les testeurs : `nb_documents_origine` et `a_corriger` (migration `20261018140000_documents_colonnes_generees.sql`). C'est grâce à elles que la vue `dossiers_disponibles` reste en mode `security_invoker` (lue avec les seuls droits du testeur) sans jamais lire `nettoyage`.
 

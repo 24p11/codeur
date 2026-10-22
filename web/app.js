@@ -9,7 +9,7 @@
   const STATUTS = { medecin_dim: "Médecin DIM", tim: "TIM", autre_medecin: "Autre médecin", interne: "Interne", etudiant: "Étudiant", autre: "Autre" };
 
   // --- Écrans : un seul visible à la fois --------------------------------------------------------
-  const ecrans = ["ecran-chargement", "ecran-connexion", "ecran-mention", "ecran-inscription", "ecran-profil", "ecran-liste", "ecran-dossier", "ecran-erreur"];
+  const ecrans = ["ecran-chargement", "ecran-connexion", "ecran-mention", "ecran-inscription", "ecran-profil", "ecran-reglages", "ecran-liste", "ecran-dossier", "ecran-erreur"];
   function montrer(id) {
     for (const e of ecrans) $(e).hidden = e !== id;
     window.scrollTo(0, 0);
@@ -37,7 +37,7 @@
   const adresseRetour = window.location.origin + window.location.pathname;
 
   // --- État de l'application -------------------------------------------------------------------------
-  const etat = { utilisateur: null, profil: null };
+  const etat = { utilisateur: null, profil: null, reglages: null };
 
   // --- Connexion / déconnexion ----------------------------------------------------------------------
   $("formulaire-connexion").addEventListener("submit", async (ev) => {
@@ -113,6 +113,8 @@
       const { data } = await base.from("profils").select("*").eq("id", etat.utilisateur.id).single();
       etat.profil = data;
       $("bouton-profil").hidden = false;
+      $("bouton-reglages").hidden = false;
+      etat.reglages = lireReglages();
       afficherListe();
       return;
     }
@@ -171,6 +173,107 @@
     $("profil-infos").textContent = "Adresse : " + etat.utilisateur.email + " — accord donné le " +
       new Date(data.accord_le).toLocaleString("fr-FR") + " (mention version " + (data.version_mention || "non enregistrée") + ") — statut : " + (STATUTS[data.statut] || data.statut);
   });
+
+  // --- Réglages de l'IA (lot A2, étape 3) -------------------------------------------------------------
+  // Adresse du service, modèle et clé : dans le navigateur uniquement (stockage local, lectures et écritures
+  // protégées), jamais envoyés à la base. La clé ne quitte le navigateur que vers le service du LLM.
+  const REGLAGES_DEFAUT = { adresse: "https://api.mistral.ai/v1", modele: "mistral-large-latest", cle: "" };
+  const CLE_REGLAGES = "codeur.reglages_llm";
+  let ecranAvantReglages = "ecran-liste";
+  function lireReglages() {
+    try {
+      const brut = window.localStorage.getItem(CLE_REGLAGES);
+      if (!brut) return null;
+      const r = JSON.parse(brut);
+      return (r && r.adresse && r.modele && r.cle) ? r : null;
+    } catch (e) { return null; }
+  }
+  function ecrireReglages(r) {
+    try { window.localStorage.setItem(CLE_REGLAGES, JSON.stringify(r)); return true; } catch (e) { return false; }
+  }
+  function oublierReglages() {
+    try { window.localStorage.removeItem(CLE_REGLAGES); } catch (e) { /* indisponible */ }
+    etat.reglages = null;
+  }
+  // Fournisseur enregistré dans appels_llm : « mistral » pour api.mistral.ai, sinon le nom du serveur.
+  function fournisseurDe(adresse) {
+    try {
+      const h = new URL(adresse).hostname.toLowerCase();
+      return h === "api.mistral.ai" ? "mistral" : h;
+    } catch (e) { return "inconnu"; }
+  }
+  // Variante d'affichage du codage (A liste simple, B encadrés de couleur) : lue dans l'ordre « valeur imposée par le
+  // responsable » (à venir : table de paramètres ou colonne de profils), « choix du testeur » (navigateur), défaut A.
+  const CLE_AFFICHAGE = "codeur.affichage_codage";
+  function varianteAffichage() {
+    const imposee = null; // réservé : valeur imposée par le responsable (lot ultérieur)
+    if (imposee === "A" || imposee === "B") return imposee;
+    try { const v = window.localStorage.getItem(CLE_AFFICHAGE); if (v === "A" || v === "B") return v; } catch (e) { /* indisponible */ }
+    return "A";
+  }
+  function enregistrerVariante(v) { try { window.localStorage.setItem(CLE_AFFICHAGE, v); } catch (e) { /* indisponible */ } }
+  function reglagesDepuisFormulaire() {
+    return { adresse: $("reglage-adresse").value.trim().replace(/\/+$/, ""), modele: $("reglage-modele").value.trim(), cle: $("reglage-cle").value.trim() };
+  }
+  function afficherReglages(depuis, raison) {
+    ecranAvantReglages = depuis || "ecran-liste";
+    const r = etat.reglages || lireReglages() || REGLAGES_DEFAUT;
+    $("reglage-adresse").value = r.adresse; $("reglage-modele").value = r.modele; $("reglage-cle").value = r.cle || "";
+    $("reglage-affichage").value = varianteAffichage();
+    message("message-reglages", raison || "", !!raison);
+    montrer("ecran-reglages");
+  }
+  // Appel au format commun /chat/completions. Retourne { contenu, usage, duree_ms, modele, brut } ou lève une erreur
+  // dont le message ne contient jamais la clé.
+  async function appelerLLM(reglages, messages, options) {
+    const corps = { model: reglages.modele, temperature: 0, messages };
+    if (options && options.json) corps.response_format = { type: "json_object" };
+    const debut = performance.now();
+    let rep;
+    try {
+      rep = await fetch(reglages.adresse + "/chat/completions", {
+        method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + reglages.cle }, body: JSON.stringify(corps),
+      });
+    } catch (e) {
+      throw new Error("le service n'a pas pu être joint (" + e.message + ") : réseau, adresse du service, ou appel refusé depuis une page web");
+    }
+    const duree_ms = Math.round(performance.now() - debut);
+    const brut = await rep.text();
+    if (!rep.ok) throw new Error("le service a répondu HTTP " + rep.status + " : " + brut.replace(reglages.cle, "***").slice(0, 300));
+    let donnees;
+    try { donnees = JSON.parse(brut); } catch (e) { throw new Error("réponse du service illisible"); }
+    const contenu = donnees && donnees.choices && donnees.choices[0] && donnees.choices[0].message ? donnees.choices[0].message.content : null;
+    if (typeof contenu !== "string") throw new Error("réponse du service sans contenu");
+    return { contenu, usage: donnees.usage || {}, duree_ms, modele: donnees.model || reglages.modele, brut };
+  }
+  $("formulaire-reglages").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const r = reglagesDepuisFormulaire();
+    etat.reglages = r;
+    enregistrerVariante($("reglage-affichage").value);
+    const ok = ecrireReglages(r);
+    message("message-reglages", ok ? "Réglages enregistrés dans ce navigateur." : "Réglages conservés pour cette session seulement : le stockage de ce navigateur est indisponible, la clé sera redemandée à la prochaine ouverture.", !ok);
+  });
+  $("bouton-tester-llm").addEventListener("click", async () => {
+    const r = reglagesDepuisFormulaire();
+    if (!r.adresse || !r.modele || !r.cle) { message("message-reglages", "Renseignez l'adresse, le modèle et la clé.", true); return; }
+    $("bouton-tester-llm").disabled = true;
+    message("message-reglages", "Test en cours…");
+    try {
+      const res = await appelerLLM(r, [{ role: "user", content: "Réponds uniquement par l'objet JSON {\"ok\": true}." }], { json: true });
+      message("message-reglages", "Connexion réussie : " + res.modele + " a répondu en " + res.duree_ms + " ms (" + (res.usage.total_tokens || "?") + " tokens). Fournisseur enregistré : « " + fournisseurDe(r.adresse) + " ».");
+    } catch (e) {
+      message("message-reglages", "Échec du test : " + e.message, true);
+    }
+    $("bouton-tester-llm").disabled = false;
+  });
+  $("bouton-oublier-reglages").addEventListener("click", () => {
+    oublierReglages();
+    $("reglage-adresse").value = REGLAGES_DEFAUT.adresse; $("reglage-modele").value = REGLAGES_DEFAUT.modele; $("reglage-cle").value = "";
+    message("message-reglages", "Réglages oubliés : la clé n'est plus dans ce navigateur.");
+  });
+  $("bouton-reglages-retour").addEventListener("click", () => montrer(ecranAvantReglages));
+  $("bouton-reglages").addEventListener("click", () => afficherReglages($("ecran-dossier").hidden ? "ecran-liste" : "ecran-dossier"));
 
   // --- Liste des dossiers (étape 5) ------------------------------------------------------------------
   // La liste lit la vue dossiers_disponibles (dernière version, sans les dossiers à corriger, sans texte
@@ -321,7 +424,10 @@
     const { data, error } = await base.from("documents")
       .select("id, id_source, version, specialite, type_prise_en_charge, texte, empreinte, nb_documents_origine").eq("id", id).single();
     if (error) { message("message-liste", "Le dossier n'a pas pu être chargé : " + error.message, true); return; }
-    dossier.doc = data; dossier.passages = []; dossier.ensembles = []; dossier.prochainNumero = 1; dossier.actif = null; dossier.selection = null;
+    dossier.doc = data; dossier.passages = []; dossier.ensembles = []; dossier.prochainNumero = 1; dossier.actif = null; dossier.selection = null; dossier.codage = null;
+    $("bloc-codage").hidden = true; $("codage-contenu").textContent = ""; $("codage-etat").textContent = ""; $("codage-reprise").hidden = true;
+    $("codage-non-codes").textContent = ""; $("codage-non-codes").hidden = true; $("codage-sauvegarde").textContent = "";
+    travail.base = null; travail.courant = null; travail.modifie = false; travail.localEnAttente = null;
     $("dossier-titre").textContent = data.id_source;
     $("dossier-infos").textContent = enClair(data.specialite) + " — " + enClair(data.type_prise_en_charge) + " — " +
       nombre(data.nb_documents_origine) + " document(s) d'origine — " + nombre(P.longueur(data.texte)) + " caractères — version " + data.version;
@@ -343,12 +449,18 @@
     $("texte-dossier").classList.toggle("mode-simple", !MODE_PANNEAU);
     montrer("ecran-dossier");
     rendre(); cacherBarre();
+    await chargerCodageExistant();
   }
 
   // Les « unités » surlignées : en mode passages, chaque passage ; en mode ensembles, chaque ensemble.
   function unites() {
     if (MODE_ENSEMBLES) return dossier.ensembles.map((e) => ({ cle: e.numero, couleur: e.numero % 8, passages: e.passages }));
-    return dossier.passages.map((p, i) => ({ cle: i, couleur: 0, passages: [p] }));
+    return passagesLibres().map((p) => ({ cle: "p" + p.debut + ":" + p.fin, couleur: 0, passages: [p] }));
+  }
+  // Passages surlignés qui ne sont rattachés à aucun code (SCHEMA.md §3.6) : seuls ceux-là sont envoyés au LLM.
+  function passagesLibres() {
+    const preuves = travail.courant ? travail.courant.ensembles.flatMap((e) => e.preuves) : [];
+    return dossier.passages.filter((p) => !preuves.some((q) => q.debut < p.fin && p.debut < q.fin));
   }
 
   // Rendu du texte : découpe aux frontières des passages ; chaque morceau est soit un nœud texte, soit un <mark>
@@ -361,6 +473,12 @@
       const d = P.pointsVersU16(texte, p.debut), f = P.pointsVersU16(texte, p.fin);
       frontieres.add(d); frontieres.add(f); couvertures.push([d, f, u.cle, u.couleur]);
     }
+    // Preuves des codes du codage courant : une unité par code (couleur = rang du code, variante B).
+    const preuvesCodes = []; // [debut16, fin16, indexCode]
+    if (travail.courant) travail.courant.ensembles.forEach((e, i) => { for (const p of e.preuves) {
+      const d = P.pointsVersU16(texte, p.debut), f = P.pointsVersU16(texte, p.fin);
+      frontieres.add(d); frontieres.add(f); preuvesCodes.push([d, f, i]);
+    } });
     const bornes = [...frontieres].sort((a, b) => a - b);
     const bloc = $("texte-dossier");
     bloc.textContent = "";
@@ -368,22 +486,41 @@
       const d = bornes[i], f = bornes[i + 1];
       const morceau = texte.slice(d, f);
       const couv = couvertures.filter(([cd, cf]) => cd <= d && f <= cf);
-      if (!couv.length) { bloc.appendChild(document.createTextNode(morceau)); continue; }
-      const cles = couv.map((c) => c[2]);
+      const couvCodes = preuvesCodes.filter(([cd, cf]) => cd <= d && f <= cf);
+      if (!couv.length && !couvCodes.length) { bloc.appendChild(document.createTextNode(morceau)); continue; }
       const m = document.createElement("mark");
-      m.className = "surl c" + couv[0][3] + (couv.length > 1 ? " chevauche" : "") + (cles.includes(dossier.actif) ? " actif" : "");
-      m.dataset.cles = cles.join(",");
-      m.title = !MODE_PANNEAU ? "Cliquer pour retirer ce surlignage"
-        : MODE_ENSEMBLES ? "Ensemble" + (cles.length > 1 ? "s " : " ") + cles.join(", ") : "Passage" + (cles.length > 1 ? "s " : " ") + cles.map((k) => k + 1).join(", ");
+      if (couvCodes.length) {
+        const idx = couvCodes.map((c) => c[2]);
+        m.className = "preuve " + couleurCode(idx[0]) + (couvCodes.length > 1 ? " chevauche" : "") + (idx.includes(codageUI.ressort) ? " ressort" : "");
+        m.dataset.codes = idx.join(",");
+        m.title = (couvCodes.length > 1 ? "Passage partagé par " : "") + idx.map((k) => (travail.courant.ensembles[k].code || "code à choisir")).join(", ") + " — cliquer pour voir le code";
+      } else {
+        const cles = couv.map((c) => c[2]);
+        m.className = "surl c" + couv[0][3] + (couv.length > 1 ? " chevauche" : "") + (cles.includes(dossier.actif) ? " actif" : "");
+        m.dataset.cles = cles.join(",");
+        m.title = !MODE_PANNEAU ? "Passage surligné, pas encore codé — cliquer pour retirer ce surlignage"
+          : MODE_ENSEMBLES ? "Ensemble" + (cles.length > 1 ? "s " : " ") + cles.join(", ") : "Passage" + (cles.length > 1 ? "s " : " ") + cles.map((k) => k + 1).join(", ");
+      }
       m.textContent = morceau;
       bloc.appendChild(m);
     }
   }
+  function couleurCode(i) {
+    const e = travail.courant && travail.courant.ensembles[i];
+    return (!e || !e.code) ? "cCX" : "cC" + (i % 8);
+  }
   let dernierSurlignage = 0; // en mode simple, le clic qui suit un surlignage ne doit pas le retirer
   $("texte-dossier").addEventListener("click", (ev) => {
+    const mp = ev.target.closest("mark.preuve");
+    if (mp && !window.getSelection().toString()) { // clic sur une preuve : fait ressortir son code
+      const idx = mp.dataset.codes.split(",").map(Number);
+      const i = idx.indexOf(codageUI.ressort);
+      ressortirCode(idx[(i + 1) % idx.length], true);
+      return;
+    }
     const m = ev.target.closest("mark.surl");
     if (!m || window.getSelection().toString()) return;
-    const cles = m.dataset.cles.split(",").map(Number);
+    const cles = m.dataset.cles.split(",").map((x) => (x.startsWith("p") ? x : Number(x)));
     if (!MODE_PANNEAU) {
       if (Date.now() - dernierSurlignage < 400) return;
       retirerPassageSimple(cles[0]);
@@ -417,11 +554,13 @@
       if (!res) return;
       if (res.refus) { message("message-dossier", "Passage refusé : " + res.refus + ".", true); window.getSelection().removeAllRanges(); return; }
       message("message-dossier", "");
+      if (travail.courant) { menuSelection(res.passage, res.rect); return; } // avec un codage : « Ajouter à… », « Nouveau code… »
       surlignerSimple(res.passage);
     }, 0);
   });
   function rendreCompte() {
     const n = dossier.passages.length;
+    $("rappel-passages").textContent = n === 0 ? "Surlignez des passages, puis faites le codage." : nombre(n) + " passage" + (n > 1 ? "s" : "") + " à coder.";
     $("compte-passages").textContent = n === 0 ? "Aucun passage surligné. Sélectionnez un passage avec la souris pour le surligner ; cliquez sur un passage surligné pour le retirer."
       : nombre(n) + " passage" + (n > 1 ? "s" : "") + " surligné" + (n > 1 ? "s" : "") + " — cliquez sur un passage pour le retirer.";
   }
@@ -456,10 +595,15 @@
     window.getSelection().removeAllRanges(); cacherBarre();
     rendre(); sauvegarderLocal();
   }
-  function retirerPassageSimple(i) {
+  function retirerPassageSimple(cle) {
+    // `cle` : un rang (mode panneau) ou une clé « p<debut>:<fin> » (marques du texte)
+    let i = cle;
+    if (typeof cle === "string") { const [d, f] = cle.slice(1).split(":").map(Number); i = dossier.passages.findIndex((p) => p.debut === d && p.fin === f); }
+    if (typeof i !== "number" || i < 0 || i >= dossier.passages.length) return;
     dossier.passages.splice(i, 1);
     dossier.actif = null;
     rendre(); sauvegarderLocal();
+    if (travail.courant) rendreCodage();
   }
 
   // ---- Mode ensembles (désactivé au lot A1, conservé pour la revue, lot A3) ----
@@ -598,13 +742,215 @@
   $("bouton-nouvel-ensemble").addEventListener("click", nouvelEnsemble);
   $("bouton-ajouter-ensemble").addEventListener("click", ajouterAuSelectionne);
   $("bouton-retour-liste").addEventListener("click", () => { cacherBarre(); afficherListe(); });
+  $("bouton-retour-liste-bas").addEventListener("click", () => { cacherBarre(); afficherListe(); window.scrollTo(0, 0); });
+  // --- « Faire le codage » : appel au LLM, contrôles, boucle de correction, enregistrement (étape 5) ---------------
+  // SCHEMA.md §3.5, §3.6, §3.10, §5.2. La logique pure est dans web/codage.js (CodeurCodage) ; ici : les prompts,
+  // les lectures de l'index, les écritures dans appels_llm et codages, et l'enchaînement.
+  const K = window.CodeurCodage;
+  const prompts = {};
+  async function lirePrompt(nom) {
+    if (prompts[nom]) return prompts[nom];
+    const rep = await fetch("prompts/" + nom + ".md", { cache: "no-store" });
+    if (!rep.ok) throw new Error("prompt " + nom + " introuvable (HTTP " + rep.status + ")");
+    const md = await rep.text();
+    const v = md.match(/<!--\s*version:\s*([^\s>]+)\s*-->/);
+    if (!v) throw new Error("prompt " + nom + " sans repère de version");
+    prompts[nom] = { version: v[1], texte: md.replace(/<!--[\s\S]*?-->/g, "").trim() };
+    return prompts[nom];
+  }
+  function uuid() {
+    if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    const b = new Uint8Array(16); window.crypto.getRandomValues(b); b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+    const h = [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
+    return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20);
+  }
+  // Enregistre un appel dans appels_llm (sans la clé ; sans retour, la table n'étant pas relisible).
+  async function enregistrerAppel(ligne) {
+    const { error } = await base.from("appels_llm").insert(ligne, { returning: "minimal" });
+    if (error) throw new Error("l'appel n'a pas pu être enregistré dans la base : " + error.message);
+  }
+  // Index : lit les codes et leurs descendants ; candidats de catégorie pour les codes sans descendant.
+  async function lireIndex(codes) {
+    const uniques = [...new Set(codes.filter(Boolean))];
+    const index = new Map(), descendants = new Map();
+    if (uniques.length) {
+      const f = await base.from("fiches").select("code, libelle, codable, statut_mco").in("code", uniques);
+      if (f.error) throw new Error("lecture de l'index impossible : " + f.error.message);
+      for (const x of f.data) index.set(x.code, { codable: x.codable, libelle: x.libelle, statut: x.statut_mco });
+      const d = await base.from("descendants_codables").select("noeud, code, libelle, ordre_kit").in("noeud", uniques).order("ordre_kit");
+      if (d.error) throw new Error("lecture des descendants impossible : " + d.error.message);
+      for (const x of d.data) { if (!descendants.has(x.noeud)) descendants.set(x.noeud, []); descendants.get(x.noeud).push({ code: x.code, libelle: x.libelle }); }
+    }
+    return { index, descendants };
+  }
+  async function candidatsDeCategorie(code, limite) {
+    const cat = (code || "").slice(0, 3);
+    if (cat.length < 3) return [];
+    const r = await base.from("fiches").select("code, libelle").like("code", cat + "%").eq("codable", true).order("code").limit(limite || K.LIMITE_CANDIDATS);
+    return r.error ? [] : r.data;
+  }
+  async function dernierCodage(documentId) {
+    const r = await base.from("codages").select("id, etape, codage, cree_le").eq("document", documentId).eq("utilisateur", etat.utilisateur.id)
+      .order("cree_le", { ascending: false }).limit(1);
+    return r.error || !r.data.length ? null : r.data[0];
+  }
+
+  async function faireCodage() {
+    etat.reglages = etat.reglages || lireReglages();
+    if (!etat.reglages) { afficherReglages("ecran-dossier", "Indiquez d'abord l'adresse du service, le modèle et votre clé pour pouvoir faire le codage."); return; }
+    if (!dossier.passages.length) { message("message-dossier", "Surlignez au moins un passage avant de faire le codage.", true); return; }
+    const bouton = $("bouton-faire-codage");
+    bouton.disabled = true;
+    $("bloc-codage").hidden = false;
+    $("codage-contenu").textContent = "";
+    const etatCodage = (t) => { $("codage-etat").innerHTML = "<span class='attente'></span>" + t; };
+    message("message-dossier", "");
+    const reglages = etat.reglages;
+    const fournisseur = fournisseurDe(reglages.adresse);
+    // Appel répété (SCHEMA.md §3.6) : seuls les passages surlignés non rattachés à un code sont envoyés ; un passage qui
+    // chevauche une preuve existante complète ce code sans être envoyé ; les codes retenus sont transmis en lecture seule.
+    const repete = !!(travail.courant && travail.courant.ensembles.length);
+    let passages = dossier.passages.slice();
+    const avertissements = [];
+    if (repete) {
+      const prep = K.preparerAppelRepete(travail.courant, dossier.passages, (p) => P.verifier(dossier.doc.texte, p));
+      passages = prep.aEnvoyer;
+      if (prep.modifie) { travail.modifie = true; avertissements.push("Passage(s) ajouté(s) aux preuves d'un code existant (chevauchement) : " + prep.completes.join(", ") + "."); }
+      if (!passages.length) {
+        rendreCodage(); if (prep.modifie) sauvegarderLocalCodage();
+        message("message-dossier", "Aucun nouveau passage à envoyer au modèle : tous vos surlignages sont déjà rattachés à un code." + (prep.modifie ? " " + avertissements[0] : ""), !prep.modifie);
+        $("bouton-faire-codage").disabled = false; return;
+      }
+      // Vos modifications non enregistrées sont d'abord enregistrées (ligne revue_humain), pour ne pas être attribuées à l'IA.
+      if (travail.modifie) {
+        etatCodage("Enregistrement de vos modifications (revue) avant l'appel…");
+        try { await enregistrerRevue(); avertissements.push("Vos modifications ont d'abord été enregistrées comme revue (ligne revue_humain)."); }
+        catch (e) { afficherEchec("Vos modifications n'ont pas pu être enregistrées avant l'appel : " + e.message + ". Appel annulé."); $("bouton-faire-codage").disabled = false; return; }
+      }
+    }
+    try {
+      const pc = await lirePrompt("codage_v1");
+      const contexte = repete ? { codesRetenus: travail.courant.ensembles.filter((e) => e.code).map((e) => ({ code: e.code, libelle: e.libelle, categorie: e.categorie })) } : null;
+      const utilisateur = K.construireMessageUtilisateur(dossier.doc.id_source, dossier.doc.texte, passages, contexte);
+      const messages = [{ role: "system", content: pc.texte }, { role: "user", content: utilisateur }];
+      const appelInitial = uuid();
+      let appelCourant = appelInitial;
+      // ---- Tour 1 : le codage
+      etatCodage("Appel au modèle " + reglages.modele + " (" + passages.length + " passage" + (passages.length > 1 ? "s" : "") + ")…");
+      let res = await appelerEtEnregistrer(reglages, fournisseur, messages, { id: appelInitial, appel_initial: null, version_prompt: pc.version, tache: "codage", passages });
+      let analyse = K.analyserReponse(res.contenu, passages);
+      if (!analyse.ok) { afficherEchec("La réponse du modèle n'est pas exploitable : " + analyse.erreur + ". Aucun codage n'a été enregistré ; vous pouvez réessayer."); return; }
+      let idx = await lireIndex(analyse.ensembles.map((e) => e.code));
+      K.verifierCodes(analyse.ensembles, (c) => idx.index.get(c) || null, (c) => idx.descendants.get(c) || []);
+      // ---- Tours de correction (au plus 2)
+      const pcorr = await lirePrompt("correction_v1");
+      for (let tour = 1; tour <= 2; tour++) {
+        const aCorriger = analyse.ensembles.filter((e) => e.statut !== "codable");
+        if (!aCorriger.length) break;
+        // Candidats : descendants codables (seule liste pour un code tronqué ou père interdit) ; pour un code inconnu
+        // ou sans descendant : codes codables de la catégorie, puis codes dont une formulation ressemble au libellé du modèle.
+        const cands = new Map();
+        for (const e of aCorriger) {
+          const d = idx.descendants.get(e.code) || [];
+          if (d.length) { cands.set(e.code, [{ titre: "Codes codables possibles (descendants)", liste: d }]); continue; }
+          const sections = [];
+          const inconnu = e.statut === "inconnu";
+          const cat = await candidatsDeCategorie(e.code, inconnu ? 20 : K.LIMITE_CANDIDATS); // catégorie limitée à 20 pour un code inconnu
+          let ress = null;
+          if (e.libelleModele) {
+            const r = await base.rpc("rechercher_codes", { recherche: e.libelleModele, limite: K.LIMITE_CANDIDATS, seuil: 0.15 });
+            if (!r.error && r.data.length) ress = { titre: "Codes dont une formulation ressemble à votre libellé", liste: r.data.map((x) => ({ code: x.code, libelle: x.libelle })) };
+          }
+          const secCat = cat.length ? { titre: "Codes codables de la catégorie " + e.code.slice(0, 3), liste: cat } : null;
+          // Code inconnu : la ressemblance d'abord ; code connu sans descendant : la catégorie d'abord.
+          for (const sec of (inconnu ? [ress, secCat] : [secCat, ress])) if (sec) sections.push(sec);
+          cands.set(e.code, sections);
+        }
+        const mc = K.construireMessageCorrection(analyse.ensembles, (e) => cands.get(e.code) || []);
+        etatCodage("Correction (tour " + tour + ") : " + aCorriger.map((e) => e.code).join(", ") + " non codable" + (aCorriger.length > 1 ? "s" : "") + "…");
+        messages.push({ role: "assistant", content: res.contenu }, { role: "user", content: pcorr.texte + "\n\n" + mc.message });
+        appelCourant = uuid();
+        res = await appelerEtEnregistrer(reglages, fournisseur, messages, { id: appelCourant, appel_initial: appelInitial, version_prompt: pcorr.version, tache: "codage", passages, tour });
+        // les candidats sont déjà vérifiés codables ; on recharge l'index pour les codes choisis
+        const choisis = []; try { const o = JSON.parse(res.contenu.replace(/^```(?:json)?\s*|\s*```$/gi, "")); for (const v of Object.values(o.corrections || {})) if (v) choisis.push(K.normaliserCode(v)); } catch (e) { /* géré par appliquerCorrection */ }
+        const idx2 = await lireIndex(choisis);
+        for (const [k, v] of idx2.index) idx.index.set(k, v);
+        for (const [k, v] of idx2.descendants) idx.descendants.set(k, v);
+        const corr = K.appliquerCorrection(analyse.ensembles, res.contenu, mc.aCorriger, (c) => idx.index.get(c) || null, (c) => idx.descendants.get(c) || []);
+        if (!corr.ok) { avertissements.push("Réponse de correction illisible au tour " + tour + "."); break; }
+        if (corr.ignores.length) avertissements.push("Choix hors liste ignoré : " + corr.ignores.map((x) => x.code + " → " + x.choisi).join(", ") + ".");
+      }
+      // ---- Construction et enregistrement
+      const precedent = await dernierCodage(dossier.doc.id);
+      let codage = K.construireCodage(analyse, passages, "ia_humain", precedent ? precedent.codage : null);
+      if (repete) {
+        // la page assemble : codes retenus (y compris vos modifications non enregistrées) + propositions sur les nouveaux passages
+        const ass = K.assemblerAppelRepete(travail.courant, codage, "ia_humain");
+        codage = ass.codage;
+        if (ass.ecartes.length) avertissements.push("Proposition(s) sans nouveau passage écartée(s) : " + ass.ecartes.join(", ") + ".");
+        if (ass.completes.length) avertissements.push("L'IA a ajouté des passages aux preuves de codes déjà retenus : " + ass.completes.join(", ") + " (vous pouvez les retirer).");
+      }
+      codage.affichage = varianteAffichage();
+      const compteurs = K.compteurs(precedent ? precedent.codage : null, codage);
+      etatCodage("Enregistrement du codage…");
+      const ins = await base.from("codages").insert({
+        document: dossier.doc.id, etape: "ia_humain", utilisateur: etat.utilisateur.id, codage_precedent: precedent ? precedent.id : null,
+        appel_llm: appelCourant, valide: false, compteurs, codage,
+      }).select("id, cree_le").single();
+      if (ins.error) throw new Error("le codage n'a pas pu être enregistré : " + ins.error.message);
+      effacerLocalCodage();
+      installerCodage({ id: ins.data.id, etape: "ia_humain", codage, cree_le: ins.data.cree_le }, null);
+      const an = analyse.anomalies;
+      if (an.passagesManquants.length) avertissements.push("Passage(s) non traité(s) par l'IA : " + an.passagesManquants.map((k) => "n° " + k).join(", ") + ".");
+      if (an.passagesInconnus.length) avertissements.push("Numéro(s) de passage inconnu(s) dans la réponse, ignoré(s) : " + an.passagesInconnus.join(", ") + ".");
+      if (an.ensemblesSansPassage) avertissements.push(an.ensemblesSansPassage + " ensemble(s) sans passage valide écarté(s).");
+      if (an.pathologiesPrincipalesMultiples.length) avertissements.push("Plusieurs pathologies principales proposées : " + an.pathologiesPrincipalesMultiples[0] + " gardée, les autres passées en diagnostic associé.");
+      if (an.passagesMultiEnsembles.length) avertissements.push("Passage(s) rattaché(s) à plusieurs codes : " + an.passagesMultiEnsembles.map((k) => "n° " + k).join(", ") + ".");
+      if (an.nonCodesRedondants.length) avertissements.push("Passage(s) déclaré(s) non codé(s) alors qu'ils appuient un code : déclaration écartée (" + an.nonCodesRedondants.map((k) => "n° " + k).join(", ") + ").");
+      $("codage-etat").textContent = "Codage proposé par l'IA enregistré (" + new Date().toLocaleTimeString("fr-FR") + ")." + (avertissements.length ? " À noter : " + avertissements.join(" ") : "");
+      rendreCodage();
+    } catch (e) {
+      afficherEchec(e.message);
+    } finally {
+      bouton.disabled = false;
+    }
+  }
+  // Un appel : envoi, enregistrement dans appels_llm (réussi ou échoué), retour du résultat.
+  async function appelerEtEnregistrer(reglages, fournisseur, messages, infos) {
+    const requete = { modele: reglages.modele, adresse: reglages.adresse, temperature: 0, response_format: "json_object", tour: infos.tour || 0,
+                      passages: infos.passages.map((p, i) => ({ numero: i + 1, debut: p.debut, fin: p.fin, texte: p.texte })), messages };
+    let res = null, erreur = null;
+    try { res = await appelerLLM(reglages, messages, { json: true }); } catch (e) { erreur = e.message; }
+    await enregistrerAppel({
+      id: infos.id, utilisateur: etat.utilisateur.id, document: dossier.doc.id, tache: infos.tache, fournisseur, modele: res ? res.modele : reglages.modele,
+      version_prompt: infos.version_prompt, requete, reponse: res ? res.brut : null,
+      tokens_entree: res ? (res.usage.prompt_tokens ?? null) : null, tokens_sortie: res ? (res.usage.completion_tokens ?? null) : null,
+      tokens_total: res ? (res.usage.total_tokens ?? null) : null, duree_ms: res ? res.duree_ms : null, erreur, appel_initial: infos.appel_initial,
+    });
+    if (erreur) throw new Error("appel au modèle en échec : " + erreur);
+    return res;
+  }
+  function afficherEchec(texte) {
+    $("codage-etat").textContent = "";
+    message("message-dossier", texte, true);
+    $("bloc-codage").hidden = !travail.base && !travail.courant;
+  }
+  $("bouton-faire-codage").addEventListener("click", faireCodage);
   let confirmationEffacement = null;
   $("bouton-tout-effacer").addEventListener("click", () => {
     const b = $("bouton-tout-effacer");
     if (confirmationEffacement) { clearTimeout(confirmationEffacement); confirmationEffacement = null; b.textContent = "Tout effacer";
       dossier.passages = []; dossier.ensembles = []; dossier.actif = null; dossier.prochainNumero = 1; effacerLocal();
-      rendre(); $("sauvegarde-etat").textContent = "Surlignages effacés."; return; }
-    b.textContent = "Confirmer l'effacement ?";
+      if (travail.courant) {
+        // Avec un codage : le codage de travail est vidé (tous les codes retirés) ; c'est une modification à enregistrer,
+        // les lignes déjà enregistrées dans la base ne changent pas.
+        travail.courant.ensembles = []; travail.courant.passages_non_codes = [];
+        travail.modifie = true; codageUI.ressort = null;
+        rendreCodage(); sauvegarderLocalCodage();
+        $("codage-sauvegarde").textContent = "Surlignages et codage en cours effacés (non enregistré : cliquez sur « Enregistrer mon codage » pour enregistrer ce retrait, ou rouvrez le dossier pour revenir au dernier codage enregistré).";
+      } else { rendre(); }
+      $("sauvegarde-etat").textContent = "Surlignages effacés."; return; }
+    b.textContent = travail.courant ? "Confirmer : effacer surlignages et codage en cours ?" : "Confirmer l'effacement ?";
     confirmationEffacement = setTimeout(() => { confirmationEffacement = null; b.textContent = "Tout effacer"; }, 4000);
   });
   // Raccourcis N et A : seulement sur l'écran du dossier, jamais dans un champ de saisie.
@@ -616,12 +962,390 @@
     if ((ev.key === "a" || ev.key === "A") && MODE_ENSEMBLES) { ev.preventDefault(); ajouterAuSelectionne(); }
   });
 
+  // --- Écran de codage (étape 6) ------------------------------------------------------------------------
+  // travail.base : la dernière ligne de codage enregistrée du testeur sur ce document (référence des compteurs) ;
+  // travail.courant : la copie de travail, modifiable ; sauvegardée dans le navigateur jusqu'à « Enregistrer mon codage ».
+  const travail = { base: null, courant: null, modifie: false, localEnAttente: null };
+  const codageUI = { ressort: null, recherche: null };
+  const CLE_CODAGE = () => "codeur.codage." + etat.utilisateur.id + "." + dossier.doc.id;
+  function copier(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function sauvegarderLocalCodage() {
+    try {
+      window.localStorage.setItem(CLE_CODAGE(), JSON.stringify({ version: 1, empreinte: dossier.doc.empreinte, ligne_base: travail.base ? travail.base.id : null,
+        courant: travail.courant, enregistreLe: new Date().toISOString() }));
+      $("codage-sauvegarde").textContent = "Modifications sauvegardées dans ce navigateur à " + new Date().toLocaleTimeString("fr-FR") + " (non enregistrées dans la base).";
+    } catch (e) {
+      $("codage-sauvegarde").textContent = "Sauvegarde locale indisponible : enregistrez votre codage avant de fermer la page.";
+    }
+  }
+  function lireLocalCodage() {
+    try {
+      const b = window.localStorage.getItem(CLE_CODAGE());
+      if (!b) return null;
+      const c = JSON.parse(b);
+      if (c.empreinte !== dossier.doc.empreinte || !c.courant) return null;
+      return c;
+    } catch (e) { return null; }
+  }
+  function effacerLocalCodage() { try { window.localStorage.removeItem(CLE_CODAGE()); } catch (e) { /* indisponible */ } }
+
+  // Règle de réouverture (point interprété) : la dernière ligne de la base est la référence ; les modifications locales
+  // sont appliquées d'office si elles ont été faites à partir de cette ligne, sinon proposées par un bouton.
+  async function chargerCodageExistant() {
+    const docId = dossier.doc.id;
+    const dernier = await dernierCodage(docId);
+    if (!dossier.doc || dossier.doc.id !== docId) return; // un autre dossier a été ouvert entre-temps
+    const local = lireLocalCodage();
+    if (dernier) installerCodage({ id: dernier.id, etape: dernier.etape, codage: dernier.codage, cree_le: dernier.cree_le }, null);
+    if (local) {
+      const concorde = (local.ligne_base || null) === (dernier ? dernier.id : null);
+      if (concorde) { installerCodage(travail.base, local.courant); $("codage-sauvegarde").textContent = "Modifications non enregistrées retrouvées dans ce navigateur (" + new Date(local.enregistreLe).toLocaleString("fr-FR") + ")."; }
+      else {
+        travail.localEnAttente = local;
+        $("codage-reprise-texte").textContent = "Des modifications non enregistrées du " + new Date(local.enregistreLe).toLocaleString("fr-FR") + " existent dans ce navigateur, faites à partir d'une version antérieure de votre codage.";
+        $("codage-reprise").hidden = false; $("bloc-codage").hidden = false;
+      }
+    }
+    if (travail.courant) rendreCodage();
+  }
+  $("bouton-reprendre-local").addEventListener("click", () => {
+    const l = travail.localEnAttente; if (!l) return;
+    installerCodage(travail.base, l.courant); travail.modifie = true; $("codage-reprise").hidden = true; travail.localEnAttente = null; rendreCodage(); sauvegarderLocalCodage();
+  });
+  $("bouton-oublier-local").addEventListener("click", () => { effacerLocalCodage(); travail.localEnAttente = null; $("codage-reprise").hidden = true; });
+
+  // Installe une ligne de base et, le cas échéant, une copie de travail déjà modifiée.
+  function installerCodage(ligneBase, courantLocal) {
+    travail.base = ligneBase ? { id: ligneBase.id, etape: ligneBase.etape, codage: copier(ligneBase.codage), cree_le: ligneBase.cree_le } : null;
+    travail.courant = courantLocal ? copier(courantLocal) : (ligneBase ? copier(ligneBase.codage) : null);
+    travail.modifie = !!courantLocal;
+    if (travail.courant) {
+      travail.courant.passages_non_codes = travail.courant.passages_non_codes || [];
+      for (const e of travail.courant.ensembles) { e.preuves = e.preuves || []; e.commentaires = e.commentaires || []; }
+    }
+    $("bloc-codage").hidden = !travail.courant;
+    if (travail.base) $("codage-etat").textContent = "Dernier codage enregistré : " + etiquetteEtape(travail.base.etape) + ", le " + new Date(travail.base.cree_le).toLocaleString("fr-FR") + ".";
+  }
+  function etiquetteEtape(e) { return { ia_humain: "proposition de l'IA", revue_humain: "votre revue", revue_ia: "revue de l'IA", revue_humain_ia: "votre codage final", humain: "codage humain", ia: "pré-codification" }[e] || e; }
+
+  // ---- Rendu
+  function rendreCodage() {
+    const c = travail.courant;
+    if (!c) { $("bloc-codage").hidden = true; return; }
+    const variante = varianteAffichage();
+    $("bloc-codage").hidden = false;
+    $("bloc-codage").className = "bloc-codage " + variante;
+    $("texte-dossier").classList.toggle("B", variante === "B");
+    // pathologie principale en tête
+    c.ensembles.sort((a, b) => (b.categorie === "pathologie_principale") - (a.categorie === "pathologie_principale"));
+    const zone = $("codage-contenu"); zone.textContent = "";
+    if (!c.ensembles.length) { const p = document.createElement("p"); p.className = "discret"; p.textContent = "Aucun code. Sélectionnez un passage dans le texte pour en créer un."; zone.appendChild(p); }
+    c.ensembles.forEach((e, i) => zone.appendChild(rendreCode(e, i)));
+    rendreNonCodes();
+    $("bouton-enregistrer-codage").disabled = !travail.modifie;
+    if (!travail.modifie && !$("codage-sauvegarde").textContent.startsWith("Modifications")) $("codage-sauvegarde").textContent = "Aucune modification depuis le dernier enregistrement.";
+    rendreTexte(); rendreCompte();
+  }
+  function rendreCode(e, i) {
+    const div = document.createElement("div");
+    div.className = "code " + couleurCode(i) + (codageUI.ressort === i ? " ressort" : "");
+    div.dataset.index = i;
+    div.addEventListener("mouseenter", () => ressortirCode(i, false));
+    div.addEventListener("mouseleave", () => ressortirCode(null, false));
+    // glisser-déposer : cible
+    div.addEventListener("dragover", (ev) => { ev.preventDefault(); div.classList.add("cible-depot"); });
+    div.addEventListener("dragleave", () => div.classList.remove("cible-depot"));
+    div.addEventListener("drop", (ev) => { ev.preventDefault(); div.classList.remove("cible-depot");
+      try { const d = JSON.parse(ev.dataTransfer.getData("text/plain")); deplacerPreuve(d.de, d.k, i); } catch (x) { /* rien */ } });
+    const tete = document.createElement("div"); tete.className = "tete";
+    const titre = document.createElement("strong");
+    if (e.code) titre.textContent = e.code + " – " + e.libelle;
+    else { titre.textContent = "Code à choisir"; titre.className = "a-choisir"; }
+    tete.appendChild(titre);
+    const cat = document.createElement("span");
+    cat.className = "etiquette cat" + (e.categorie === "pathologie_principale" ? "" : " associe");
+    cat.textContent = (e.categorie === "pathologie_principale" ? "Principal" : "Associé") + " ▾";
+    cat.title = "Cliquer pour changer : Principal / Associé";
+    cat.addEventListener("click", (ev) => { ev.stopPropagation(); menuCategorie(i, cat); });
+    tete.appendChild(cat);
+    if (!e.code && e.code_propose_non_codable) { const a = document.createElement("span"); a.className = "etiquette alerte"; a.textContent = "proposé : " + e.code_propose_non_codable + ", non codable"; tete.appendChild(a); }
+    const plusPrecis = (e.commentaires || []).find((k) => k.auteur === "outil" && /plus précis possible/.test(k.texte));
+    if (e.code && plusPrecis) { const a = document.createElement("span"); a.className = "etiquette info"; a.textContent = "code plus précis possible"; a.title = plusPrecis.texte; tete.appendChild(a); }
+    if (!e.preuves.length) { const a = document.createElement("span"); a.className = "etiquette vide"; a.textContent = "sans preuve"; a.title = "Gardez ce code ou supprimez-le."; tete.appendChild(a); }
+    const ajoutIA = (e.commentaires || []).find((k) => k.auteur === "outil" && /ajouté aux preuves par l'IA/.test(k.texte));
+    if (ajoutIA) { const a = document.createElement("span"); a.className = "etiquette info"; a.textContent = "preuve ajoutée par l'IA"; a.title = ajoutIA.texte + " Retirez-la avec ✕ si elle ne convient pas."; tete.appendChild(a); }
+    if (e.explication || e.confiance != null) { const a = document.createElement("span"); a.className = "discret"; a.textContent = "ⓘ"; a.title = (e.explication || "") + (e.confiance != null ? " (confiance " + e.confiance + ")" : ""); tete.appendChild(a); }
+    const loupe = document.createElement("span"); loupe.className = "loupe"; loupe.textContent = "🔍"; loupe.title = "Changer le code (recherche)"; loupe.style.cursor = "pointer";
+    loupe.addEventListener("click", () => ouvrirRecherche(div, i));
+    tete.appendChild(loupe);
+    const actions = document.createElement("div"); actions.className = "actions-code";
+    const suppr = document.createElement("button"); suppr.textContent = "Supprimer"; suppr.title = "Supprimer ce code (ses passages redeviennent de simples surlignages)";
+    suppr.addEventListener("click", () => supprimerCode(i));
+    actions.appendChild(suppr); tete.appendChild(actions);
+    div.appendChild(tete);
+    const ul = document.createElement("ul"); ul.className = "preuves";
+    e.preuves.forEach((p, k) => {
+      const li = document.createElement("li"); li.className = "preuve"; li.draggable = true;
+      li.textContent = p.texte.length > 140 ? p.texte.slice(0, 137) + "…" : p.texte;
+      li.title = "Positions " + p.debut + "–" + p.fin + " — glisser vers un autre code pour déplacer";
+      li.addEventListener("dragstart", (ev) => { ev.dataTransfer.setData("text/plain", JSON.stringify({ de: i, k })); ev.dataTransfer.effectAllowed = "move"; });
+      li.addEventListener("mouseenter", () => ressortirCode(i, false));
+      const outils = document.createElement("span"); outils.className = "outils";
+      const croix = document.createElement("button"); croix.className = "croix"; croix.textContent = "✕"; croix.title = "Retirer cette preuve";
+      croix.addEventListener("click", () => retirerPreuve(i, k));
+      const dep = document.createElement("button"); dep.textContent = "⋯"; dep.title = "Déplacer vers…";
+      dep.addEventListener("click", (ev) => { ev.stopPropagation(); menuDeplacer(i, k, ev.target); });
+      outils.append(croix, dep); li.appendChild(outils); ul.appendChild(li);
+    });
+    div.appendChild(ul);
+    return div;
+  }
+  function rendreNonCodes() {
+    const c = travail.courant; const zone = $("codage-non-codes"); zone.textContent = "";
+    const ia = c.passages_non_codes.filter((x) => x.auteur !== "outil"), outil = c.passages_non_codes.filter((x) => x.auteur === "outil");
+    const libres = passagesLibres();
+    if (!ia.length && !outil.length && !libres.length) { zone.hidden = true; return; }
+    zone.hidden = false;
+    const bloc = (titre, liste, vide) => {
+      const h = document.createElement("strong"); h.textContent = titre; zone.appendChild(h);
+      const ul = document.createElement("ul");
+      if (!liste.length) { const li = document.createElement("li"); li.className = "discret"; li.textContent = vide; ul.appendChild(li); }
+      for (const x of liste) {
+        const li = document.createElement("li"); li.textContent = "« " + (x.texte.length > 100 ? x.texte.slice(0, 97) + "…" : x.texte) + " »" + (x.raison ? " — " + x.raison : "");
+        const a = document.createElement("a"); a.textContent = "Coder ce passage";
+        a.addEventListener("click", (ev) => { ev.stopPropagation(); menuSelection({ debut: x.debut, fin: x.fin, texte: x.texte }, ev.target.getBoundingClientRect(), true); });
+        li.appendChild(a); ul.appendChild(li);
+      }
+      zone.appendChild(ul);
+    };
+    if (ia.length) bloc("Passages non codés (selon l'IA)", ia, "");
+    if (outil.length) bloc("Passages non traités par l'IA", outil, "");
+    if (libres.length) bloc("Passages surlignés, pas encore codés", libres.map((p) => ({ ...p, raison: "" })), "");
+  }
+  function ressortirCode(i, defiler) {
+    codageUI.ressort = i;
+    document.querySelectorAll("#codage-contenu .code").forEach((d) => d.classList.toggle("ressort", Number(d.dataset.index) === i));
+    document.querySelectorAll("#texte-dossier mark.preuve").forEach((m) => m.classList.toggle("ressort", i !== null && m.dataset.codes.split(",").map(Number).includes(i)));
+    if (defiler && i !== null) { const d = document.querySelector('#codage-contenu .code[data-index="' + i + '"]'); if (d) d.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
+  }
+
+  // ---- Modifications
+  function marquerModifie() { travail.modifie = true; rendreCodage(); sauvegarderLocalCodage(); }
+  function nettoyerCommentairesChoix(e) { // les remarques de l'outil sur le choix du code disparaissent quand le code change
+    e.commentaires = (e.commentaires || []).filter((k) => !(k.auteur === "outil" && /(à choisir|plus précis possible)/.test(k.texte)));
+  }
+  function changerCode(i, fiche) {
+    const e = travail.courant.ensembles[i];
+    e.code = fiche.code; e.libelle = fiche.libelle; delete e.code_propose_non_codable; delete e.libelle_propose;
+    nettoyerCommentairesChoix(e);
+    marquerModifie();
+  }
+  function retirerPreuve(i, k) { travail.courant.ensembles[i].preuves.splice(k, 1); marquerModifie(); }
+  function deplacerPreuve(de, k, vers) {
+    if (de === vers) return;
+    const p = travail.courant.ensembles[de].preuves.splice(k, 1)[0];
+    ajouterPreuveA(vers, p, false); marquerModifie();
+  }
+  function ajouterPreuveA(i, p, marquer) {
+    if (!P.verifier(dossier.doc.texte, p)) { message("message-dossier", "Passage refusé : contrôle des positions en échec.", true); return; }
+    const e = travail.courant.ensembles[i];
+    if (!e.preuves.some((q) => q.debut === p.debut && q.fin === p.fin)) { e.preuves.push({ debut: p.debut, fin: p.fin, texte: p.texte }); e.preuves.sort((a, b) => a.debut - b.debut); }
+    retirerDesNonCodes(p);
+    if (marquer !== false) marquerModifie();
+  }
+  function retirerDesNonCodes(p) {
+    travail.courant.passages_non_codes = travail.courant.passages_non_codes.filter((x) => !(x.debut === p.debut && x.fin === p.fin));
+    dossier.passages = dossier.passages.filter((x) => !(x.debut === p.debut && x.fin === p.fin));
+  }
+  function supprimerCode(i) {
+    const e = travail.courant.ensembles.splice(i, 1)[0];
+    for (const p of e.preuves) if (!dossier.passages.some((x) => x.debut === p.debut && x.fin === p.fin)) dossier.passages.push({ debut: p.debut, fin: p.fin, texte: p.texte });
+    dossier.passages = trierPassages(dossier.passages); sauvegarderLocal();
+    marquerModifie();
+  }
+  function designerPrincipal(i) {
+    travail.courant.ensembles.forEach((e, k) => { e.categorie = k === i ? "pathologie_principale" : (e.categorie === "pathologie_principale" ? "diagnostic_associe" : e.categorie); });
+    marquerModifie();
+  }
+  function nouveauCode(fiche, p) {
+    travail.courant.ensembles.push({ code: fiche.code, libelle: fiche.libelle, categorie: "diagnostic_associe", preuves: [], confiance: null, explication: null, commentaires: [] });
+    const i = travail.courant.ensembles.length - 1;
+    if (p) ajouterPreuveA(i, p, false);
+    marquerModifie();
+  }
+
+  // ---- Menus
+  function fermerMenus() { $("menu-selection").hidden = true; $("menu-flottant").hidden = true; }
+  document.addEventListener("click", (ev) => { if (!ev.target.closest(".menu-selection, .etiquette.cat, .outils")) fermerMenus(); });
+  function placerMenu(menu, rect) {
+    menu.hidden = false;
+    const x = Math.max(8, Math.min(window.innerWidth - menu.offsetWidth - 8, rect.left + window.scrollX));
+    menu.style.left = x + "px"; menu.style.top = (rect.bottom + window.scrollY + 6) + "px";
+  }
+  function bouton(menu, texte, action) { const b = document.createElement("button"); b.textContent = texte; b.addEventListener("click", () => { fermerMenus(); action(); }); menu.appendChild(b); }
+  function menuSelection(passage, rect, depuisNonCode) {
+    const menu = $("menu-selection"); menu.textContent = "";
+    const t = document.createElement("div"); t.className = "titre"; t.textContent = "« " + (passage.texte.length > 40 ? passage.texte.slice(0, 37) + "…" : passage.texte) + " »"; menu.appendChild(t);
+    travail.courant.ensembles.forEach((e, i) => bouton(menu, "Ajouter à " + (e.code || "code à choisir") + (e.libelle ? " – " + e.libelle.slice(0, 40) : ""), () => { ajouterPreuveA(i, passage); window.getSelection().removeAllRanges(); }));
+    bouton(menu, "Nouveau code…", () => { window.getSelection().removeAllRanges(); ouvrirRecherche(null, null, passage); });
+    if (!depuisNonCode) bouton(menu, "Surligner seulement (pour un prochain codage)", () => { surlignerSimple(passage); rendreCodage(); });
+    placerMenu(menu, rect);
+  }
+  function menuCategorie(i, ancre) {
+    const menu = $("menu-flottant"); menu.textContent = "";
+    bouton(menu, "Principal", () => designerPrincipal(i));
+    bouton(menu, "Associé", () => { travail.courant.ensembles[i].categorie = "diagnostic_associe"; marquerModifie(); });
+    placerMenu(menu, ancre.getBoundingClientRect());
+  }
+  function menuDeplacer(de, k, ancre) {
+    const menu = $("menu-flottant"); menu.textContent = "";
+    const t = document.createElement("div"); t.className = "titre"; t.textContent = "Déplacer vers…"; menu.appendChild(t);
+    travail.courant.ensembles.forEach((e, i) => { if (i !== de) bouton(menu, (e.code || "code à choisir") + (e.libelle ? " – " + e.libelle.slice(0, 40) : ""), () => deplacerPreuve(de, k, i)); });
+    bouton(menu, "Nouveau code…", () => { const p = travail.courant.ensembles[de].preuves.splice(k, 1)[0]; ouvrirRecherche(null, null, p); });
+    placerMenu(menu, ancre.getBoundingClientRect());
+  }
+
+  // ---- Recherche 🔍 : codes codables seulement ; début de code en tête, puis ressemblance (seuil 0,3), puis début de mot
+  function ouvrirRecherche(conteneur, i, passagePourNouveau) {
+    document.querySelectorAll(".recherche-code").forEach((x) => x.remove());
+    const e = i !== null && i !== undefined ? travail.courant.ensembles[i] : null;
+    const boite = document.createElement("div"); boite.className = "recherche-code";
+    const champ = document.createElement("input"); champ.placeholder = "Code (I10, K40…) ou mots (hypertension, HTA…)";
+    champ.value = "";
+    const info = document.createElement("div"); info.className = "rc-titre";
+    info.textContent = e ? (e.code ? "Choisissez le nouveau code : les preuves restent attachées." : "Code à choisir : suggestions issues de la boucle de correction, ou tapez une recherche.") : "Choisissez le code du nouveau passage.";
+    const liste = document.createElement("ol");
+    const fermer = document.createElement("button"); fermer.className = "secondaire"; fermer.textContent = "Fermer"; fermer.style.marginTop = ".4rem";
+    fermer.addEventListener("click", () => boite.remove());
+    boite.append(champ, info, liste, fermer);
+    if (conteneur) conteneur.appendChild(boite); else $("codage-contenu").prepend(boite);
+    let minuteur = null, serie = 0, afficherAvecChoix = null;
+    const choisir = (fiche) => { boite.remove(); if (e) changerCode(i, fiche); else nouveauCode(fiche, passagePourNouveau); };
+    const afficher = (sections) => {
+      liste.textContent = "";
+      for (const sec of sections) {
+        if (!sec.liste.length) continue;
+        const t = document.createElement("li"); t.className = "rc-titre"; t.textContent = sec.titre; t.style.cursor = "default"; liste.appendChild(t);
+        for (const f of sec.liste) {
+          const li = document.createElement("li");
+          const c = document.createElement("span"); c.className = "rc-code"; c.textContent = f.code;
+          const l = document.createElement("span"); l.textContent = f.libelle;
+          li.append(c, l);
+          if (f.formulation && f.formulation !== f.libelle) {
+            const fo = document.createElement("span"); fo.className = "rc-form"; fo.textContent = "← " + f.formulation;
+            if (f.source || f.origine) fo.title = "Formulation : « " + f.formulation + " » — source : " + (f.source || "?") + " — origine : " + ({ libelle: "libellé officiel", inclusion: "inclusion", index: "index de la CIM-10", synonyme: "synonyme" }[f.origine] || f.origine || "?");
+            li.appendChild(fo);
+          }
+          li.addEventListener("click", () => (afficherAvecChoix || choisir)(f));
+          liste.appendChild(li);
+        }
+      }
+      if (!liste.children.length) { const li = document.createElement("li"); li.className = "discret"; li.textContent = "Aucun code codable trouvé."; liste.appendChild(li); }
+    };
+    let derniereRecherche = null; // pour le journal des recherches
+    const contexte = e ? (e.code ? "changement de code" : "code à choisir") : "nouveau code";
+    // Suggestions avant toute frappe : pour un code à choisir, les candidats de la boucle de correction (descendants du
+    // code proposé, codables de sa catégorie, ressemblance avec le libellé du modèle) ; pour un code plus précis possible,
+    // ses descendants codables. Dès la frappe, la recherche normale les remplace.
+    const suggestions = async () => {
+      const sections = [];
+      if (!e) return sections;
+      if (e.code) {
+        const d = await base.from("descendants_codables").select("code, libelle").eq("noeud", e.code).order("ordre_kit");
+        if (!d.error && d.data.length) sections.push({ titre: "Codes plus précis que " + e.code, liste: d.data });
+        return sections;
+      }
+      const propose = e.code_propose_non_codable ? K.normaliserCode(e.code_propose_non_codable) : "";
+      if (propose) {
+        const d = await base.from("descendants_codables").select("code, libelle").eq("noeud", propose).order("ordre_kit");
+        if (!d.error && d.data.length) sections.push({ titre: "Codes codables possibles (descendants de " + propose + ")", liste: d.data });
+        else {
+          const cat = await candidatsDeCategorie(propose, 20);
+          if (cat.length) sections.push({ titre: "Codes codables de la catégorie " + propose.slice(0, 3), liste: cat });
+        }
+      }
+      if (e.libelle_propose) {
+        const r = await base.rpc("rechercher_codes", { recherche: e.libelle_propose, limite: 20, seuil: 0.15 });
+        if (!r.error && r.data.length) sections.unshift({ titre: "Codes dont une formulation ressemble au libellé proposé par l'IA (« " + e.libelle_propose.slice(0, 50) + (e.libelle_propose.length > 50 ? "…" : "") + " »)", liste: r.data });
+      }
+      return sections;
+    };
+    const lancer = async () => {
+      const q = champ.value.trim(); const n = ++serie;
+      let sections = [];
+      let mode = null, nb = 0;
+      if (!q.length) { sections = await suggestions(); if (n === serie) { afficher(sections); derniereRecherche = null; } return; }
+      if (q.length) {
+        // 1. un code tapé (M84, C50) est toujours cherché par début de code, en tête
+        if (/^[a-z][0-9]/i.test(q) && !/\s/.test(q)) {
+          const r = await base.from("fiches").select("code, libelle").ilike("code", K.normaliserCode(q) + "%").eq("codable", true).order("code").limit(40);
+          if (!r.error && r.data.length) { sections.push({ titre: "Codes commençant par " + K.normaliserCode(q), liste: r.data }); mode = "code"; nb += r.data.length; }
+        }
+        // 2. par morceaux de mots (à partir de trois caractères) : les formulations qui contiennent tous les morceaux
+        const r = q.length >= 3 ? await base.rpc("rechercher_codes_morceaux", { recherche: q, limite: 40 }) : { error: null, data: [] };
+        if (!r.error && r.data.length) {
+          sections.push({ titre: "Codes contenant « " + q + " »", liste: r.data.map((x) => ({ code: x.code, libelle: x.libelle, formulation: x.dans_libelle ? null : x.formulation })) });
+          if (q.length < 3) { /* jamais atteint : en dessous de trois caractères, seule la recherche par début de code est faite */ }
+          mode = mode || "morceaux"; nb += r.data.length;
+        } else if (q.length >= 3) {
+          // 3. secours : ressemblance (orthographe approchée), signalée comme telle
+          const s2 = await base.rpc("rechercher_codes", { recherche: q, limite: 20, seuil: 0.3 });
+          if (!s2.error && s2.data.length) { sections.push({ titre: "Aucune formulation ne contient « " + q + " » ; orthographe approchée (ressemblance) :", liste: s2.data }); mode = mode || "ressemblance"; nb += s2.data.length; }
+        }
+      }
+      if (n === serie) {
+        if (q.length && q.length < 3 && !sections.length) { const li = document.createElement("li"); liste.textContent = ""; li.className = "discret"; li.textContent = "Tapez au moins trois caractères (ou un début de code, par exemple I1)."; liste.appendChild(li); }
+        else afficher(sections);
+        derniereRecherche = q.length ? { texte: q, mode: mode || "morceaux", nb } : null;
+      }
+    };
+    const journaliser = (codeChoisi) => {
+      if (!derniereRecherche) return;
+      base.from("recherches").insert({ utilisateur: etat.utilisateur.id, document: dossier.doc.id, texte: derniereRecherche.texte, mode: derniereRecherche.mode,
+        nb_resultats: derniereRecherche.nb, code_choisi: codeChoisi || null, contexte }, { returning: "minimal" }).then(() => {}, () => {});
+      derniereRecherche = null;
+    };
+    const choisirEtJournaliser = (fiche) => { journaliser(fiche.code); choisir(fiche); };
+    afficherAvecChoix = choisirEtJournaliser;
+    fermer.addEventListener("click", () => journaliser(null));
+    champ.addEventListener("input", () => { clearTimeout(minuteur); minuteur = setTimeout(lancer, 300); });
+    champ.focus(); lancer();
+  }
+
+  // ---- Enregistrer mon codage : ligne revue_humain (bouton, et enregistrement automatique avant un appel répété)
+  async function enregistrerRevue() {
+    const codage = copier(travail.courant);
+    codage.affichage = varianteAffichage();
+    const compteurs = K.compteurs(travail.base ? travail.base.codage : null, codage);
+    const ins = await base.from("codages").insert({ document: dossier.doc.id, etape: "revue_humain", utilisateur: etat.utilisateur.id,
+      codage_precedent: travail.base ? travail.base.id : null, appel_llm: null, valide: false, compteurs, codage }).select("id, cree_le").single();
+    if (ins.error) throw new Error(ins.error.message);
+    effacerLocalCodage();
+    installerCodage({ id: ins.data.id, etape: "revue_humain", codage, cree_le: ins.data.cree_le }, null);
+    return { id: ins.data.id, compteurs };
+  }
+  $("bouton-enregistrer-codage").addEventListener("click", async () => {
+    if (!travail.courant || !travail.modifie) return;
+    const b = $("bouton-enregistrer-codage"); b.disabled = true;
+    try {
+      const { compteurs } = await enregistrerRevue();
+      $("codage-sauvegarde").textContent = "Codage enregistré dans la base à " + new Date().toLocaleTimeString("fr-FR") + " (votre revue). Compteurs : " + compteurs.conserves + " conservé(s), " + compteurs.modifies + " modifié(s), " + compteurs.preuves_modifiees + " preuves modifiées, " + compteurs.retires + " retiré(s), " + compteurs.ajoutes + " ajouté(s).";
+      message("message-dossier", "");
+      rendreCodage();
+    } catch (e) {
+      message("message-dossier", "L'enregistrement a échoué : " + e.message, true);
+      b.disabled = false;
+    }
+  });
+
   // --- Après connexion : profil existant ou parcours d'inscription --------------------------------------
   async function demarrer(session) {
     const connecte = !!(session && session.user);
     $("utilisateur-courant").hidden = !connecte;
     $("bouton-deconnexion").hidden = !connecte;
     $("bouton-profil").hidden = true;
+    $("bouton-reglages").hidden = true;
     if (!connecte) {
       etat.utilisateur = null; etat.profil = null;
       $("formulaire-connexion").hidden = false;
@@ -639,6 +1363,8 @@
     if (m.erreur) { erreur("La mention d'information n'a pas pu être lue (" + m.erreur + "). Signalez-le au responsable du projet."); return; }
     if (data.version_mention !== m.version) { await afficherMention(true); return; }
     $("bouton-profil").hidden = false;
+    $("bouton-reglages").hidden = false;
+    etat.reglages = lireReglages();
     afficherListe();
   }
 

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>codeur</title>
-  <link rel="stylesheet" href="style.css?v=A1-0.6">
+  <link rel="stylesheet" href="style.css?v=A2-0.11">
 </head>
 <body>
   <header class="entete">
@@ -13,6 +13,7 @@
     </div>
     <div class="entete-droite">
       <span id="utilisateur-courant" hidden></span>
+      <button id="bouton-reglages" class="secondaire" hidden>Réglages de l'IA</button>
       <button id="bouton-profil" class="secondaire" hidden>Mon profil</button>
       <button id="bouton-deconnexion" class="secondaire" hidden>Se déconnecter</button>
     </div>
@@ -93,6 +94,32 @@
       <p id="message-profil" class="message" hidden></p>
     </section>
 
+    <section id="ecran-reglages" class="ecran" hidden>
+      <h1>Réglages de l'IA</h1>
+      <p>L'outil appelle le modèle d'IA <strong>depuis votre navigateur, avec votre propre clé</strong>. Ces réglages sont enregistrés <strong>dans ce navigateur uniquement</strong> : ils ne sont jamais envoyés à la base de <code>codeur</code>. Sur un PC partagé, pensez à cliquer sur « Oublier mes réglages » avant de partir.</p>
+      <form id="formulaire-reglages" autocomplete="off">
+        <label for="reglage-adresse">Adresse du service</label>
+        <input id="reglage-adresse" required placeholder="https://api.mistral.ai/v1">
+        <label for="reglage-modele">Modèle</label>
+        <input id="reglage-modele" required placeholder="mistral-large-latest">
+        <label for="reglage-cle">Clé</label>
+        <input id="reglage-cle" type="password" required autocomplete="off" placeholder="votre clé API">
+        <label for="reglage-affichage">Affichage du codage</label>
+        <select id="reglage-affichage">
+          <option value="A">A — liste simple</option>
+          <option value="B">B — encadrés de couleur</option>
+        </select>
+        <div class="recherche-boutons" style="margin-top:.75rem">
+          <button type="submit">Enregistrer les réglages</button>
+          <button type="button" id="bouton-tester-llm" class="secondaire">Tester la connexion</button>
+          <button type="button" id="bouton-oublier-reglages" class="secondaire">Oublier mes réglages</button>
+          <button type="button" id="bouton-reglages-retour" class="secondaire">Retour</button>
+        </div>
+      </form>
+      <p id="message-reglages" class="message" hidden></p>
+      <p class="discret">Valeurs par défaut : service Mistral (<code>https://api.mistral.ai/v1</code>), modèle <code>mistral-large-latest</code>. Tout service acceptant le format commun <code>/chat/completions</code> convient.</p>
+    </section>
+
     <section id="ecran-liste" class="ecran large" hidden>
       <h1>Dossiers</h1>
       <form id="formulaire-recherche" class="recherche">
@@ -145,10 +172,34 @@
             <span id="compte-passages" class="discret"></span>
             <span class="barre-texte-boutons">
               <button id="bouton-tout-effacer" class="secondaire">Tout effacer</button>
-              <!-- Le bouton « Faire le codage » viendra ici au lot A2. -->
             </span>
           </div>
           <div id="texte-dossier" class="texte-dossier" tabindex="0"></div>
+          <div class="barre-texte barre-codage">
+            <span id="rappel-passages" class="discret"></span>
+            <span class="barre-texte-boutons">
+              <button id="bouton-faire-codage">Faire le codage</button>
+            </span>
+          </div>
+          <div id="bloc-codage" class="bloc-codage" hidden>
+            <div class="codage-tete">
+              <h2>Codage</h2>
+              <span id="codage-etat" class="discret"></span>
+            </div>
+            <p id="codage-reprise" class="message" hidden><span id="codage-reprise-texte"></span> <button id="bouton-reprendre-local" class="secondaire">Reprendre mes modifications</button> <button id="bouton-oublier-local" class="secondaire">Les abandonner</button></p>
+            <div id="codage-contenu"></div>
+            <div id="codage-non-codes" class="non-codes" hidden></div>
+            <div class="barre-texte barre-enregistrer">
+              <span id="codage-sauvegarde" class="discret"></span>
+              <span class="barre-texte-boutons"><button id="bouton-enregistrer-codage">Enregistrer mon codage</button></span>
+            </div>
+          </div>
+          <div class="barre-texte barre-bas">
+            <span class="discret"></span>
+            <span class="barre-texte-boutons"><button id="bouton-retour-liste-bas" class="secondaire">Retour à la liste</button></span>
+          </div>
+          <div id="menu-selection" class="menu-selection" hidden></div>
+          <div id="menu-flottant" class="menu-selection" hidden></div>
         </div>
         <aside id="panneau-ensembles" class="panneau">
           <h2 id="panneau-titre">Passages surlignés</h2>
@@ -178,8 +229,9 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@18.0.14/lib/marked.umd.js"></script>
-  <script src="positions.js?v=A1-0.6"></script>
-  <script src="config.js?v=A1-0.6"></script>
-  <script src="app.js?v=A1-0.6"></script>
+  <script src="positions.js?v=A2-0.11"></script>
+  <script src="codage.js?v=A2-0.11"></script>
+  <script src="config.js?v=A2-0.11"></script>
+  <script src="app.js?v=A2-0.11"></script>
 </body>
 </html>

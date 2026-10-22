@@ -343,6 +343,7 @@ Le travail se répartit en **deux projets Claude Code distincts**, qui avancent 
 | **B3 — Référentiels** | Chargement des fiches, de la liste des codes valides, des synonymes (avec leur index) et du guide des situations cliniques. | Les référentiels sont dans la base. |
 | **B4 — Banc d'essai des prompts** | Comparaison des réponses du LLM au codage d'origine sur un échantillon. | Les prompts sont mis au point sur des mesures. |
 | **B5 — Export et analyse** | Scripts d'export et premières analyses : accord avec le codage d'origine, qualité des propositions, évaluations des documents. | Les données sont exploitables. |
+| **B6 — Dictionnaire de synonymes** | Équivalences entre mots (abréviations, variantes, synonymes : `HTA` = hypertension artérielle, `tumoral` = tumeur) dans une table spécifique de la base, utilisée pour étendre la recherche 🔍 et la boucle de correction. Socle fourni par recode-icd (nouveau chantier), puis **enrichi par les ajouts issus de l’usage** : recherches des testeurs (table `recherches` : texte tapé, code choisi), propositions à valider. À concevoir après l’outil de codage : qui propose, qui valide, comment les ajouts remontent à recode-icd. | La recherche trouve un code quels que soient les mots du testeur. |
 
 Le lot A1 peut démarrer avec quelques CRH chargés à la main, sans attendre le projet B.
 

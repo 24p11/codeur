@@ -1,5 +1,7 @@
 # Schéma de la base de données
 
+*Version 1.3 — 22 octobre 2026 : ordre d'appariement (§3.7), auteur `outil`, code à choisir, tours de correction (§3.4, §3.10, §5.2, §10 points 25 à 27).*
+
 *Version 1.2 — 21 octobre 2026 : passages non codés (§3.4, §3.5), affichage du codage et modifications par l'utilisateur (§3.5), version de la mention acceptée (§5.1, §7), précisions 20 à 24 (§10).*
 
 *Version 1.1 — 18 octobre 2026 (précisions de mise en œuvre de la base, §10).*
@@ -152,7 +154,8 @@ Les lignes de cette table ne sont **jamais modifiées ni supprimées** ; seules 
 | `mode_prise_en_charge` | Le code Z de prise en charge, ou `DP` quand le diagnostic principal motive lui-même le séjour, ou vide |
 | `commentaires` | Commentaires sur l'ensemble du codage |
 | `ensembles` | La liste des codes, chacun avec ses éléments de preuve |
-| `code` | Sans point, extension PMSI collée |
+| `code` | Sans point, extension PMSI collée. Peut être `null` dans une ligne `ia_humain` quand le code proposé par l'IA est resté non codable après la boucle de correction (« code à choisir », §3.10) ; le codeur choisit alors le code |
+| `code_propose_non_codable` | Facultatif : le code non codable proposé par l'IA, conservé quand `code` est `null` |
 | `libelle` | Le libellé officiel, au moment du codage |
 | `categorie` | `pathologie_principale` (une seule par codage) ou `diagnostic_associe` |
 | `preuves` | Les éléments de preuve : position de début et de fin dans le texte, et texte cité. Un champ facultatif `introuvable: true` signale une citation qui n'a pas pu être retrouvée dans le texte |
@@ -160,7 +163,7 @@ Les lignes de cette table ne sont **jamais modifiées ni supprimées** ; seules 
 | `commentaires` | Commentaires sur ce code |
 | `passages_non_codes` | Les passages surlignés que l'IA (ou l'utilisateur) a déclarés **non codés** : position, texte cité, `raison` et `auteur` (`ia` ou `humain`). Liste vide si aucun. Absente des codages `scenario` |
 
-**Les commentaires** portent toujours leur auteur (`ia`, `humain`, ou `generateur` pour les remarques issues du chargement des CRH synthétiques) et l'étape où ils ont été écrits. Ils passent d'une version à la suivante, sauf si le code auquel ils sont attachés est retiré.
+**Les commentaires** portent toujours leur auteur (`ia`, `humain`, `generateur` pour les remarques issues du chargement des CRH synthétiques, ou `outil` pour les remarques de la page : correction d'un code « M142 → M1427 », « code à choisir », « code plus précis possible », passage non traité par l'IA) et l'étape où ils ont été écrits. Ils passent d'une version à la suivante, sauf si le code auquel ils sont attachés est retiré. Les commentaires d'auteur `outil` qui portent sur le choix du code (« code à choisir », « code plus précis possible ») disparaissent quand le codeur change le code ; la trace d'une correction (« M142 → M1427 ») est conservée.
 
 Le même format sert pour **toutes les étapes**, ce qui rend toutes les versions comparables entre elles.
 
@@ -203,6 +206,8 @@ Chaque appel crée une nouvelle ligne `ia_humain` contenant le codage assemblé.
 ### 3.7 Comparer deux versions : les compteurs
 
 Pour savoir ce qui est arrivé à chaque code entre deux lignes successives, on **apparie les ensembles par leurs éléments de preuve** : deux ensembles dont les preuves se chevauchent dans le texte portent sur la même chose.
+
+**Ordre d'appariement** : un même passage pouvant appuyer plusieurs codes (§3.5), on apparie d'abord les ensembles qui ont **le même code et des preuves qui se chevauchent** ; puis, parmi les ensembles restants, ceux dont les preuves se chevauchent. Seuls les cas encore ambigus après ces deux passes sont comptés « incertains ».
 
 | Situation | Interprétation |
 |---|---|
@@ -250,6 +255,15 @@ L'analyse des CRH synthétiques montre que les LLM connaissent mal la CIM-10 PMS
 5. **Évolution possible** : donner au modèle de véritables outils qu'il appelle lui-même (rechercher des codes par mots-clés, lister les codes d'une catégorie, lire une fiche). Plus souple, mais plus complexe ; à envisager une fois la boucle simple éprouvée.
 
 Chaque correction de ce type est enregistrée : la fréquence des codes non codables proposés est un indicateur de la qualité du modèle.
+
+**Mise en œuvre (lot A2) :**
+
+- le tour de correction se fait **dans la même conversation** que l'appel de codage (le modèle garde le texte, les passages et sa première réponse), avec le prompt `correction_v1` ; le modèle ne renvoie que ses corrections, sous la forme `{"corrections": {"Z992": "Z992+0", "C50": "C504"}}`, et c'est la page qui les applique ; un choix hors de la liste fournie est ignoré et signalé ;
+- la liste fournie pour un code compte **au plus 60 codes**, dans l'ordre du kit (table `descendants_codables`, sinon les codes codables de la catégorie), avec la mention « les 60 premiers sur N » au-delà ;
+- un code **resté non codable** est enregistré avec `code` à `null`, `code_propose_non_codable`, ses preuves, et un commentaire d'auteur `outil` « code à choisir par le codeur » ;
+- un code **codable mais affinable** (code souche qui a des descendants plus précis, comme `Z992`) est accepté tel quel, avec un commentaire d'auteur `outil` « code plus précis possible » et la liste de ses descendants ; la page les propose dans la recherche 🔍 ;
+- **plusieurs pathologies principales** dans la réponse : la page garde celle de plus forte confiance (la première à égalité), passe les autres en diagnostic associé, et le signale au codeur ;
+- un **passage absent de la réponse** est rangé dans `passages_non_codes`, avec l'auteur `outil` et la raison « Passage non traité par l'IA ».
 
 ---
 
@@ -311,6 +325,7 @@ Chaque appel au LLM, pour toutes les tâches.
 | `tokens_entree`, `tokens_sortie`, `tokens_total` | Tels qu'indiqués par le service |
 | `duree_ms` | Durée de l'appel |
 | `erreur` | Le message d'erreur éventuel |
+| `appel_initial` | Pour un tour de correction : l'appel de codage dont il est la suite ; vide pour le premier appel |
 
 ### 5.3 `evaluations`
 
@@ -412,5 +427,8 @@ Interprétations retenues lors de la création de la base (migrations de `supaba
 22. **Page d'édition (lot A6)** : une nouvelle version d'un document **n'hérite pas** de l'anomalie `a_corriger` de la version dont elle est issue ; c'est ce qui la rend disponible aux testeurs.
 23. **Passages non codés** : liste `passages_non_codes` du JSON du codage (§3.4, §3.5).
 24. **Les preuves des codages `ia_humain`** sont recopiées par la page à partir des passages envoyés, que le LLM désigne par leur numéro (§3.5).
+25. **Ligne `ia_humain` et tours de correction** : `codages.appel_llm` désigne le **dernier tour**, celui dont la réponse a donné le codage enregistré ; les tours d'un même codage sont reliés par `appels_llm.appel_initial` (migration 13).
+26. **`codage_precedent`** : la dernière ligne de codage du testeur sur ce document, quelle que soit son étape ; les compteurs sont calculés par rapport à elle.
+27. **Auteur `outil`** : s'ajoute aux auteurs `ia`, `humain`, `generateur`, pour les commentaires et les passages non codés (§3.4, §3.10).
 
 *Base créée le 18 octobre 2026 : projet `codeur`, région Irlande (Union européenne), PostgreSQL 17 ; sept migrations appliquées (la septième ne fait que mettre à jour le commentaire de `rum.rum` après le déplacement du fichier ATIH) ; vérification du schéma conforme ; tests d'accès : 32 essais réussis sur 32 (commit `3918a2c`).*

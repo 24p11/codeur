@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>codeur — maquette de l'écran de codage (deux variantes)</title>
+<style>
+  body { margin: 0; padding: 1.25rem; font: 16px/1.5 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1f2328; background: #fff; }
+  .page { max-width: 72ch; margin: 0 auto; }
+  h1 { font-size: 1.3rem; } h2 { font-size: 1.05rem; margin: 1.25rem 0 .5rem; }
+  .discret { color: #57606a; font-size: .9rem; }
+  .selecteur { display: flex; gap: .5rem; align-items: center; margin: .5rem 0 1rem; }
+  .selecteur button { font: inherit; padding: .3rem .7rem; border: 1px solid #0a5c8a; border-radius: 6px; background: #fff; color: #0a5c8a; cursor: pointer; }
+  .selecteur button.actif { background: #0a5c8a; color: #fff; }
+  .texte { white-space: pre-wrap; padding: 1rem 1.25rem; border: 1px solid #d0d7de; border-radius: 8px; line-height: 1.65; }
+  mark { background: #ffe08a; color: inherit; border-radius: 2px; padding: .05em 0; }
+  mark.ressort { outline: 2px solid #0a5c8a; }
+  .barre { display: flex; justify-content: space-between; align-items: center; margin: .6rem 0; }
+  .barre button { font: inherit; padding: .5rem 1rem; border-radius: 6px; border: 1px solid #0a5c8a; background: #0a5c8a; color: #fff; }
+  .secondaire { background: #fff !important; color: #0a5c8a !important; }
+  .codage { margin-top: 1rem; }
+  /* Variante A : liste simple */
+  .A .code { margin: .6rem 0 .9rem; }
+  .A .code .tete { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+  .A .code strong { font-size: 1.02rem; }
+  .A .code ul { margin: .2rem 0 0; padding-left: 1.3rem; }
+  .A .code li { position: relative; }
+  .etiquette { font-size: .72rem; padding: 0 .4rem; border-radius: 4px; background: #0a5c8a; color: #fff; }
+  .etiquette.alerte { background: #9a3412; } .etiquette.info { background: #57606a; }
+  .etiquette.cat { cursor: pointer; } .etiquette.associe { background: #fff; color: #0a5c8a; border: 1px solid #0a5c8a; }
+  .menu-cat { position: absolute; z-index: 5; display: flex; flex-direction: column; background: #fff; border: 1px solid #d0d7de; border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
+  .menu-cat button { font: inherit; font-size: .9rem; border: 0; background: none; text-align: left; padding: .3rem .7rem; cursor: pointer; } .menu-cat button:hover { background: #e6f1f8; }
+  .loupe, .croix, .menu { cursor: pointer; color: #57606a; font-size: .9rem; margin-left: .3rem; }
+  .croix { color: #9a3412; }
+  .actions-code { margin-left: auto; display: flex; gap: .3rem; }
+  .actions-code button { font: inherit; font-size: .8rem; padding: .1rem .45rem; border: 1px solid #d0d7de; border-radius: 4px; background: #fff; cursor: pointer; }
+  /* Variante B : encadrés de couleur */
+  .B .code { border: 2px solid var(--c); border-radius: 8px; padding: .5rem .75rem; margin: .6rem 0; background: color-mix(in srgb, var(--c) 12%, #fff); }
+  .B .code .tete { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+  .B .code ul { margin: .25rem 0 0; padding-left: 1.3rem; }
+  .B .code li { position: relative; }
+  .B mark { background: var(--c); }
+  .c1 { --c: #ffd27a; } .c2 { --c: #a8e0b8; } .c3 { --c: #b9cdff; } .c4 { --c: #f7b9c9; }
+  .non-codes { margin-top: 1rem; padding: .5rem .75rem; border-left: 4px solid #d0d7de; background: #f6f8fa; font-size: .92rem; }
+  .non-codes li { margin: .2rem 0; }
+  .menu-selection { position: absolute; display: inline-flex; flex-direction: column; gap: .2rem; padding: .35rem; background: #fff; border: 1px solid #d0d7de; border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.15); font-size: .9rem; }
+  .menu-selection button { font: inherit; text-align: left; border: 0; background: none; padding: .2rem .5rem; cursor: pointer; border-radius: 4px; }
+  .menu-selection button:hover { background: #e6f1f8; }
+  .legende { border: 1px dashed #d0d7de; padding: .5rem .75rem; border-radius: 8px; margin-top: 1rem; font-size: .9rem; }
+</style>
+</head>
+<body>
+<div class="page">
+<h1>Maquette : l'écran de codage sous le texte (deux variantes)</h1>
+<p class="discret">Exemple fictif. Les données et les actions sont les mêmes dans les deux variantes ; seul l'affichage change. Le sélecteur est mémorisé dans le navigateur.</p>
+
+<div class="texte" id="texte">— Consultation —
+
+Monsieur K., 62 ans, <mark class="c1">HTA traitée</mark> par losartan, <mark class="c2">diabète de type 2 non insulinotraité</mark>, <mark class="c3">dépendant d'une hémodialyse</mark> trois fois par semaine. <mark>Appendicectomie dans l'enfance.</mark>
+
+Consulte pour une <mark class="c4">hernie inguinale droite</mark> apparue depuis un an, gênante à l'effort.
+
+— Compte rendu d'hospitalisation —
+
+Cure de <mark class="c4">hernie inguinale droite</mark> par coelioscopie, suites simples. Reconduite du <mark class="c1">losartan pour son HTA</mark>. Sortie à domicile.</div>
+
+<div class="barre"><span class="discret">5 passages à coder. Codage enregistré par l'IA à 14 h 32 (version ia_humain).</span><button>Faire le codage</button></div>
+
+<div class="selecteur"><span class="discret">Aperçu de la variante (dans la page réelle, le choix se fait dans l'écran « Réglages », rubrique « Affichage du codage ») :</span><button class="actif" onclick="variante('A')">A — liste simple</button><button onclick="variante('B')">B — encadrés de couleur</button></div>
+
+<div class="codage A" id="codage">
+  <div class="code c4"><div class="tete"><strong>K409 – Hernie inguinale, (unilatérale ou) sans précision(, sans occlusion ni gangrène)</strong><span class="etiquette cat" onclick="menuCat(this)" title="Cliquer pour changer : Principal / Associé">Principal ▾</span><span class="loupe" title="Changer le code (recherche)">🔍</span><div class="actions-code"><button title="Supprimer ce code">Supprimer</button></div></div>
+    <ul><li>hernie inguinale droite <span class="croix" title="Retirer cette preuve">✕</span> <span class="menu" title="Déplacer vers…">⋯</span></li><li>hernie inguinale droite <span class="croix">✕</span> <span class="menu">⋯</span></li></ul></div>
+  <div class="code c1"><div class="tete"><strong>I10 – Hypertension essentielle (primitive)</strong><span class="etiquette cat associe" onclick="menuCat(this)">Associé ▾</span><span class="loupe">🔍</span><div class="actions-code"><button>Supprimer</button></div></div>
+    <ul><li>HTA traitée <span class="croix">✕</span> <span class="menu">⋯</span></li><li>losartan pour son HTA <span class="croix">✕</span> <span class="menu">⋯</span></li></ul></div>
+  <div class="code c2"><div class="tete"><strong>E1198 – Diabète sucré de type 2 non insulinotraité ou sans précision, sans complication</strong><span class="etiquette cat associe" onclick="menuCat(this)">Associé ▾</span><span class="loupe">🔍</span><div class="actions-code"><button>Supprimer</button></div></div>
+    <ul><li>diabète de type 2 non insulinotraité <span class="croix">✕</span> <span class="menu">⋯</span></li></ul></div>
+  <div class="code c3"><div class="tete"><strong>Z992 – Dépendance envers une dialyse rénale</strong><span class="etiquette cat associe" onclick="menuCat(this)">Associé ▾</span><span class="etiquette info" title="Z992+0, Z992+1, Z992+8">code plus précis possible</span><span class="loupe">🔍</span><div class="actions-code"><button>Supprimer</button></div></div>
+    <ul><li>dépendant d'une hémodialyse <span class="croix">✕</span> <span class="menu">⋯</span></li></ul></div>
+  <div class="code" style="--c:#d0d7de"><div class="tete"><strong style="color:#9a3412">Code à choisir</strong><span class="etiquette cat associe" onclick="menuCat(this)">Associé ▾</span><span class="etiquette alerte">proposé : M8590+1, non codable</span><span class="loupe">🔍</span><div class="actions-code"><button>Supprimer</button></div></div>
+    <ul><li>fracture pathologique vertébrale <span class="croix">✕</span> <span class="menu">⋯</span></li></ul></div>
+  <div class="non-codes"><strong>Passages non codés</strong><ul><li>« Appendicectomie dans l'enfance. » — Antécédent ancien sans incidence sur le séjour <span class="discret">(IA)</span> &nbsp;<a href="#">Coder ce passage</a></li></ul>
+  <strong>Passages non traités par l'IA</strong><ul><li class="discret">(aucun)</li></ul></div>
+  <div class="barre"><span class="discret">Modifications sauvegardées dans ce navigateur à 14 h 35.</span><button>Enregistrer mon codage</button></div>
+</div>
+
+<div class="legende"><strong>Menu qui apparaît quand on sélectionne un passage dans le texte :</strong>
+  <div class="menu-selection" style="position:static; margin-top:.4rem"><button>Ajouter à K409</button><button>Ajouter à I10</button><button>Ajouter à E1198</button><button>Ajouter à Z992</button><button>Nouveau code…</button></div>
+  <p style="margin:.6rem 0 0">Au survol d'un code ou d'une preuve, ses passages ressortent dans le texte (cadre bleu) ; un clic sur un passage du texte fait ressortir son code. 🔍 ouvre la recherche préremplie avec le libellé (ou, pour un code à choisir, le libellé donné par l'IA) ; ✕ retire la preuve ; ⋯ ouvre « Déplacer vers… » (le glisser-déposer fait la même chose).</p>
+</div>
+</div>
+<script>
+  let menuOuvert = null;
+  function menuCat(et) {
+    if (menuOuvert) { menuOuvert.remove(); menuOuvert = null; }
+    const m = document.createElement("div"); m.className = "menu-cat";
+    for (const v of ["Principal", "Associé"]) {
+      const b = document.createElement("button"); b.textContent = v;
+      b.onclick = () => {
+        if (v === "Principal") document.querySelectorAll(".etiquette.cat").forEach((x) => { x.textContent = "Associé ▾"; x.classList.add("associe"); });
+        et.textContent = v + " ▾"; et.classList.toggle("associe", v === "Associé");
+        if (v === "Principal") { const code = et.closest(".code"); code.parentNode.insertBefore(code, code.parentNode.firstChild); }
+        m.remove(); menuOuvert = null;
+      };
+      m.appendChild(b);
+    }
+    et.parentNode.style.position = "relative"; et.insertAdjacentElement("afterend", m); menuOuvert = m;
+  }
+  function variante(v) {
+    const z = document.getElementById("codage"); z.className = "codage " + v;
+    document.querySelectorAll(".selecteur button").forEach((b) => b.classList.toggle("actif", b.textContent.startsWith(v)));
+    document.querySelectorAll("#texte mark").forEach((m) => { if (v === "A") { m.style.background = "#ffe08a"; } else { m.style.background = ""; } });
+  }
+</script>
+</body>
+</html>
