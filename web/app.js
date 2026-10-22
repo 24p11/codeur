@@ -496,7 +496,7 @@
     document.querySelector(".dossier-corps").classList.toggle("sans-panneau", !MODE_PANNEAU);
     $("texte-dossier").classList.toggle("mode-simple", !MODE_PANNEAU);
     montrer("ecran-dossier");
-    codageUI.commentairesOuverts = new Set(); codageUI.couleurs = new Map();
+    codageUI.commentairesOuverts = new Set(); codageUI.commentaireDossierOuvert = false; codageUI.couleurs = new Map();
     montrerVue("codage");
     rendre(); cacherBarre();
     await chargerCodageExistant();
@@ -1171,7 +1171,8 @@
   // travail.base : la dernière ligne de codage enregistrée du testeur sur ce document (référence des compteurs) ;
   // travail.courant : la copie de travail, modifiable ; sauvegardée dans le navigateur jusqu'à « Enregistrer mon codage ».
   const travail = { base: null, courant: null, modifie: false, localEnAttente: null };
-  const codageUI = { ressort: null, recherche: null, commentairesOuverts: new Set(), vue: "codage", appelEnCours: false, couleurs: new Map() };
+  const codageUI = { ressort: null, recherche: null, commentairesOuverts: new Set(), commentaireDossierOuvert: false, vue: "codage", appelEnCours: false, couleurs: new Map() };
+  document.querySelectorAll(".selecteur button").forEach((b) => b.addEventListener("click", () => { enregistrerVariante(b.dataset.variante); if (travail.courant) rendreCodage(); }));
   const CLE_CODAGE = () => "codeur.codage." + etat.utilisateur.id + "." + dossier.doc.id;
   function copier(o) { return JSON.parse(JSON.stringify(o)); }
 
@@ -1249,6 +1250,8 @@
     if (!c.ensembles.length) { const p = document.createElement("p"); p.className = "discret"; p.textContent = "Aucun code. Sélectionnez un passage dans le texte pour en créer un."; zone.appendChild(p); }
     c.ensembles.forEach((e, i) => zone.appendChild(rendreCode(e, i)));
     rendreNonCodes();
+    rendreCommentaireDossier();
+    document.querySelectorAll(".selecteur button").forEach((b) => b.classList.toggle("actif", b.dataset.variante === variante));
     $("bouton-enregistrer-codage").disabled = !travail.courant;
     if (!travail.modifie && !$("codage-sauvegarde").textContent.startsWith("Modifications") && !$("codage-sauvegarde").textContent.startsWith("Codage ")) {
       $("codage-sauvegarde").textContent = "Aucune modification depuis le dernier enregistrement. « Enregistrer mon codage » enregistre votre acceptation du codage tel quel.";
@@ -1314,26 +1317,84 @@
     });
     if (!e.preuves.length) { const li = document.createElement("li"); li.className = "vide"; li.textContent = "aucun passage cité"; ul.appendChild(li); }
     div.appendChild(ul);
-    // Les commentaires du code, dans la marge à droite du pavé, masqués par défaut (la saisie arrive à l'étape 3 du brief 7).
-    const marge = document.createElement("div"); marge.className = "marge"; marge.hidden = !codageUI.commentairesOuverts.has(i);
-    const titreMarge = document.createElement("div"); titreMarge.className = "titre";
-    const tt = document.createElement("span"); tt.textContent = "Commentaires · " + (e.code || "code à choisir");
-    const fermer = document.createElement("button"); fermer.type = "button"; fermer.className = "secondaire"; fermer.textContent = "fermer";
-    fermer.addEventListener("click", () => basculerCommentaires(i));
-    titreMarge.append(tt, fermer); marge.appendChild(titreMarge);
-    for (const c of commentaires) {
-      const l = document.createElement("div"); l.className = "ligne";
-      const a = document.createElement("span"); a.className = "auteur"; a.textContent = { humain: "vous", ia: "IA", outil: "outil", generateur: "source" }[c.auteur] || c.auteur;
-      const t = document.createElement("span"); t.className = c.auteur === "outil" ? "outil" : ""; t.textContent = c.texte;
-      l.append(a, t); marge.appendChild(l);
-    }
-    if (!commentaires.length) { const pv = document.createElement("p"); pv.className = "discret"; pv.textContent = "Aucun commentaire."; marge.appendChild(pv); }
+    // Les commentaires du code, dans la marge à droite du pavé, masqués par défaut (💬 les ouvre).
+    const marge = construireMarge("Commentaires · " + (e.code || "code à choisir"), commentaires, () => basculerCommentaires(i), i, LIMITE_COMMENTAIRE_CODE);
+    marge.hidden = !codageUI.commentairesOuverts.has(i);
     div.appendChild(marge);
     return div;
   }
   function basculerCommentaires(i) {
     if (codageUI.commentairesOuverts.has(i)) codageUI.commentairesOuverts.delete(i); else codageUI.commentairesOuverts.add(i);
     rendreCodage();
+  }
+  // --- Commentaires (brief 7, étape 3) : sur chaque code (ensembles[].commentaires) et sur le dossier (commentaires),
+  // avec auteur et étape (SCHEMA.md §3.4). Un commentaire saisi porte la marque transitoire _nouveau tant qu'il n'est
+  // pas enregistré : le testeur peut le modifier ou le supprimer ; à l'enregistrement, la marque disparaît et l'étape
+  // de la ligne lui est donnée. Les commentaires suivent la sauvegarde locale comme le reste du codage.
+  const LIMITE_COMMENTAIRE_CODE = 500, LIMITE_COMMENTAIRE_DOSSIER = 1000;
+  function listeCommentaires(i) { return i === null ? travail.courant.commentaires : travail.courant.ensembles[i].commentaires; }
+  function construireMarge(titreTexte, commentaires, fermerAction, i, limite) {
+    const marge = document.createElement("div"); marge.className = "marge";
+    const titre = document.createElement("div"); titre.className = "titre";
+    const tt = document.createElement("span"); tt.textContent = titreTexte;
+    const fermer = document.createElement("button"); fermer.type = "button"; fermer.className = "secondaire"; fermer.textContent = "fermer";
+    fermer.addEventListener("click", fermerAction);
+    titre.append(tt, fermer); marge.appendChild(titre);
+    const saisie = document.createElement("div"); saisie.className = "saisie";
+    const zone = document.createElement("textarea"); zone.maxLength = limite; zone.placeholder = i === null ? "Remarque générale sur ce codage ou ce dossier…" : "Votre commentaire sur ce code…";
+    const rappel = document.createElement("div"); rappel.className = "rappel";
+    const r1 = document.createElement("span"); r1.textContent = "Aucune donnée concernant un patient réel.";
+    const compte = document.createElement("span"); compte.textContent = "0 / " + nombre(limite);
+    const ajouter = document.createElement("button"); ajouter.type = "button"; ajouter.textContent = "Ajouter"; ajouter.disabled = true;
+    let enCours = null; // le commentaire en cours de modification
+    zone.addEventListener("input", () => { compte.textContent = nombre(zone.value.length) + " / " + nombre(limite); ajouter.disabled = !zone.value.trim(); });
+    ajouter.addEventListener("click", () => {
+      const t = zone.value.trim(); if (!t) return;
+      const liste = listeCommentaires(i);
+      if (enCours) { enCours.texte = t; } else liste.push({ auteur: "humain", etape: null, texte: t, _nouveau: true });
+      marquerModifie();
+    });
+    rappel.append(r1, compte, ajouter); saisie.append(zone, rappel);
+    for (const c of commentaires) {
+      const l = document.createElement("div"); l.className = "ligne";
+      const a = document.createElement("span"); a.className = "auteur"; a.textContent = { humain: "vous", ia: "IA", outil: "outil", generateur: "source" }[c.auteur] || c.auteur;
+      const t = document.createElement("span"); t.className = c.auteur === "outil" ? "outil" : ""; t.textContent = c.texte;
+      l.append(a, t);
+      if (c._nouveau) {
+        const nv = document.createElement("span"); nv.className = "nouveau"; nv.textContent = "non enregistré"; l.appendChild(nv);
+        const outils = document.createElement("span"); outils.className = "outils";
+        const mod = document.createElement("button"); mod.type = "button"; mod.className = "secondaire"; mod.textContent = "✎"; mod.title = "Modifier";
+        mod.addEventListener("click", () => { enCours = c; zone.value = c.texte; zone.dispatchEvent(new Event("input")); ajouter.textContent = "Modifier"; zone.focus(); });
+        const sup = document.createElement("button"); sup.type = "button"; sup.className = "secondaire"; sup.textContent = "✕"; sup.title = "Supprimer";
+        sup.addEventListener("click", () => { const liste = listeCommentaires(i); liste.splice(liste.indexOf(c), 1); marquerModifie(); });
+        outils.append(mod, sup); l.appendChild(outils);
+      }
+      marge.appendChild(l);
+    }
+    if (!commentaires.length) { const pv = document.createElement("p"); pv.className = "discret"; pv.textContent = "Aucun commentaire."; marge.appendChild(pv); }
+    marge.appendChild(saisie);
+    return marge;
+  }
+  function rendreCommentaireDossier() {
+    const zone = $("commentaire-dossier"); zone.textContent = "";
+    if (!travail.courant) return;
+    travail.courant.commentaires = travail.courant.commentaires || [];
+    const n = travail.courant.commentaires.length;
+    const ligne = document.createElement("span"); ligne.textContent = "Commentaire sur le dossier ";
+    const bulle = document.createElement("button"); bulle.type = "button"; bulle.className = "ico" + (codageUI.commentaireDossierOuvert ? " ouvert" : "");
+    bulle.textContent = "💬"; bulle.title = n ? "Commentaires sur le dossier (" + n + ")" : "Commenter le dossier";
+    if (n) { const nn = document.createElement("span"); nn.className = "n"; nn.textContent = n; bulle.appendChild(nn); }
+    bulle.addEventListener("click", () => { codageUI.commentaireDossierOuvert = !codageUI.commentaireDossierOuvert; rendreCodage(); });
+    ligne.appendChild(bulle); zone.appendChild(ligne);
+    const marge = construireMarge("Commentaire sur le dossier", travail.courant.commentaires, () => { codageUI.commentaireDossierOuvert = false; rendreCodage(); }, null, LIMITE_COMMENTAIRE_DOSSIER);
+    marge.hidden = !codageUI.commentaireDossierOuvert;
+    zone.appendChild(marge);
+  }
+  // À l'enregistrement, les commentaires saisis perdent leur marque et reçoivent l'étape de la ligne.
+  function figerCommentaires(codage, etape) {
+    const figer = (liste) => { for (const c of liste || []) if (c._nouveau) { delete c._nouveau; c.etape = etape; } };
+    figer(codage.commentaires); for (const e of codage.ensembles) figer(e.commentaires);
+    return codage;
   }
   function rendreNonCodes() {
     const c = travail.courant; const zone = $("codage-non-codes"); zone.textContent = "";
@@ -1551,7 +1612,7 @@
 
   // ---- Enregistrer mon codage : ligne revue_humain (bouton, et enregistrement automatique avant un appel répété)
   async function enregistrerRevue() {
-    const codage = copier(travail.courant);
+    const codage = figerCommentaires(copier(travail.courant), "revue_humain");
     codage.affichage = varianteAffichage();
     const compteurs = K.compteurs(travail.base ? travail.base.codage : null, codage);
     const ins = await base.from("codages").insert({ document: dossier.doc.id, etape: "revue_humain", utilisateur: etat.utilisateur.id,

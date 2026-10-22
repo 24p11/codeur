@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>codeur</title>
-  <link rel="stylesheet" href="style.css?v=A2-0.18">
+  <link rel="stylesheet" href="style.css?v=A2-0.19">
 </head>
 <body>
   <header class="entete">
@@ -200,10 +200,14 @@
               <h2>Codage</h2>
               <span id="codage-etat" class="discret"></span>
               <button id="bouton-coder-nouveaux" class="secondaire petit" hidden title="Envoyer au modèle les passages surlignés qui ne sont rattachés à aucun code">Coder les nouveaux passages</button>
+              <span class="selecteur" title="Affichage du codage : A liste simple, B encadrés aux couleurs d'origine, C une couleur par code reprise dans le texte">
+                <button type="button" class="secondaire" data-variante="A">A</button><button type="button" class="secondaire" data-variante="B">B</button><button type="button" class="secondaire" data-variante="C">C</button>
+              </span>
             </div>
             <p id="codage-reprise" class="message" hidden><span id="codage-reprise-texte"></span> <button id="bouton-reprendre-local" class="secondaire">Reprendre mes modifications</button> <button id="bouton-oublier-local" class="secondaire">Les abandonner</button></p>
             <div id="codage-contenu"></div>
             <div id="codage-non-codes" class="non-codes" hidden></div>
+            <div id="commentaire-dossier" class="code-dossier"></div>
             <div class="sous-texte barre-enregistrer">
               <span id="codage-sauvegarde" class="discret"></span>
               <div class="boutons-ligne"><button id="bouton-enregistrer-codage">Enregistrer mon codage</button></div>
@@ -244,10 +248,10 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@18.0.14/lib/marked.umd.js"></script>
-  <script src="positions.js?v=A2-0.18"></script>
-  <script src="markdown.js?v=A2-0.18"></script>
-  <script src="codage.js?v=A2-0.18"></script>
-  <script src="config.js?v=A2-0.18"></script>
-  <script src="app.js?v=A2-0.18"></script>
+  <script src="positions.js?v=A2-0.19"></script>
+  <script src="markdown.js?v=A2-0.19"></script>
+  <script src="codage.js?v=A2-0.19"></script>
+  <script src="config.js?v=A2-0.19"></script>
+  <script src="app.js?v=A2-0.19"></script>
 </body>
 </html>

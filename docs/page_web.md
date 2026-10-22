@@ -201,3 +201,16 @@ Le réglage « Affichage du codage » (navigateur) propose trois variantes, mêm
   - **Passage partagé** par deux codes : bandes obliques des deux couleurs, infobulle « Passage partagé par … ».
   - **Après le codage** : les passages surlignés pas encore codés restent jaunes ; les passages déclarés non codés par l'IA sont marqués en gris clair (infobulle avec la raison), en C seulement. Avant le codage, le surlignage garde sa couleur habituelle.
   - Un code à choisir (sans code) est en gris neutre.
+
+## 17. Les commentaires (brief 7, étape 3, A2-0.19)
+
+Le format du codage prévoit des commentaires sur chaque code (`ensembles[].commentaires`) et sur le codage entier (`commentaires`), chacun avec `auteur` et `etape` (SCHEMA.md §3.4).
+
+- **Sur un code** : l'icône 💬 de la ligne des fonctions, avec le nombre de commentaires en exposant, ouvre la marge à droite du pavé (sous le code sur un écran étroit) : les commentaires existants avec leur auteur (VOUS, IA, OUTIL en italique, SOURCE), puis une zone de saisie avec le rappel « Aucune donnée concernant un patient réel », le compte de caractères et « Ajouter ». **Limite : 500 caractères** par commentaire de code.
+- **Sur le dossier** : la ligne « Commentaire sur le dossier 💬 » sous la liste des codes ouvre la même marge ; **limite : 1 000 caractères**.
+- **Non enregistré** : un commentaire saisi porte, jusqu'à l'enregistrement, la mention « non enregistré » et les boutons ✎ (modifier) et ✕ (supprimer) ; les commentaires déjà enregistrés, ceux de l'IA et de l'outil ne se modifient pas. Toute saisie active « Enregistrer mon codage » et entre dans la sauvegarde locale, comme le reste du codage (§11.4).
+- **Enregistrement** : avec le codage, au clic sur « Enregistrer mon codage » (ou lors de la revue automatique avant un appel répété) : les commentaires saisis reçoivent `auteur` `humain` et l'étape de la ligne (`revue_humain`) ; la marque transitoire disparaît. Ils passent d'une ligne à la suivante avec le code auquel ils sont attachés (règles du §3.4).
+- Les commentaires d'auteur `outil` restent affichés en italique dans la marge et portés par les icônes d'avertissement (§14).
+- Les commentaires ancrés sur un passage du texte ne sont pas dans cette séance.
+
+**Sélecteur d'affichage** : l'en-tête du pavé porte les trois boutons A · B · C, qui changent l'affichage immédiatement et mémorisent le choix dans le navigateur (le même que le réglage « Affichage du codage »).
