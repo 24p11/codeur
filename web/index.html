@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>codeur</title>
-  <link rel="stylesheet" href="style.css?v=A2-0.15">
+  <link rel="stylesheet" href="style.css?v=A2-0.16">
 </head>
 <body>
   <header class="entete">
@@ -181,10 +181,18 @@
           </div>
           <div id="texte-dossier" class="texte-dossier" tabindex="0"></div>
           <div class="barre-texte barre-codage">
-            <span id="rappel-passages" class="discret"></span>
+            <span class="onglets">
+              <button type="button" id="onglet-codage" class="onglet actif">Codage</button>
+              <button type="button" id="onglet-evaluation" class="onglet">Évaluation</button>
+              <span id="rappel-passages" class="discret"></span>
+            </span>
             <span class="barre-texte-boutons">
               <button id="bouton-faire-codage">Faire le codage</button>
             </span>
+          </div>
+          <div id="bloc-evaluation" class="bloc-evaluation" hidden>
+            <h2>Noter ce compte rendu <span class="discret">· facultatif</span></h2>
+            <p class="discret">La grille de notation (cinq dimensions, de 1 à 5, avec un repère par niveau) arrive à l'étape 4 de cette séance.</p>
           </div>
           <div id="bloc-codage" class="bloc-codage" hidden>
             <div class="codage-tete">
@@ -234,10 +242,10 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@18.0.14/lib/marked.umd.js"></script>
-  <script src="positions.js?v=A2-0.15"></script>
-  <script src="markdown.js?v=A2-0.15"></script>
-  <script src="codage.js?v=A2-0.15"></script>
-  <script src="config.js?v=A2-0.15"></script>
-  <script src="app.js?v=A2-0.15"></script>
+  <script src="positions.js?v=A2-0.16"></script>
+  <script src="markdown.js?v=A2-0.16"></script>
+  <script src="codage.js?v=A2-0.16"></script>
+  <script src="config.js?v=A2-0.16"></script>
+  <script src="app.js?v=A2-0.16"></script>
 </body>
 </html>

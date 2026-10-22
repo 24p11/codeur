@@ -496,9 +496,20 @@
     document.querySelector(".dossier-corps").classList.toggle("sans-panneau", !MODE_PANNEAU);
     $("texte-dossier").classList.toggle("mode-simple", !MODE_PANNEAU);
     montrer("ecran-dossier");
+    codageUI.commentairesOuverts = new Set();
+    montrerVue("codage");
     rendre(); cacherBarre();
     await chargerCodageExistant();
   }
+  // Sous le texte, deux onglets : le codage ou l'évaluation du compte rendu (l'un ou l'autre, jamais les deux).
+  function montrerVue(vue) {
+    document.querySelector(".colonne-texte").classList.toggle("vue-evaluation", vue === "evaluation");
+    $("onglet-codage").classList.toggle("actif", vue !== "evaluation");
+    $("onglet-evaluation").classList.toggle("actif", vue === "evaluation");
+    $("bloc-evaluation").hidden = vue !== "evaluation";
+  }
+  $("onglet-codage").addEventListener("click", () => montrerVue("codage"));
+  $("onglet-evaluation").addEventListener("click", () => montrerVue("evaluation"));
 
   // Les « unités » surlignées : en mode passages, chaque passage ; en mode ensembles, chaque ensemble.
   function unites() {
@@ -1049,7 +1060,7 @@
   // travail.base : la dernière ligne de codage enregistrée du testeur sur ce document (référence des compteurs) ;
   // travail.courant : la copie de travail, modifiable ; sauvegardée dans le navigateur jusqu'à « Enregistrer mon codage ».
   const travail = { base: null, courant: null, modifie: false, localEnAttente: null };
-  const codageUI = { ressort: null, recherche: null };
+  const codageUI = { ressort: null, recherche: null, commentairesOuverts: new Set() };
   const CLE_CODAGE = () => "codeur.codage." + etat.utilisateur.id + "." + dossier.doc.id;
   function copier(o) { return JSON.parse(JSON.stringify(o)); }
 
@@ -1143,32 +1154,36 @@
     div.addEventListener("dragleave", () => div.classList.remove("cible-depot"));
     div.addEventListener("drop", (ev) => { ev.preventDefault(); div.classList.remove("cible-depot");
       try { const d = JSON.parse(ev.dataTransfer.getData("text/plain")); deplacerPreuve(d.de, d.k, i); } catch (x) { /* rien */ } });
-    const tete = document.createElement("div"); tete.className = "tete";
-    const titre = document.createElement("strong");
-    if (e.code) titre.textContent = e.code + " – " + e.libelle;
-    else { titre.textContent = "Code à choisir"; titre.className = "a-choisir"; }
-    tete.appendChild(titre);
-    const cat = document.createElement("span");
-    cat.className = "etiquette cat" + (e.categorie === "pathologie_principale" ? "" : " associe");
-    cat.textContent = (e.categorie === "pathologie_principale" ? "Principal" : "Associé") + " ▾";
-    cat.title = "Cliquer pour changer : Principal / Associé";
-    cat.addEventListener("click", (ev) => { ev.stopPropagation(); menuCategorie(i, cat); });
-    tete.appendChild(cat);
-    if (!e.code && e.code_propose_non_codable) { const a = document.createElement("span"); a.className = "etiquette alerte"; a.textContent = "proposé : " + e.code_propose_non_codable + ", non codable"; tete.appendChild(a); }
-    const plusPrecis = (e.commentaires || []).find((k) => k.auteur === "outil" && /plus précis possible/.test(k.texte));
-    if (e.code && plusPrecis) { const a = document.createElement("span"); a.className = "etiquette info"; a.textContent = "code plus précis possible"; a.title = plusPrecis.texte; tete.appendChild(a); }
-    if (!e.preuves.length) { const a = document.createElement("span"); a.className = "etiquette vide"; a.textContent = "sans preuve"; a.title = "Gardez ce code ou supprimez-le."; tete.appendChild(a); }
-    const ajoutIA = (e.commentaires || []).find((k) => k.auteur === "outil" && /ajouté aux preuves par l'IA/.test(k.texte));
-    if (ajoutIA) { const a = document.createElement("span"); a.className = "etiquette info"; a.textContent = "preuve ajoutée par l'IA"; a.title = ajoutIA.texte + " Retirez-la avec ✕ si elle ne convient pas."; tete.appendChild(a); }
-    if (e.explication || e.confiance != null) { const a = document.createElement("span"); a.className = "discret"; a.textContent = "ⓘ"; a.title = (e.explication || "") + (e.confiance != null ? " (confiance " + e.confiance + ")" : ""); tete.appendChild(a); }
-    const loupe = document.createElement("span"); loupe.className = "loupe"; loupe.textContent = "🔍"; loupe.title = "Changer le code (recherche)"; loupe.style.cursor = "pointer";
-    loupe.addEventListener("click", () => ouvrirRecherche(div, i));
-    tete.appendChild(loupe);
-    const actions = document.createElement("div"); actions.className = "actions-code";
-    const suppr = document.createElement("button"); suppr.textContent = "Supprimer"; suppr.title = "Supprimer ce code (ses passages redeviennent de simples surlignages)";
-    suppr.addEventListener("click", () => supprimerCode(i));
-    actions.appendChild(suppr); tete.appendChild(actions);
-    div.appendChild(tete);
+    // Style « Neutre » : ligne 1 en gras (code et libellé), les icônes à droite ; puis les passages à puces.
+    const corps = document.createElement("div"); corps.className = "corps";
+    const ligne = document.createElement("div"); ligne.className = "ligne-code";
+    const l1 = document.createElement("div"); l1.className = "l1";
+    const id = document.createElement("span"); id.className = "id" + (e.code ? "" : " a-choisir"); id.textContent = e.code || "Code à choisir";
+    l1.appendChild(id);
+    if (e.code) { const lib = document.createElement("span"); lib.textContent = e.libelle; l1.appendChild(lib); }
+    const l2 = document.createElement("div"); l2.className = "l2";
+    const ico = (texte, titre, action, classe) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "ico" + (classe ? " " + classe : "");
+      b.textContent = texte; b.title = titre; if (action) b.addEventListener("click", action); l2.appendChild(b); return b;
+    };
+    const cat = ico((e.categorie === "pathologie_principale" ? "Principal" : "Associé") + " ▾", "Cliquer pour changer : Principal / Associé",
+      (ev) => { ev.stopPropagation(); menuCategorie(i, cat); }, "etiquette cat" + (e.categorie === "pathologie_principale" ? " principal" : " associe"));
+    ico("🔍", "Changer le code (recherche)", () => ouvrirRecherche(div, i));
+    const commentaires = e.commentaires || [];
+    const bulle = ico("💬", commentaires.length ? "Commentaires (" + commentaires.length + ")" : "Commentaires", () => basculerCommentaires(i),
+      "bulle" + (codageUI.commentairesOuverts.has(i) ? " ouvert" : ""));
+    if (commentaires.length) { const n = document.createElement("span"); n.className = "n"; n.textContent = commentaires.length; bulle.appendChild(n); }
+    // Les avertissements sont des icônes, leur explication au survol.
+    if (!e.code && e.code_propose_non_codable) ico("⚠", "Code proposé par l'IA : " + e.code_propose_non_codable + ", non codable ; choisissez un code avec 🔍.", null, "alerte");
+    const plusPrecis = commentaires.find((k) => k.auteur === "outil" && /plus précis possible/.test(k.texte));
+    if (e.code && plusPrecis) ico("◎", "Code plus précis possible — " + plusPrecis.texte, null, "info");
+    if (!e.preuves.length) ico("◌", "Sans preuve : aucun passage du texte n'appuie ce code. Gardez-le ou supprimez-le.", null, "alerte");
+    const ajoutIA = commentaires.find((k) => k.auteur === "outil" && /ajouté aux preuves par l'IA/.test(k.texte));
+    if (ajoutIA) ico("⚑", "Preuve ajoutée par l'IA — " + ajoutIA.texte + " Retirez-la avec ✕ si elle ne convient pas.", null, "info");
+    if (e.explication || e.confiance != null) ico("ⓘ", "Explication de l'IA : " + (e.explication || "") + (e.confiance != null ? " (confiance " + e.confiance + ")" : ""), null, "info");
+    const sep = document.createElement("span"); sep.className = "sep"; l2.appendChild(sep);
+    ico("🗑", "Supprimer ce code (ses passages redeviennent de simples surlignages)", () => supprimerCode(i));
+    ligne.append(l1, l2); corps.appendChild(ligne);
     const ul = document.createElement("ul"); ul.className = "preuves";
     e.preuves.forEach((p, k) => {
       const li = document.createElement("li"); li.className = "preuve"; li.draggable = true;
@@ -1183,8 +1198,29 @@
       dep.addEventListener("click", (ev) => { ev.stopPropagation(); menuDeplacer(i, k, ev.target); });
       outils.append(croix, dep); li.appendChild(outils); ul.appendChild(li);
     });
-    div.appendChild(ul);
+    if (!e.preuves.length) { const li = document.createElement("li"); li.className = "vide"; li.textContent = "aucun passage cité"; ul.appendChild(li); }
+    corps.appendChild(ul);
+    div.appendChild(corps);
+    // Les commentaires du code, dans la marge en face, masqués par défaut (la saisie arrive à l'étape 3 du brief 7).
+    const marge = document.createElement("div"); marge.className = "marge"; marge.hidden = !codageUI.commentairesOuverts.has(i);
+    const titre = document.createElement("div"); titre.className = "titre";
+    const tt = document.createElement("span"); tt.textContent = "Commentaires · " + (e.code || "code à choisir");
+    const fermer = document.createElement("button"); fermer.type = "button"; fermer.className = "secondaire petit"; fermer.textContent = "fermer";
+    fermer.addEventListener("click", () => basculerCommentaires(i));
+    titre.append(tt, fermer); marge.appendChild(titre);
+    for (const c of commentaires) {
+      const l = document.createElement("div"); l.className = "ligne";
+      const a = document.createElement("span"); a.className = "auteur"; a.textContent = { humain: "vous", ia: "IA", outil: "outil", generateur: "source" }[c.auteur] || c.auteur;
+      const t = document.createElement("span"); t.className = c.auteur === "outil" ? "outil" : ""; t.textContent = c.texte;
+      l.append(a, t); marge.appendChild(l);
+    }
+    if (!commentaires.length) { const pv = document.createElement("p"); pv.className = "discret"; pv.textContent = "Aucun commentaire."; marge.appendChild(pv); }
+    div.appendChild(marge);
     return div;
+  }
+  function basculerCommentaires(i) {
+    if (codageUI.commentairesOuverts.has(i)) codageUI.commentairesOuverts.delete(i); else codageUI.commentairesOuverts.add(i);
+    rendreCodage();
   }
   function rendreNonCodes() {
     const c = travail.courant; const zone = $("codage-non-codes"); zone.textContent = "";

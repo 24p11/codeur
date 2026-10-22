@@ -4,5 +4,5 @@
 window.CODEUR_CONFIG = {
   supabaseUrl: "https://pqqmkyxnyoyscltkqfks.supabase.co",
   supabaseKey: "sb_publishable_gXAwjSZdIosA3jNZwN_IXw_ohRMgamE",
-  versionPage: "A2-0.15",
+  versionPage: "A2-0.16",
 };

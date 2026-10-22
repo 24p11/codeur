@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>codeur — maquette de style sobre</title>
+<style>
+  /* ---------- Maquette de style sobre (brief 7, étape 1, version 2). Dossier INVENTÉ : aucun texte des corpus. ---------- */
+  :root {
+    --encre: #1f2328; --encre-douce: #5c6670; --encre-legere: #8b949e;
+    --fond: #ffffff; --fond-doux: #f7f8f9; --trait: #e3e6ea;
+    --accent: #0a5c8a; --accent-doux: #eaf2f8; --alerte: #a23b1e;
+    --surl: #fff1b8; --surl-vif: #ffe48a;
+    --lecture: 70ch; --marge: 22rem;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: light; }
+  body { margin: 0; font: 16px/1.55 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: var(--encre); background: var(--fond); }
+  a { color: var(--accent); }
+
+  /* en-tête : une ligne, un trait fin */
+  .entete { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: .7rem 1.5rem; border-bottom: 1px solid var(--trait); position: sticky; top: 0; background: var(--fond); z-index: 5; }
+  .entete strong { font-weight: 600; }
+  .entete .sous { color: var(--encre-douce); margin-left: .5rem; font-size: .95rem; }
+  .entete-droite { display: flex; gap: 1rem; align-items: baseline; color: var(--encre-douce); font-size: .95rem; }
+  .entete-droite a { color: var(--encre-douce); text-decoration: none; } .entete-droite a:hover { color: var(--accent); }
+
+  /* une colonne de lecture, et à sa droite une marge réservée aux commentaires ouverts */
+  main { padding: 1.5rem 1.5rem 4rem; max-width: calc(var(--lecture) + var(--marge) + 6rem); margin: 0 auto; }
+  .rangee { display: grid; grid-template-columns: minmax(0, var(--lecture)) var(--marge); column-gap: 2rem; align-items: start; }
+  .rangee > * { grid-column: 1; min-width: 0; }
+  .rangee > .marge { grid-column: 2; }
+  @media (max-width: 1100px) { .rangee { grid-template-columns: minmax(0, var(--lecture)); } .rangee > .marge { grid-column: 1; margin: .4rem 0 .2rem 1.25rem; } }
+
+  /* boutons : un seul style principal ; secondaires sans bordure */
+  button { font: inherit; cursor: pointer; border-radius: 6px; padding: .45rem .9rem; border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+  button.second { background: transparent; color: var(--accent); border-color: transparent; padding-left: .5rem; padding-right: .5rem; }
+  button.second:hover { background: var(--accent-doux); }
+  button.petit { font-size: .85rem; padding: .2rem .55rem; }
+  button:disabled { opacity: .5; cursor: default; }
+  .barre { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin: .5rem 0; min-height: 2rem; }
+  .barre .note { color: var(--encre-douce); font-size: .9rem; }
+  .barre .boutons { display: flex; gap: .35rem; align-items: center; }
+
+  .dossier-tete h1 { font-size: 1.35rem; font-weight: 600; margin: 0; }
+  .dossier-tete .infos { color: var(--encre-douce); margin: .2rem 0 0; font-size: .95rem; }
+  .dossier-tete .infos code { font: .9em ui-monospace, Menlo, Consolas, monospace; color: var(--encre-douce); }
+
+  /* le texte du CRH : pas de cadre, un filet léger à gauche, interligne de lecture */
+  .cr { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; padding: .25rem 0 .25rem 1rem; border-left: 2px solid var(--trait); }
+  .cr .md-titre { font-weight: 600; font-size: 1.05em; } .cr .md-marque { color: #c2c7cc; font-weight: 400; } .cr .md-gras { font-weight: 600; }
+  .cr .md-trait { color: transparent; border-bottom: 1px solid var(--trait); line-height: .6; }
+  mark { background: var(--surl); color: inherit; padding: .05em 0; box-shadow: 0 1px 0 var(--surl-vif); }
+  mark:hover { background: var(--surl-vif); cursor: pointer; }
+
+  h2 { font-size: 1.05rem; font-weight: 600; margin: 1.75rem 0 .5rem; }
+  h2 .note { font-weight: 400; color: var(--encre-douce); font-size: .9rem; }
+
+  /* le pavé des codes reprend le style du bloc « Passages non codés » de la page actuelle : fond gris très clair,
+     barre grise à gauche, titre en gras, listes à puces ; les codes se suivent dans un seul pavé continu */
+  .code, .non-codes { background: var(--fond-doux); border-left: 4px solid var(--trait); padding: .5rem .75rem; font-size: .95rem; }
+  .code { padding-bottom: .6rem; }
+  .rangee:has(> .code:first-child) + .rangee > .code { border-top: 0; }
+  .rangee.premier > .code { border-radius: 0 6px 0 0; padding-top: .7rem; }
+  .code .ligne-code { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem 1rem; }
+  .code .l1 { display: flex; gap: .5rem; align-items: baseline; flex: 1 1 24rem; min-width: 0; font-weight: 600; }
+  .code .l1 .id { font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: .02em; white-space: nowrap; }
+  .code .l1 .id.a-choisir { color: var(--alerte); font-family: inherit; }
+  .code .l2 { display: flex; gap: .15rem; align-items: center; flex-wrap: nowrap; margin-left: auto; font-weight: 400; }
+  .code .l2 .ico { border: 0; background: none; color: var(--encre-douce); font-size: .95rem; padding: .05rem .35rem; border-radius: 4px; line-height: 1.3; }
+  .code .l2 .ico:hover { background: var(--accent-doux); color: var(--accent); }
+  .code .l2 .ico.cat { font-size: .8rem; border: 1px solid var(--trait); border-radius: 999px; padding: 0 .55rem; margin-right: .2rem; }
+  .code .l2 .ico.cat.principal { color: var(--accent); border-color: var(--accent); }
+  .code .l2 .ico.alerte { color: var(--alerte); } .code .l2 .ico.alerte:hover { background: #fbeee9; color: var(--alerte); }
+  .code .l2 .ico .n { font-size: .72rem; vertical-align: super; margin-left: .05rem; }
+  .code .l2 .ico.ouvert { background: var(--accent-doux); color: var(--accent); }
+  .code .l2 .sep { width: .6rem; }
+  ul.preuves, .non-codes ul { margin: .2rem 0; padding-left: 1.3rem; color: var(--encre-douce); font-size: .95rem; }
+  ul.preuves li { padding: .05rem 0; }
+  ul.preuves li::before { content: "« "; } ul.preuves li::after { content: " »"; }
+  ul.preuves li .outils { visibility: hidden; margin-left: .3rem; } ul.preuves li:hover .outils { visibility: visible; }
+  ul.preuves li .outils button { padding: 0 .3rem; font-size: .8rem; }
+  ul.preuves li.vide { list-style: none; margin-left: -1.3rem; color: var(--encre-legere); font-style: italic; }
+  ul.preuves li.vide::before, ul.preuves li.vide::after { content: ""; }
+
+  /* commentaires : masqués par défaut ; ouverts dans la marge de droite, en face du code (dessous sur écran étroit) */
+  .marge { font-size: .92rem; border-left: 2px solid var(--accent-doux); padding: .1rem 0 .1rem .8rem; }
+  .marge .titre { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--encre-legere); margin-bottom: .2rem; }
+  .marge .ligne { display: flex; gap: .5rem; align-items: baseline; padding: .15rem 0; }
+  .marge .auteur { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--encre-legere); min-width: 3.2rem; }
+  .marge .outil { color: var(--encre-douce); font-style: italic; }
+  .marge textarea { width: 100%; font: inherit; font-size: .92rem; border: 1px solid var(--trait); border-radius: 6px; padding: .4rem .55rem; resize: vertical; min-height: 3.2rem; margin-top: .3rem; }
+  .marge .rappel { font-size: .78rem; color: var(--encre-legere); margin: .15rem 0 0; display: flex; justify-content: space-between; }
+  .marge .fermer { float: right; }
+
+  .non-codes { margin-top: 0; border-radius: 0 0 6px 0; padding-bottom: .7rem; }
+  .non-codes strong { display: block; margin-top: .45rem; } .non-codes strong:first-child { margin-top: 0; }
+  .non-codes a { margin-left: .4rem; cursor: pointer; }
+
+  /* notation */
+  .notation .dim { display: grid; grid-template-columns: minmax(9rem, 14rem) auto; gap: .25rem 1rem; align-items: baseline; padding: .45rem 0; border-top: 1px solid var(--trait); }
+  .notation .dim:last-of-type { border-bottom: 1px solid var(--trait); }
+  .notation .dim .nom { font-weight: 600; }
+  .notation .dim .nom small { display: block; font-weight: 400; color: var(--encre-douce); font-size: .85rem; }
+  .notation .choix { display: flex; gap: .3rem; }
+  .notation .choix button { width: 2.1rem; height: 2.1rem; padding: 0; border-radius: 50%; background: transparent; color: var(--encre-douce); border-color: var(--trait); }
+  .notation .choix button:hover { border-color: var(--accent); color: var(--accent); }
+  .notation .choix button.actif { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .notation .repere { grid-column: 2; font-size: .9rem; color: var(--encre-douce); }
+  .notation textarea { width: 100%; font: inherit; border: 1px solid var(--trait); border-radius: 6px; padding: .4rem .55rem; margin-top: .6rem; }
+
+  .confirmation { color: var(--accent); font-size: .92rem; }
+</style>
+</head>
+<body>
+<header class="entete">
+  <div><strong>codeur</strong><span class="sous">prototype de codage assisté</span></div>
+  <div class="entete-droite"><span>prenom.nom@exemple.fr</span><a href="#">Mon profil</a><a href="#">Réglages de l'IA</a><a href="#">Se déconnecter</a></div>
+</header>
+
+<main>
+  <div class="rangee">
+    <div class="dossier-tete">
+      <div class="barre" style="margin:0">
+        <h1>Dossier 3f8a21c0…</h1>
+        <div class="boutons"><button class="second">Retour à la liste</button></div>
+      </div>
+      <p class="infos">Synthétique · Hépato-gastro-entérologie · Chirurgie adultes &lt; 3 nuits, en hospitalisation complète · 2 418 caractères · version 1 · <code>3f8a21c0-5e2b-4c7d-9a10-1b2c3d4e5f60</code></p>
+    </div>
+  </div>
+
+  <div class="rangee" style="margin-top:1.25rem">
+    <div>
+      <div class="barre">
+        <span class="note">3 passages surlignés, 2 non encore codés</span>
+        <span class="boutons"><button class="second petit">Texte brut</button><button class="second petit">Tout effacer</button></span>
+      </div>
+<div class="cr"><span class="md-titre"><span class="md-marque">###</span> Compte rendu d'hospitalisation</span>
+<span class="md-gras"><span class="md-marque">**</span>Motif d'hospitalisation<span class="md-marque">**</span></span>
+Monsieur T., 68 ans, est admis pour la prise en charge chirurgicale programmée d'une <mark>hernie inguinale droite non compliquée</mark>, gênante à l'effort depuis six mois.
+
+<span class="md-gras"><span class="md-marque">**</span>Antécédents<span class="md-marque">**</span></span>
+- <mark>Hypertension artérielle traitée</mark> par un inhibiteur de l'enzyme de conversion, bien équilibrée.
+- <mark>Diabète de type 2 sous metformine</mark>, sans complication connue.
+- <mark>Tabagisme sevré depuis quatre ans</mark>, estimé à vingt paquets-années.
+- Appendicectomie dans l'enfance.
+
+<span class="md-gras"><span class="md-marque">**</span>Intervention<span class="md-marque">**</span></span>
+Cure de hernie inguinale droite par voie ouverte avec mise en place d'une prothèse, sous anesthésie générale. Suites opératoires simples. <mark>Douleur postopératoire modérée</mark>, contrôlée par les antalgiques de palier 1.
+
+<span class="md-trait">---</span>
+
+<span class="md-gras"><span class="md-marque">**</span>Conclusion<span class="md-marque">**</span></span>
+Retour à domicile à J1. Consultation de contrôle à trois semaines. Reprise du traitement habituel sans modification.
+
+Dr A. Exemple, chirurgie digestive</div>
+      <div class="barre" style="margin-top:.8rem">
+        <span class="note">Le LLM formera les ensembles à partir de vos surlignages.</span>
+        <span class="boutons"><button>Faire le codage</button></span>
+      </div>
+      <h2>Codage <span class="note">· proposé par l'IA, 1 tour de correction · affichage A</span></h2>
+    </div>
+  </div>
+
+  <!-- chaque code est une rangée : le code à gauche, ses commentaires (s'ils sont ouverts) dans la marge en face -->
+  <div class="rangee premier">
+    <div class="code">
+      <div class="ligne-code"><div class="l1"><span class="id">K409</span><span>Hernie inguinale unilatérale ou SAI, sans occlusion ni gangrène</span></div>
+<div class="l2">
+        <button class="ico cat principal" title="Cliquer pour changer : Principal / Associé">Principal ▾</button>
+        <button class="ico" title="Changer le code (recherche)">🔍</button>
+        <button class="ico bulle" data-cible="c1" title="Commentaires (1)">💬<span class="n">1</span></button>
+        <span class="sep"></span>
+        <button class="ico" title="Supprimer ce code">🗑</button>
+      </div></div>
+      <ul class="preuves"><li>hernie inguinale droite non compliquée<span class="outils"><button class="second petit" title="Retirer cette preuve">✕</button><button class="second petit" title="Déplacer vers…">⋯</button></span></li></ul>
+    </div>
+    <div class="marge" id="c1" hidden>
+      <div class="titre">Commentaires · K409 <button class="second petit fermer" data-cible="c1">fermer</button></div>
+      <div class="ligne"><span class="auteur">vous</span><span>Le côté n'est pas codé en CIM-10 ; K409 convient.</span><button class="second petit" title="Modifier">✎</button><button class="second petit" title="Supprimer">✕</button></div>
+      <textarea placeholder="Votre commentaire sur ce code…"></textarea>
+      <p class="rappel"><span>Aucune donnée concernant un patient réel.</span><span>0 / 500</span></p>
+    </div>
+  </div>
+
+  <div class="rangee">
+    <div class="code">
+      <div class="ligne-code"><div class="l1"><span class="id">I10</span><span>Hypertension essentielle (primitive)</span></div>
+<div class="l2">
+        <button class="ico cat" title="Cliquer pour changer : Principal / Associé">Associé ▾</button>
+        <button class="ico" title="Changer le code (recherche)">🔍</button>
+        <button class="ico bulle" data-cible="c2" title="Commenter">💬</button>
+        <span class="sep"></span>
+        <button class="ico" title="Supprimer ce code">🗑</button>
+      </div></div>
+      <ul class="preuves"><li>Hypertension artérielle traitée<span class="outils"><button class="second petit">✕</button><button class="second petit">⋯</button></span></li></ul>
+    </div>
+    <div class="marge" id="c2" hidden>
+      <div class="titre">Commentaires · I10 <button class="second petit fermer" data-cible="c2">fermer</button></div>
+      <textarea placeholder="Votre commentaire sur ce code…"></textarea>
+      <p class="rappel"><span>Aucune donnée concernant un patient réel.</span><span>0 / 500</span></p>
+    </div>
+  </div>
+
+  <div class="rangee">
+    <div class="code">
+      <div class="ligne-code"><div class="l1"><span class="id">E119</span><span>Diabète sucré de type 2, sans complication</span></div>
+<div class="l2">
+        <button class="ico cat" title="Cliquer pour changer : Principal / Associé">Associé ▾</button>
+        <button class="ico" title="Changer le code (recherche)">🔍</button>
+        <button class="ico bulle ouvert" data-cible="c3" title="Commentaires (1)">💬<span class="n">1</span></button>
+        <button class="ico" title="Code plus précis possible : un code plus fin existe pour ce diabète (E11 avec cinquième caractère) ; vérifiez avec 🔍.">◎</button>
+        <span class="sep"></span>
+        <button class="ico" title="Supprimer ce code">🗑</button>
+      </div></div>
+      <ul class="preuves"><li>Diabète de type 2 sous metformine<span class="outils"><button class="second petit">✕</button><button class="second petit">⋯</button></span></li></ul>
+    </div>
+    <div class="marge" id="c3">
+      <div class="titre">Commentaires · E119 <button class="second petit fermer" data-cible="c3">fermer</button></div>
+      <div class="ligne"><span class="auteur">outil</span><span class="outil">Un code plus précis existe pour ce diabète (E11 avec cinquième caractère) ; vérifiez avec 🔍.</span></div>
+      <textarea placeholder="Votre commentaire sur ce code…"></textarea>
+      <p class="rappel"><span>Aucune donnée concernant un patient réel.</span><span>0 / 500</span></p>
+    </div>
+  </div>
+
+  <div class="rangee">
+    <div class="code">
+      <div class="ligne-code"><div class="l1"><span class="id a-choisir">Code à choisir</span></div>
+<div class="l2">
+        <button class="ico cat" title="Cliquer pour changer : Principal / Associé">Associé ▾</button>
+        <button class="ico" title="Changer le code (recherche)">🔍</button>
+        <button class="ico bulle" data-cible="c4" title="Commentaires (1)">💬<span class="n">1</span></button>
+        <button class="ico alerte" title="Code proposé par l'IA : Z720, non codable dans le kit ; choisissez un code avec 🔍.">⚠</button>
+        <span class="sep"></span>
+        <button class="ico" title="Supprimer ce code">🗑</button>
+      </div></div>
+      <ul class="preuves"><li>Tabagisme sevré depuis quatre ans<span class="outils"><button class="second petit">✕</button><button class="second petit">⋯</button></span></li></ul>
+    </div>
+    <div class="marge" id="c4" hidden>
+      <div class="titre">Commentaires · code à choisir <button class="second petit fermer" data-cible="c4">fermer</button></div>
+      <div class="ligne"><span class="auteur">outil</span><span class="outil">Le code proposé Z720 n'est pas codable dans le kit ; choisissez un code avec 🔍.</span></div>
+      <textarea placeholder="Votre commentaire sur ce code…"></textarea>
+      <p class="rappel"><span>Aucune donnée concernant un patient réel.</span><span>0 / 500</span></p>
+    </div>
+  </div>
+
+  <div class="rangee">
+    <div class="code">
+      <div class="ligne-code"><div class="l1"><span class="id">Z880</span><span>Antécédents personnels d'allergie à la pénicilline</span></div>
+<div class="l2">
+        <button class="ico cat" title="Cliquer pour changer : Principal / Associé">Associé ▾</button>
+        <button class="ico" title="Changer le code (recherche)">🔍</button>
+        <button class="ico bulle" data-cible="c5" title="Commenter">💬</button>
+        <button class="ico alerte" title="Sans preuve : aucun passage du texte n'appuie ce code. Gardez-le ou supprimez-le.">◌</button>
+        <span class="sep"></span>
+        <button class="ico" title="Supprimer ce code">🗑</button>
+      </div></div>
+      <ul class="preuves"><li class="vide">aucun passage cité</li></ul>
+    </div>
+    <div class="marge" id="c5" hidden>
+      <div class="titre">Commentaires · Z880 <button class="second petit fermer" data-cible="c5">fermer</button></div>
+      <textarea placeholder="Votre commentaire sur ce code…"></textarea>
+      <p class="rappel"><span>Aucune donnée concernant un patient réel.</span><span>0 / 500</span></p>
+    </div>
+  </div>
+
+  <div class="rangee">
+    <div>
+      <div class="non-codes" style="margin-top:0">
+        <strong>Passages non codés (selon l'IA)</strong>
+        <ul><li>« Appendicectomie dans l'enfance » — antécédent sans incidence sur le séjour<a>Coder ce passage</a></li></ul>
+        <strong>Passages surlignés, pas encore codés</strong>
+        <ul><li>« Douleur postopératoire modérée »<a>Coder ce passage</a></li></ul>
+      </div>
+      <div class="barre" style="margin-top:1rem">
+        <span class="note">Commentaire sur le dossier <button class="ico bulle second petit" data-cible="cd" title="Commentaire sur le dossier (1)">💬<span class="n">1</span></button></span>
+        <span class="boutons"><button>Enregistrer mon codage</button></span>
+      </div>
+      <p class="confirmation">Codage accepté tel quel, enregistré à 14:32 (tout conservé : 5 codes).</p>
+    </div>
+    <div class="marge" id="cd" hidden>
+      <div class="titre">Commentaire sur le dossier <button class="second petit fermer" data-cible="cd">fermer</button></div>
+      <div class="ligne"><span class="auteur">vous</span><span>Compte rendu clair ; la conclusion ne reprend pas les antécédents, ce qui est très bien.</span><button class="second petit">✎</button><button class="second petit">✕</button></div>
+      <textarea placeholder="Remarque générale sur ce codage ou ce dossier…"></textarea>
+      <p class="rappel"><span>Aucune donnée concernant un patient réel.</span><span>0 / 1 000</span></p>
+    </div>
+  </div>
+
+  <div class="rangee">
+    <div>
+      <h2>Noter ce compte rendu <span class="note">· facultatif</span></h2>
+      <div class="notation">
+        <div class="dim"><span class="nom">Organisation du document</span><span class="choix"><button>1</button><button>2</button><button>3</button><button class="actif">4</button><button>5</button></span><span class="repere">4 — Rubriques présentes et ordonnées, une information mal placée au plus.</span></div>
+        <div class="dim"><span class="nom">Langage<small>clarté et compréhensibilité</small></span><span class="choix"><button>1</button><button>2</button><button>3</button><button>4</button><button class="actif">5</button></span><span class="repere">5 — Phrases claires, vocabulaire précis, aucune ambiguïté.</span></div>
+        <div class="dim"><span class="nom">Cohérence médicale</span><span class="choix"><button>1</button><button>2</button><button>3</button><button>4</button><button>5</button></span><span class="repere">Non notée.</span></div>
+        <div class="dim"><span class="nom">Capacité de synthèse</span><span class="choix"><button>1</button><button>2</button><button class="actif">3</button><button>4</button><button>5</button></span><span class="repere">3 — L'essentiel est là, avec des détails superflus ou des redites.</span></div>
+        <div class="dim"><span class="nom">Qualité générale</span><span class="choix"><button>1</button><button>2</button><button>3</button><button class="actif">4</button><button>5</button></span><span class="repere">4 — Bon compte rendu, utilisable sans relecture, quelques imperfections.</span></div>
+        <textarea placeholder="Commentaire libre (facultatif)…"></textarea>
+        <div class="barre"><span class="note">Grille v1 · dernière note enregistrée le 22/10/2026 à 14:40</span><span class="boutons"><button>Enregistrer ma note</button></span></div>
+      </div>
+      <div class="barre" style="margin-top:1.5rem"><span></span><span class="boutons"><button class="second">Retour à la liste</button></span></div>
+    </div>
+  </div>
+</main>
+<script>
+  // Maquette : 💬 ouvre ou ferme les commentaires du code, dans la marge en face (ou dessous sur écran étroit).
+  document.querySelectorAll("[data-cible]").forEach((b) => b.addEventListener("click", () => {
+    const m = document.getElementById(b.dataset.cible);
+    m.hidden = !m.hidden;
+    document.querySelectorAll('.bulle[data-cible="' + b.dataset.cible + '"]').forEach((x) => x.classList.toggle("ouvert", !m.hidden));
+  }));
+</script>
+</body>
+</html>

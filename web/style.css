@@ -1,150 +1,187 @@
-/* Feuille de style de la page codeur. Sobre, lisible, en français. */
+/* Feuille de style de la page codeur — style « Neutre » (brief 7, étape 1) : peu d'encadrés, peu de couleurs,
+   hiérarchie portée par la typographie et les espaces ; une seule couleur d'accent (bleu), le jaune du surlignage,
+   le brun des alertes. Police sans-serif du système. */
 :root {
-  --encre: #1f2328; --encre-douce: #57606a; --fond: #ffffff; --fond-doux: #f6f8fa;
-  --bord: #d0d7de; --accent: #0a5c8a; --accent-doux: #e6f1f8; --alerte: #9a3412; --alerte-fond: #fff4e5;
-  --largeur-lecture: 72ch;
+  --encre: #1f2328; --encre-douce: #5c6670; --encre-legere: #8b949e;
+  --fond: #ffffff; --fond-doux: #f7f8f9; --trait: #e3e6ea; --bord: #e3e6ea;
+  --accent: #0a5c8a; --accent-doux: #eaf2f8; --alerte: #a23b1e; --alerte-fond: #fbeee9;
+  --surl: #fff1b8; --surl-vif: #ffe48a;
+  --largeur-lecture: 70ch; --marge: 22rem;
 }
 * { box-sizing: border-box; }
 html { color-scheme: light; }
-body { margin: 0; font: 16px/1.5 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: var(--encre); background: var(--fond); }
-.entete { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .6rem 1.25rem; border-bottom: 1px solid var(--bord); background: var(--fond-doux); position: sticky; top: 0; }
-.entete-titre strong { font-size: 1.15rem; }
-.sous-titre { color: var(--encre-douce); margin-left: .5rem; }
-.entete-droite { display: flex; align-items: center; gap: .75rem; color: var(--encre-douce); }
-main { padding: 1.5rem 1.25rem 3rem; }
-.ecran { max-width: var(--largeur-lecture); margin: 0 auto; }
-h1 { font-size: 1.5rem; margin: 0 0 .75rem; }
-label { display: block; font-weight: 600; margin: .75rem 0 .25rem; }
-input, select, textarea { width: 100%; max-width: 32rem; padding: .5rem .6rem; font: inherit; border: 1px solid var(--bord); border-radius: 6px; }
-button { font: inherit; padding: .5rem .9rem; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; margin-top: .75rem; }
-button.secondaire { background: var(--fond); color: var(--accent); }
-button:disabled { opacity: .55; cursor: default; }
-.message { padding: .75rem 1rem; border-radius: 6px; background: var(--accent-doux); border: 1px solid var(--accent); }
-.message.alerte { background: var(--alerte-fond); border-color: var(--alerte); color: var(--alerte); }
-.pied { padding: 1rem 1.25rem; color: var(--encre-douce); font-size: .85rem; border-top: 1px solid var(--bord); }
-[hidden] { display: none !important; }
+body { margin: 0; font: 16px/1.55 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: var(--encre); background: var(--fond); }
+a { color: var(--accent); }
 
-/* Mention d'information (markdown rendu) */
-.mention h1 { font-size: 1.5rem; }
-.mention h2 { font-size: 1.2rem; margin-top: 1.5rem; }
-.mention h3 { font-size: 1.05rem; margin-top: 1.25rem; }
-.mention ul { padding-left: 1.4rem; }
-.mention hr { border: 0; border-top: 1px solid var(--bord); margin: 1.5rem 0; }
-.case { display: flex; gap: .6rem; align-items: flex-start; font-weight: normal; margin: .6rem 0; }
-.case input { width: auto; margin-top: .3rem; }
+/* En-tête : une ligne, un trait fin ; les boutons de droite se présentent comme des liens */
+.entete { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; padding: .7rem 1.5rem; border-bottom: 1px solid var(--trait); background: var(--fond); position: sticky; top: 0; z-index: 5; }
+.entete-titre strong { font-weight: 600; }
+.sous-titre { color: var(--encre-douce); margin-left: .5rem; font-size: .95rem; }
+.entete-droite { display: flex; align-items: baseline; gap: .25rem; color: var(--encre-douce); font-size: .95rem; }
+.entete-droite button { margin: 0; padding: .2rem .55rem; border: 0; background: none; color: var(--encre-douce); font-size: .95rem; }
+.entete-droite button:hover { color: var(--accent); background: var(--accent-doux); }
+.entete-droite #utilisateur-courant { margin-right: .5rem; }
+
+main { padding: 1.5rem 1.5rem 4rem; }
+.ecran { max-width: var(--largeur-lecture); margin: 0 auto; }
+.ecran.large { max-width: calc(var(--largeur-lecture) + var(--marge) + 2rem); }
+h1 { font-size: 1.35rem; font-weight: 600; margin: 0 0 .75rem; }
+h2 { font-size: 1.05rem; font-weight: 600; margin: 1.5rem 0 .5rem; }
+label { display: block; font-weight: 600; margin: .75rem 0 .25rem; }
+input, select, textarea { width: 100%; max-width: 32rem; padding: .5rem .6rem; font: inherit; border: 1px solid var(--trait); border-radius: 6px; }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent-doux); border-color: var(--accent); }
+
+/* Boutons : un seul style principal ; les secondaires sans bordure, colorés seulement au survol */
+button { font: inherit; padding: .45rem .9rem; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; margin-top: .75rem; }
+button.secondaire { background: transparent; color: var(--accent); border-color: transparent; padding-left: .55rem; padding-right: .55rem; }
+button.secondaire:hover { background: var(--accent-doux); }
+button.petit { font-size: .85rem; padding: .2rem .55rem; }
+button:disabled { opacity: .5; cursor: default; }
+
+/* Messages : une ligne avec un filet à gauche, sans boîte */
+.message { padding: .35rem .8rem; border-left: 3px solid var(--accent); background: var(--accent-doux); border-radius: 0 6px 6px 0; }
+.message.alerte { background: var(--alerte-fond); border-left-color: var(--alerte); color: var(--alerte); }
+.pied { padding: 1rem 1.5rem; color: var(--encre-douce); font-size: .85rem; border-top: 1px solid var(--trait); }
+[hidden] { display: none !important; }
 .discret { color: var(--encre-douce); font-size: .9rem; }
 
-/* Liste des dossiers */
-.ecran.large { max-width: 1100px; }
+/* Mention d'information (markdown rendu) */
+.mention h1 { font-size: 1.35rem; }
+.mention h2 { font-size: 1.15rem; margin-top: 1.5rem; }
+.mention h3 { font-size: 1.02rem; margin-top: 1.25rem; }
+.mention ul { padding-left: 1.4rem; }
+.mention hr { border: 0; border-top: 1px solid var(--trait); margin: 1.5rem 0; }
+.case { display: flex; gap: .6rem; align-items: flex-start; font-weight: normal; margin: .6rem 0; }
+.case input { width: auto; margin-top: .3rem; }
+
+/* Liste des dossiers : un tableau à filets fins, sans fond d'en-tête */
 .recherche { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: .75rem; }
-.recherche > div { flex: 1 1 14rem; }
+.recherche > div { flex: 1 1 13rem; }
 .recherche label { margin-top: 0; }
 .recherche-boutons { display: flex; gap: .5rem; }
 .recherche-boutons button { margin-top: 0; }
 .tableau-conteneur { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: .95rem; }
-th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--bord); vertical-align: top; }
-th { background: var(--fond-doux); font-weight: 600; }
+th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--trait); vertical-align: top; }
+th { font-weight: 600; color: var(--encre-douce); font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; }
 th.num, td.num { text-align: right; white-space: nowrap; }
 td.ident { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .9rem; white-space: nowrap; }
-tr:hover td { background: var(--accent-doux); }
+tr:hover td { background: var(--fond-doux); }
+td button.secondaire { padding: .1rem .5rem; }
 .pagination { display: flex; align-items: center; gap: 1rem; margin-top: .75rem; }
 .pagination button { margin-top: 0; }
 
-/* Écran du dossier et surlignage */
-.dossier-entete { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
-.dossier-entete h1 { font-size: 1.25rem; font-family: ui-monospace, Menlo, Consolas, monospace; }
+/* Écran du dossier */
+.dossier-entete { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+.dossier-entete h1 { font-size: 1.35rem; font-family: ui-monospace, Menlo, Consolas, monospace; margin: 0; }
+.dossier-entete .discret { margin: .2rem 0 0; }
 .dossier-boutons { display: flex; gap: .5rem; }
 .dossier-boutons button { margin-top: 0; }
-.dossier-corps { display: grid; grid-template-columns: minmax(0, var(--largeur-lecture)) minmax(16rem, 22rem); gap: 1.5rem; align-items: start; margin-top: 1rem; }
+.dossier-corps { display: grid; grid-template-columns: minmax(0, var(--largeur-lecture)) minmax(16rem, var(--marge)); gap: 2rem; align-items: start; margin-top: 1rem; }
 @media (max-width: 900px) { .dossier-corps { grid-template-columns: 1fr; } .panneau { position: static; } }
-.texte-dossier { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 1rem; line-height: 1.65; padding: 1rem 1.25rem; border: 1px solid var(--bord); border-radius: 8px; background: var(--fond); }
-.texte-dossier:focus { outline: 2px solid var(--accent-doux); }
-.panneau { position: sticky; top: 4rem; max-height: calc(100vh - 5rem); overflow-y: auto; padding: .75rem 1rem; border: 1px solid var(--bord); border-radius: 8px; background: var(--fond-doux); }
-.panneau h2 { font-size: 1.05rem; margin: 0 0 .5rem; }
-.liste-ensembles { list-style: none; padding: 0; margin: 0; }
-.ensemble { border: 1px solid var(--bord); border-left-width: 6px; border-radius: 6px; background: var(--fond); margin: .5rem 0; padding: .4rem .6rem; cursor: pointer; }
-.ensemble.actif { outline: 2px solid var(--accent); }
-.ensemble-tete { display: flex; justify-content: space-between; align-items: center; gap: .5rem; font-weight: 600; }
-.ensemble-tete button, .passage button { margin: 0; padding: .1rem .45rem; font-size: .8rem; }
-.passage { display: flex; justify-content: space-between; gap: .5rem; align-items: flex-start; font-size: .9rem; margin: .3rem 0; }
-.passage .cite { flex: 1; color: var(--encre-douce); }
-.passage .cite q { color: var(--encre); }
-mark.surl { background: var(--c, #fff3b0); color: inherit; border-radius: 2px; padding: .05em 0; cursor: pointer; }
-mark.surl.chevauche { background: repeating-linear-gradient(45deg, var(--c, #fff3b0) 0 4px, #fff 4px 6px); }
-mark.surl.actif { outline: 2px solid var(--accent); }
-.barre-selection { position: absolute; z-index: 10; display: flex; gap: .4rem; padding: .35rem; background: var(--fond); border: 1px solid var(--bord); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
-.barre-selection button { margin: 0; padding: .3rem .6rem; font-size: .9rem; }
-kbd { font: .75rem ui-monospace, Menlo, monospace; border: 1px solid currentColor; border-radius: 3px; padding: 0 .25rem; margin-left: .3rem; opacity: .8; }
-/* Couleurs des ensembles (numéro modulo 8) */
-.c0 { --c: #ffe08a; } .c1 { --c: #b5e4c8; } .c2 { --c: #c8d9ff; } .c3 { --c: #f9c6d3; }
-.c4 { --c: #d9c9f4; } .c5 { --c: #ffd4b0; } .c6 { --c: #c2ecf2; } .c7 { --c: #e0e4a8; }
-.ensemble.c0 { border-left-color: #ffe08a; } .ensemble.c1 { border-left-color: #b5e4c8; } .ensemble.c2 { border-left-color: #c8d9ff; } .ensemble.c3 { border-left-color: #f9c6d3; }
-.ensemble.c4 { border-left-color: #d9c9f4; } .ensemble.c5 { border-left-color: #ffd4b0; } .ensemble.c6 { border-left-color: #c2ecf2; } .ensemble.c7 { border-left-color: #e0e4a8; }
-
-/* Mode « passages » (lot A1) : une seule couleur, passage actif encadré */
-.passage-item { border: 1px solid var(--bord); border-left: 6px solid #ffe08a; border-radius: 6px; background: var(--fond); margin: .5rem 0; padding: .4rem .6rem; cursor: pointer; display: flex; gap: .5rem; align-items: flex-start; }
-.passage-item.actif { outline: 2px solid var(--accent); }
-.passage-item .cite { flex: 1; font-size: .9rem; }
-.passage-item .cite q { color: var(--encre); }
-.passage-item .pos { display: block; color: var(--encre-douce); font-size: .8rem; }
-.passage-item button { margin: 0; padding: .1rem .45rem; font-size: .8rem; }
-
-/* Mode simple (lot A1) : pas de panneau ; ligne discrète au-dessus du texte ; clic sur un passage pour le retirer */
-.dossier-corps.sans-panneau { grid-template-columns: minmax(0, var(--largeur-lecture)); }
+/* Mode simple (en service) : une colonne de lecture, et à sa droite la marge réservée aux commentaires ouverts */
+.dossier-corps.sans-panneau { grid-template-columns: minmax(0, calc(var(--largeur-lecture) + 2rem + var(--marge))); }
 .colonne-texte { min-width: 0; }
-.barre-texte { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: .4rem; min-height: 2rem; }
-.barre-texte-boutons { display: flex; gap: .5rem; }
-.barre-texte-boutons button { margin-top: 0; padding: .25rem .6rem; font-size: .9rem; }
-.texte-dossier.mode-simple mark.surl:hover { background: #ffb4a8; text-decoration: line-through; cursor: pointer; }
-.texte-dossier.mode-simple mark.surl { background: #ffe08a; }
+.colonne-texte > *:not(.bloc-codage) { max-width: var(--largeur-lecture); }
 
-/* Codage proposé (affichage provisoire, remplacé à l'étape 6) */
-.bloc-codage { margin-top: 1.25rem; padding: .75rem 1rem; border: 1px solid var(--bord); border-radius: 8px; background: var(--fond-doux); }
-.bloc-codage h2 { font-size: 1.05rem; margin: 0 0 .4rem; }
-.bloc-codage ul { padding-left: 1.2rem; margin: .3rem 0; }
-.bloc-codage .etiquette { display: inline-block; font-size: .75rem; padding: 0 .4rem; border-radius: 4px; background: var(--accent); color: #fff; margin-left: .4rem; }
-.bloc-codage .alerte-code { color: var(--alerte); }
+/* Le texte : pas de cadre ; un filet léger à gauche ; interligne de lecture ; pas un caractère de plus que le texte de référence */
+.texte-dossier { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 1rem; line-height: 1.7; padding: .25rem 0 .25rem 1rem; border-left: 2px solid var(--trait); background: var(--fond); }
+.texte-dossier:focus { outline: none; border-left-color: var(--accent-doux); }
+.barre-texte { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: .4rem; min-height: 2rem; }
+.barre-texte-boutons { display: flex; gap: .35rem; }
+.barre-texte-boutons button { margin-top: 0; padding: .3rem .7rem; font-size: .9rem; }
+mark.surl { background: var(--surl); color: inherit; padding: .05em 0; box-shadow: 0 1px 0 var(--surl-vif); cursor: pointer; }
+mark.surl.chevauche { background: repeating-linear-gradient(45deg, var(--surl) 0 4px, #fff 4px 6px); }
+mark.surl.actif { outline: 2px solid var(--accent); }
+.texte-dossier.mode-simple mark.surl:hover { background: #ffb4a8; box-shadow: none; text-decoration: line-through; }
+.texte-dossier mark.preuve { background: var(--surl); color: inherit; padding: .05em 0; box-shadow: 0 1px 0 var(--surl-vif); cursor: pointer; }
+.texte-dossier.B mark.preuve { background: var(--c, var(--surl)); box-shadow: none; }
+.texte-dossier mark.preuve.ressort, .texte-dossier mark.surl.ressort { outline: 2px solid var(--accent); }
+.texte-dossier.mode-simple mark.preuve:hover { background: var(--surl-vif); text-decoration: none; }
+/* Mise en forme markdown sans retirer un caractère (web/markdown.js) : active seulement avec .mise-en-forme */
+.texte-dossier.mise-en-forme .md-titre { font-weight: 600; font-size: 1.05em; }
+.texte-dossier.mise-en-forme .md-gras { font-weight: 600; }
+.texte-dossier.mise-en-forme .md-marque { color: #c2c7cc; font-weight: 400; }
+.texte-dossier.mise-en-forme .md-trait { color: transparent; border-bottom: 1px solid var(--trait); line-height: .6; }
+
+/* Onglets Codage / Évaluation sous le texte, à l'endroit du bouton « Faire le codage » */
+.barre-codage { margin-top: .8rem; margin-bottom: 0; }
+.barre-codage .barre-texte-boutons button { padding: .45rem .9rem; font-size: 1rem; }
+.onglets { display: flex; align-items: baseline; gap: .25rem; }
+.onglets .onglet { margin: 0; padding: .3rem .7rem; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--encre-douce); font-weight: 600; }
+.onglets .onglet:hover { color: var(--accent); }
+.onglets .onglet.actif { color: var(--accent); border-bottom-color: var(--accent); }
+.onglets .discret { margin-left: .75rem; }
+.colonne-texte.vue-evaluation #bloc-codage, .colonne-texte.vue-evaluation #bouton-faire-codage, .colonne-texte.vue-evaluation #rappel-passages { display: none !important; }
+.colonne-texte:not(.vue-evaluation) #bloc-evaluation { display: none !important; }
+.bloc-evaluation { margin-top: .5rem; }
+
+/* Pavé du codage : fond gris très clair et barre grise à gauche (comme l'ancien bloc des passages non codés),
+   un seul pavé continu du premier code aux passages non codés ; chaque code = ligne en gras + passages à puces.
+   Un code est une rangée à deux colonnes : son corps à gauche, ses commentaires dans la marge en face. */
+.bloc-codage { margin-top: .75rem; }
+.bloc-codage > *:not(#codage-contenu) { max-width: var(--largeur-lecture); }
+.bloc-codage h2 { margin: 0 0 .3rem; }
+.codage-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; margin-bottom: .4rem; }
+.bloc-codage .code { display: grid; grid-template-columns: minmax(0, var(--largeur-lecture)) var(--marge); column-gap: 2rem; align-items: start; }
+.bloc-codage .code > * { grid-column: 1; min-width: 0; }
+.bloc-codage .code > .marge { grid-column: 2; }
+@media (max-width: 1100px) { .bloc-codage .code { grid-template-columns: minmax(0, var(--largeur-lecture)); } .bloc-codage .code > .marge { grid-column: 1; margin: .3rem 0 .4rem 1.75rem; } }
+.bloc-codage .code .corps { background: var(--fond-doux); border-left: 4px solid var(--trait); padding: .45rem .75rem .55rem; font-size: .95rem; }
+#codage-contenu .code:first-child .corps { border-radius: 0 6px 0 0; padding-top: .7rem; }
+#codage-contenu .code:last-child .corps { border-radius: 0 0 6px 0; padding-bottom: .7rem; }
+#codage-contenu:has(+ #codage-non-codes:not([hidden])) .code:last-child .corps { border-radius: 0; }
+.bloc-codage .code.ressort .corps { background: var(--accent-doux); }
+.bloc-codage .code.cible-depot .corps { outline: 2px dashed var(--accent); }
+.bloc-codage .code .ligne-code { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem 1rem; }
+.bloc-codage .code .l1 { display: flex; gap: .5rem; align-items: baseline; flex: 1 1 24rem; min-width: 0; font-weight: 600; }
+.bloc-codage .code .l1 .id { font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: .02em; white-space: nowrap; }
+.bloc-codage .code .l1 .id.a-choisir { color: var(--alerte); font-family: inherit; }
+.bloc-codage .code .l2 { display: flex; gap: .15rem; align-items: center; margin-left: auto; font-weight: 400; }
+.bloc-codage .code .l2 .ico { margin: 0; border: 0; background: none; color: var(--encre-douce); font-size: .95rem; padding: .05rem .35rem; border-radius: 4px; line-height: 1.3; }
+.bloc-codage .code .l2 .ico:hover { background: var(--accent-doux); color: var(--accent); }
+.bloc-codage .code .l2 .ico.cat { font-size: .8rem; border: 1px solid var(--trait); border-radius: 999px; padding: 0 .55rem; margin-right: .2rem; }
+.bloc-codage .code .l2 .ico.cat.principal { color: var(--accent); border-color: var(--accent); }
+.bloc-codage .code .l2 .ico.alerte { color: var(--alerte); } .bloc-codage .code .l2 .ico.alerte:hover { background: var(--alerte-fond); color: var(--alerte); }
+.bloc-codage .code .l2 .ico .n { font-size: .72rem; vertical-align: super; margin-left: .05rem; }
+.bloc-codage .code .l2 .ico.ouvert { background: var(--accent-doux); color: var(--accent); }
+.bloc-codage .code .l2 .sep { width: .6rem; }
+.bloc-codage .code ul.preuves { margin: .2rem 0 0; padding-left: 1.3rem; color: var(--encre-douce); min-height: .6rem; }
+.bloc-codage .code li.preuve { cursor: grab; padding: .05rem 0; }
+.bloc-codage .code li.preuve::before { content: "« "; } .bloc-codage .code li.preuve::after { content: " »"; }
+.bloc-codage .code li.preuve .outils { visibility: hidden; margin-left: .3rem; }
+.bloc-codage .code li.preuve:hover .outils { visibility: visible; }
+.bloc-codage .code li.vide { list-style: none; margin-left: -1.3rem; color: var(--encre-legere); font-style: italic; }
+.bloc-codage .outils button { font: inherit; font-size: .8rem; padding: 0 .3rem; border: 0; border-radius: 4px; background: none; cursor: pointer; margin: 0; color: var(--encre-douce); }
+.bloc-codage .outils button:hover { background: var(--accent-doux); color: var(--accent); }
+.bloc-codage .outils button.croix:hover { color: var(--alerte); background: var(--alerte-fond); }
+/* Variante B (encadrés aux couleurs d'origine) : la barre et le fond prennent la couleur du code */
+.bloc-codage.B .code .corps { border-left-color: var(--c); background: color-mix(in srgb, var(--c) 14%, #fff); }
+/* Commentaires d'un code, dans la marge en face (masqués par défaut, ouverts par 💬) */
+.marge { font-size: .92rem; border-left: 2px solid var(--accent-doux); padding: .1rem 0 .1rem .8rem; }
+.marge .titre { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--encre-legere); margin-bottom: .2rem; display: flex; justify-content: space-between; align-items: baseline; }
+.marge .titre button { margin: 0; }
+.marge .ligne { display: flex; gap: .5rem; align-items: baseline; padding: .15rem 0; }
+.marge .auteur { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: var(--encre-legere); min-width: 3.2rem; }
+.marge .outil { color: var(--encre-douce); font-style: italic; }
+.marge textarea { width: 100%; max-width: none; font-size: .92rem; resize: vertical; min-height: 3.2rem; margin-top: .3rem; }
+.marge .rappel { font-size: .78rem; color: var(--encre-legere); margin: .15rem 0 0; display: flex; justify-content: space-between; }
+/* Passages non codés : même pavé, à la suite des codes */
+.non-codes { max-width: var(--largeur-lecture); background: var(--fond-doux); border-left: 4px solid var(--trait); padding: .5rem .75rem .7rem; font-size: .95rem; border-radius: 0 0 6px 0; }
+.non-codes strong { display: block; margin-top: .45rem; } .non-codes strong:first-child { margin-top: 0; }
+.non-codes ul { margin: .2rem 0; padding-left: 1.3rem; color: var(--encre-douce); }
+.non-codes a { color: var(--accent); cursor: pointer; margin-left: .4rem; }
+.barre-enregistrer { margin-top: .75rem; }
+.barre-bas { margin-top: 1rem; }
 .attente { display: inline-block; width: .9em; height: .9em; border: 2px solid var(--accent); border-right-color: transparent; border-radius: 50%; animation: tourne .8s linear infinite; vertical-align: middle; margin-right: .4rem; }
 @keyframes tourne { to { transform: rotate(360deg); } }
 
-.barre-codage { margin-top: .6rem; margin-bottom: 0; }
-.barre-codage button { padding: .5rem 1rem; font-size: 1rem; }
-
-/* Écran de codage (étape 6) */
-.codage-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
-.bloc-codage .code { margin: .6rem 0 .9rem; border-radius: 8px; }
-.bloc-codage .code.ressort { outline: 2px solid var(--accent); }
-.bloc-codage .code .tete { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
-.bloc-codage .code .tete strong { font-size: 1.02rem; }
-.bloc-codage .code .tete strong.a-choisir { color: var(--alerte); }
-.bloc-codage .code ul.preuves { margin: .2rem 0 0; padding-left: 1.3rem; min-height: .6rem; }
-.bloc-codage .code li.preuve { cursor: grab; }
-.bloc-codage .code li.preuve .outils { visibility: hidden; margin-left: .3rem; }
-.bloc-codage .code li.preuve:hover .outils { visibility: visible; }
-.bloc-codage .code.cible-depot { outline: 2px dashed var(--accent); }
-.bloc-codage .actions-code { margin-left: auto; display: flex; gap: .3rem; }
-.bloc-codage .actions-code button, .bloc-codage .outils button { font: inherit; font-size: .8rem; padding: .1rem .45rem; border: 1px solid var(--bord); border-radius: 4px; background: var(--fond); cursor: pointer; margin: 0; color: var(--encre); }
-.bloc-codage .outils button.croix { color: var(--alerte); }
-.etiquette { display: inline-block; font-size: .72rem; padding: 0 .4rem; border-radius: 4px; background: var(--accent); color: #fff; }
-.etiquette.cat { cursor: pointer; } .etiquette.associe { background: var(--fond); color: var(--accent); border: 1px solid var(--accent); }
-.etiquette.alerte { background: var(--alerte); } .etiquette.info { background: var(--encre-douce); } .etiquette.vide { background: #b45309; }
-.bloc-codage.B .code { border: 2px solid var(--c); padding: .5rem .75rem; background: color-mix(in srgb, var(--c) 12%, #fff); }
-.bloc-codage.A .code { border: 1px solid var(--bord); padding: .4rem .75rem; }
-.texte-dossier mark.preuve { background: #ffe08a; }
-.texte-dossier.B mark.preuve { background: var(--c, #ffe08a); }
-/* Un passage partagé par plusieurs codes garde la couleur du premier code (infobulle : « Passage partagé par … »). */
-.texte-dossier mark.preuve.ressort, .texte-dossier mark.surl.ressort { outline: 2px solid var(--accent); }
-.texte-dossier.mode-simple mark.preuve:hover { background: var(--c, #ffe08a); text-decoration: none; cursor: pointer; }
-.non-codes { margin-top: 1rem; padding: .5rem .75rem; border-left: 4px solid var(--bord); background: var(--fond-doux); font-size: .92rem; border-radius: 0 6px 6px 0; }
-.non-codes ul { margin: .2rem 0 .5rem; padding-left: 1.2rem; }
-.non-codes a { color: var(--accent); cursor: pointer; margin-left: .4rem; }
-.barre-enregistrer { margin-top: .75rem; }
-.menu-selection { position: absolute; z-index: 20; display: flex; flex-direction: column; gap: .15rem; padding: .35rem; background: var(--fond); border: 1px solid var(--bord); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.15); font-size: .92rem; max-height: 50vh; overflow-y: auto; min-width: 14rem; }
+/* Menus flottants et recherche de code */
+.menu-selection { position: absolute; z-index: 20; display: flex; flex-direction: column; gap: .15rem; padding: .35rem; background: var(--fond); border: 1px solid var(--trait); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.12); font-size: .92rem; max-height: 50vh; overflow-y: auto; min-width: 14rem; }
 .menu-selection button { font: inherit; text-align: left; border: 0; background: none; padding: .25rem .6rem; cursor: pointer; border-radius: 4px; margin: 0; color: var(--encre); }
 .menu-selection button:hover { background: var(--accent-doux); }
 .menu-selection .titre { font-size: .8rem; color: var(--encre-douce); padding: .2rem .6rem 0; }
-.recherche-code { margin: .4rem 0 .2rem; padding: .5rem .6rem; border: 1px solid var(--accent); border-radius: 6px; background: var(--fond); }
+.recherche-code { margin: .4rem 0 .2rem; padding: .5rem .6rem; border: 1px solid var(--trait); border-left: 3px solid var(--accent); border-radius: 6px; background: var(--fond); }
 .recherche-code input { max-width: none; }
 .recherche-code ol { list-style: none; padding: 0; margin: .4rem 0 0; max-height: 16rem; overflow-y: auto; }
 .recherche-code li { padding: .25rem .4rem; border-radius: 4px; cursor: pointer; display: flex; gap: .5rem; align-items: baseline; }
@@ -152,12 +189,28 @@ kbd { font: .75rem ui-monospace, Menlo, monospace; border: 1px solid currentColo
 .recherche-code li .rc-code { font-family: ui-monospace, Menlo, Consolas, monospace; min-width: 5.5rem; }
 .recherche-code li .rc-form { color: var(--encre-douce); font-size: .85rem; margin-left: auto; }
 .recherche-code .rc-titre { font-size: .8rem; color: var(--encre-douce); margin-top: .3rem; }
+.barre-selection { position: absolute; z-index: 10; display: flex; gap: .4rem; padding: .35rem; background: var(--fond); border: 1px solid var(--trait); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.12); }
+.barre-selection button { margin: 0; padding: .3rem .6rem; font-size: .9rem; }
+kbd { font: .75rem ui-monospace, Menlo, monospace; border: 1px solid currentColor; border-radius: 3px; padding: 0 .25rem; margin-left: .3rem; opacity: .8; }
+
+/* Couleurs des codes (variantes B et C) */
 .cC0 { --c: #ffd27a; } .cC1 { --c: #a8e0b8; } .cC2 { --c: #b9cdff; } .cC3 { --c: #f7b9c9; } .cC4 { --c: #d9c9f4; } .cC5 { --c: #ffd4b0; } .cC6 { --c: #a9e4ea; } .cC7 { --c: #dde3a0; } .cCX { --c: #d0d7de; }
+.c0 { --c: #ffe08a; } .c1 { --c: #b5e4c8; } .c2 { --c: #c8d9ff; } .c3 { --c: #f9c6d3; } .c4 { --c: #d9c9f4; } .c5 { --c: #ffd4b0; } .c6 { --c: #c2ecf2; } .c7 { --c: #e0e4a8; }
 
-.barre-bas { margin-top: 1rem; }
-
-/* Mise en forme markdown sans retirer un caractère (web/markdown.js) : active seulement avec .mise-en-forme */
-.texte-dossier.mise-en-forme .md-titre { font-weight: 600; font-size: 1.08em; }
-.texte-dossier.mise-en-forme .md-gras { font-weight: 600; }
-.texte-dossier.mise-en-forme .md-marque { color: #b8b8b8; font-weight: 400; }
-.texte-dossier.mise-en-forme .md-trait { color: transparent; border-bottom: 1px solid var(--bord); line-height: .6; }
+/* Panneau latéral et mode « passages » (désactivés, conservés pour la revue des ensembles) */
+.panneau { position: sticky; top: 4rem; max-height: calc(100vh - 5rem); overflow-y: auto; padding: .75rem 1rem; border-left: 2px solid var(--trait); }
+.panneau h2 { margin: 0 0 .5rem; }
+.liste-ensembles { list-style: none; padding: 0; margin: 0; }
+.ensemble { border-left: 4px solid var(--trait); background: var(--fond-doux); margin: .5rem 0; padding: .4rem .6rem; cursor: pointer; }
+.ensemble.actif { outline: 2px solid var(--accent); }
+.ensemble-tete { display: flex; justify-content: space-between; align-items: center; gap: .5rem; font-weight: 600; }
+.ensemble-tete button, .passage button { margin: 0; padding: .1rem .45rem; font-size: .8rem; }
+.passage { display: flex; justify-content: space-between; gap: .5rem; align-items: flex-start; font-size: .9rem; margin: .3rem 0; }
+.passage .cite { flex: 1; color: var(--encre-douce); } .passage .cite q { color: var(--encre); }
+.ensemble.c0 { border-left-color: #ffe08a; } .ensemble.c1 { border-left-color: #b5e4c8; } .ensemble.c2 { border-left-color: #c8d9ff; } .ensemble.c3 { border-left-color: #f9c6d3; }
+.ensemble.c4 { border-left-color: #d9c9f4; } .ensemble.c5 { border-left-color: #ffd4b0; } .ensemble.c6 { border-left-color: #c2ecf2; } .ensemble.c7 { border-left-color: #e0e4a8; }
+.passage-item { border-left: 4px solid #ffe08a; background: var(--fond-doux); margin: .5rem 0; padding: .4rem .6rem; cursor: pointer; display: flex; gap: .5rem; align-items: flex-start; }
+.passage-item.actif { outline: 2px solid var(--accent); }
+.passage-item .cite { flex: 1; font-size: .9rem; } .passage-item .cite q { color: var(--encre); }
+.passage-item .pos { display: block; color: var(--encre-douce); font-size: .8rem; }
+.passage-item button { margin: 0; padding: .1rem .45rem; font-size: .8rem; }
