@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>codeur</title>
-  <link rel="stylesheet" href="style.css?v=A2-0.15">
+  <link rel="stylesheet" href="style.css?v=A2-0.16">
 </head>
 <body>
   <header class="entete">
@@ -163,7 +163,6 @@
       <div class="dossier-entete">
         <div>
           <h1 id="dossier-titre"></h1>
-          <p id="dossier-infos" class="discret"></p>
         </div>
         <div class="dossier-boutons">
           <button id="bouton-retour-liste" class="secondaire">Retour à la liste</button>
@@ -172,31 +171,33 @@
       <p id="message-dossier" class="message" hidden></p>
       <div class="dossier-corps">
         <div class="colonne-texte">
-          <div class="barre-texte">
-            <span id="compte-passages" class="discret"></span>
-            <span class="barre-texte-boutons">
-              <button id="bouton-mise-en-forme" class="secondaire" title="Afficher le texte avec sa mise en forme (titres, gras) ou tel quel">Texte brut</button>
-              <button id="bouton-tout-effacer" class="secondaire">Tout effacer</button>
-            </span>
-          </div>
+          <p id="dossier-infos" class="discret infos-texte"></p>
           <div id="texte-dossier" class="texte-dossier" tabindex="0"></div>
-          <div class="barre-texte barre-codage">
-            <span id="rappel-passages" class="discret"></span>
-            <span class="barre-texte-boutons">
-              <button id="bouton-faire-codage">Faire le codage</button>
-            </span>
+          <!-- Sous le texte : le compte des passages, puis les boutons côte à côte (style « Neutre », brief 7) -->
+          <div class="sous-texte">
+            <span id="compte-passages" class="discret"></span>
+            <div class="boutons-ligne">
+              <button id="bouton-codage" class="bascule actif" title="Faire le codage des passages surlignés, ou afficher le codage">Codage</button>
+              <button id="bouton-evaluation" class="bascule" title="Noter la qualité du compte rendu">Évaluation</button>
+              <button id="bouton-tout-effacer" class="secondaire">Tout effacer</button>
+            </div>
+          </div>
+          <div id="bloc-evaluation" class="bloc-evaluation" hidden>
+            <h2>Noter ce compte rendu <span class="discret">· facultatif</span></h2>
+            <p class="discret">La grille de notation (cinq dimensions, de 1 à 5, un repère par niveau) arrive à l'étape 4 de cette séance.</p>
           </div>
           <div id="bloc-codage" class="bloc-codage" hidden>
             <div class="codage-tete">
               <h2>Codage</h2>
               <span id="codage-etat" class="discret"></span>
+              <button id="bouton-coder-nouveaux" class="secondaire petit" hidden title="Envoyer au modèle les passages surlignés qui ne sont rattachés à aucun code">Coder les nouveaux passages</button>
             </div>
             <p id="codage-reprise" class="message" hidden><span id="codage-reprise-texte"></span> <button id="bouton-reprendre-local" class="secondaire">Reprendre mes modifications</button> <button id="bouton-oublier-local" class="secondaire">Les abandonner</button></p>
             <div id="codage-contenu"></div>
             <div id="codage-non-codes" class="non-codes" hidden></div>
-            <div class="barre-texte barre-enregistrer">
+            <div class="sous-texte barre-enregistrer">
               <span id="codage-sauvegarde" class="discret"></span>
-              <span class="barre-texte-boutons"><button id="bouton-enregistrer-codage">Enregistrer mon codage</button></span>
+              <div class="boutons-ligne"><button id="bouton-enregistrer-codage">Enregistrer mon codage</button></div>
             </div>
           </div>
           <div class="barre-texte barre-bas">
@@ -234,10 +235,10 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@18.0.14/lib/marked.umd.js"></script>
-  <script src="positions.js?v=A2-0.15"></script>
-  <script src="markdown.js?v=A2-0.15"></script>
-  <script src="codage.js?v=A2-0.15"></script>
-  <script src="config.js?v=A2-0.15"></script>
-  <script src="app.js?v=A2-0.15"></script>
+  <script src="positions.js?v=A2-0.16"></script>
+  <script src="markdown.js?v=A2-0.16"></script>
+  <script src="codage.js?v=A2-0.16"></script>
+  <script src="config.js?v=A2-0.16"></script>
+  <script src="app.js?v=A2-0.16"></script>
 </body>
 </html>

@@ -477,8 +477,8 @@
     $("codage-non-codes").textContent = ""; $("codage-non-codes").hidden = true; $("codage-sauvegarde").textContent = "";
     travail.base = null; travail.courant = null; travail.modifie = false; travail.localEnAttente = null;
     $("dossier-titre").textContent = data.id_source;
-    $("dossier-infos").textContent = enClair(data.specialite) + " — " + enClair(data.type_prise_en_charge) + " — " +
-      nombre(data.nb_documents_origine) + " document(s) d'origine — " + nombre(P.longueur(data.texte)) + " caractères — version " + data.version;
+    $("dossier-infos").textContent = enClair(data.specialite) + "\n" + enClair(data.type_prise_en_charge) + "\n" +
+      nombre(data.nb_documents_origine) + " document" + (data.nb_documents_origine > 1 ? "s" : "") + " d'origine — " + nombre(P.longueur(data.texte)) + " caractères — version " + data.version;
     message("message-dossier", "");
     $("sauvegarde-etat").textContent = "";
     const local = chargerLocal();
@@ -496,8 +496,11 @@
     document.querySelector(".dossier-corps").classList.toggle("sans-panneau", !MODE_PANNEAU);
     $("texte-dossier").classList.toggle("mode-simple", !MODE_PANNEAU);
     montrer("ecran-dossier");
+    codageUI.commentairesOuverts = new Set();
+    montrerVue("codage");
     rendre(); cacherBarre();
     await chargerCodageExistant();
+    majBoutons();
   }
 
   // Les « unités » surlignées : en mode passages, chaque passage ; en mode ensembles, chaque ensemble.
@@ -533,7 +536,7 @@
     const bornes = Markdown.bornes(texte, [...couvertures, ...preuvesCodes, ...decos].concat([...frontieres].map((x) => [x, x])));
     const bloc = $("texte-dossier");
     bloc.textContent = "";
-    bloc.classList.toggle("mise-en-forme", miseEnForme());
+    bloc.classList.add("mise-en-forme");
     const poser = (d, f, noeud) => {
       const classes = decos.filter(([cd, cf]) => cd <= d && f <= cf).map((x) => x[2]);
       if (!classes.length) { bloc.appendChild(noeud); return; }
@@ -562,17 +565,8 @@
       poser(d, f, m);
     }
   }
-  // Interrupteur de la mise en forme (titres, gras, traits), mémorisé dans le navigateur ; le texte brut reste
-  // le même dans la page, seul le style change.
-  const CLE_MISE_EN_FORME = "codeur.mise_en_forme";
-  function miseEnForme() { try { return localStorage.getItem(CLE_MISE_EN_FORME) !== "non"; } catch (e) { return true; } }
-  function afficherInterrupteur() { $("bouton-mise-en-forme").textContent = miseEnForme() ? "Texte brut" : "Mise en forme"; }
-  $("bouton-mise-en-forme").addEventListener("click", () => {
-    try { localStorage.setItem(CLE_MISE_EN_FORME, miseEnForme() ? "non" : "oui"); } catch (e) { /* stockage indisponible */ }
-    $("texte-dossier").classList.toggle("mise-en-forme", miseEnForme());
-    afficherInterrupteur();
-  });
-  afficherInterrupteur();
+  // La mise en forme markdown (titres, gras, traits) est toujours active depuis le style « Neutre » ; le texte de la
+  // page reste le texte de référence, seul le style change (web/markdown.js).
   function couleurCode(i) {
     const e = travail.courant && travail.courant.ensembles[i];
     return (!e || !e.code) ? "cCX" : "cC" + (i % 8);
@@ -628,10 +622,28 @@
   });
   function rendreCompte() {
     const n = dossier.passages.length;
-    $("rappel-passages").textContent = n === 0 ? "Surlignez des passages, puis faites le codage." : nombre(n) + " passage" + (n > 1 ? "s" : "") + " à coder.";
-    $("compte-passages").textContent = n === 0 ? "Aucun passage surligné. Sélectionnez un passage avec la souris pour le surligner ; cliquez sur un passage surligné pour le retirer."
+    $("compte-passages").textContent = n === 0 ? "Aucun passage surligné : sélectionnez un passage avec la souris pour pouvoir faire le codage ; cliquez sur un passage surligné pour le retirer."
       : nombre(n) + " passage" + (n > 1 ? "s" : "") + " surligné" + (n > 1 ? "s" : "") + " — cliquez sur un passage pour le retirer.";
+    majBoutons();
   }
+  // « Codage » est actif dès qu'il y a un surlignage ou un codage ; « Coder les nouveaux passages » n'apparaît
+  // qu'avec un codage et des passages surlignés non rattachés à un code (appel répété, SCHEMA.md §3.6).
+  function majBoutons() {
+    if (codageUI.appelEnCours) return;
+    $("bouton-codage").disabled = !dossier.passages.length && !travail.courant;
+    $("bouton-coder-nouveaux").hidden = !(travail.courant && passagesLibres().length);
+  }
+  // Sous le texte, le codage ou l'évaluation : l'un ou l'autre, jamais les deux ; le bouton actif est coloré.
+  function montrerVue(vue) {
+    codageUI.vue = vue;
+    document.querySelector(".colonne-texte").classList.toggle("vue-evaluation", vue === "evaluation");
+    $("bloc-evaluation").hidden = vue !== "evaluation";
+    $("bouton-codage").classList.toggle("actif", vue === "codage");
+    $("bouton-evaluation").classList.toggle("actif", vue === "evaluation");
+  }
+  $("bouton-codage").addEventListener("click", () => { montrerVue("codage"); if (!travail.courant) faireCodage(); });
+  $("bouton-evaluation").addEventListener("click", () => montrerVue("evaluation"));
+  $("bouton-coder-nouveaux").addEventListener("click", faireCodage);
 
   // ---- Mode passages (lot A1) ----
   function rendrePanneauPassages() {
@@ -872,8 +884,10 @@
     etat.reglages = etat.reglages || lireReglages();
     if (!etat.reglages) { afficherReglages("ecran-dossier", "Indiquez d'abord l'adresse du service, le modèle et votre clé pour pouvoir faire le codage."); return; }
     if (!dossier.passages.length) { message("message-dossier", "Surlignez au moins un passage avant de faire le codage.", true); return; }
-    const bouton = $("bouton-faire-codage");
-    bouton.disabled = true;
+    const bouton = $("bouton-codage");
+    codageUI.appelEnCours = true;
+    bouton.disabled = true; $("bouton-coder-nouveaux").disabled = true;
+    montrerVue("codage");
     $("bloc-codage").hidden = false;
     $("codage-contenu").textContent = "";
     const etatCodage = (t) => { $("codage-etat").innerHTML = "<span class='attente'></span>" + t; };
@@ -892,13 +906,13 @@
       if (!passages.length) {
         rendreCodage(); if (prep.modifie) sauvegarderLocalCodage();
         message("message-dossier", "Aucun nouveau passage à envoyer au modèle : tous vos surlignages sont déjà rattachés à un code." + (prep.modifie ? " " + avertissements[0] : ""), !prep.modifie);
-        $("bouton-faire-codage").disabled = false; return;
+        finAppel(); return;
       }
       // Vos modifications non enregistrées sont d'abord enregistrées (ligne revue_humain), pour ne pas être attribuées à l'IA.
       if (travail.modifie) {
         etatCodage("Enregistrement de vos modifications (revue) avant l'appel…");
         try { await enregistrerRevue(); avertissements.push("Vos modifications ont d'abord été enregistrées comme revue (ligne revue_humain)."); }
-        catch (e) { afficherEchec("Vos modifications n'ont pas pu être enregistrées avant l'appel : " + e.message + ". Appel annulé."); $("bouton-faire-codage").disabled = false; return; }
+        catch (e) { afficherEchec("Vos modifications n'ont pas pu être enregistrées avant l'appel : " + e.message + ". Appel annulé."); finAppel(); return; }
       }
     }
     try {
@@ -985,7 +999,7 @@
     } catch (e) {
       afficherEchec(e.message);
     } finally {
-      bouton.disabled = false;
+      finAppel();
     }
   }
   // Un appel : envoi, enregistrement dans appels_llm (réussi ou échoué), retour du résultat.
@@ -1003,12 +1017,12 @@
     if (erreur) throw new Error("appel au modèle en échec : " + erreur);
     return res;
   }
+  function finAppel() { codageUI.appelEnCours = false; $("bouton-coder-nouveaux").disabled = false; majBoutons(); }
   function afficherEchec(texte) {
     $("codage-etat").textContent = "";
     message("message-dossier", texte, true);
     $("bloc-codage").hidden = !travail.base && !travail.courant;
   }
-  $("bouton-faire-codage").addEventListener("click", faireCodage);
   // « Tout effacer » : un panneau de confirmation dit précisément ce qui sera effacé (surlignages non codés ;
   // codage de travail non enregistré) et rappelle que les lignes enregistrées dans la base ne changent pas.
   $("bouton-tout-effacer").addEventListener("click", (ev) => {
@@ -1049,7 +1063,7 @@
   // travail.base : la dernière ligne de codage enregistrée du testeur sur ce document (référence des compteurs) ;
   // travail.courant : la copie de travail, modifiable ; sauvegardée dans le navigateur jusqu'à « Enregistrer mon codage ».
   const travail = { base: null, courant: null, modifie: false, localEnAttente: null };
-  const codageUI = { ressort: null, recherche: null };
+  const codageUI = { ressort: null, recherche: null, commentairesOuverts: new Set(), vue: "codage", appelEnCours: false };
   const CLE_CODAGE = () => "codeur.codage." + etat.utilisateur.id + "." + dossier.doc.id;
   function copier(o) { return JSON.parse(JSON.stringify(o)); }
 
@@ -1108,6 +1122,7 @@
       for (const e of travail.courant.ensembles) { e.preuves = e.preuves || []; e.commentaires = e.commentaires || []; }
     }
     $("bloc-codage").hidden = !travail.courant;
+    majBoutons();
     if (travail.base) $("codage-etat").textContent = "Dernier codage enregistré : " + etiquetteEtape(travail.base.etape) + ", le " + new Date(travail.base.cree_le).toLocaleString("fr-FR") + ".";
   }
   function etiquetteEtape(e) { return { ia_humain: "proposition de l'IA", revue_humain: "votre revue", revue_ia: "revue de l'IA", revue_humain_ia: "votre codage final", humain: "codage humain", ia: "pré-codification" }[e] || e; }
@@ -1143,32 +1158,38 @@
     div.addEventListener("dragleave", () => div.classList.remove("cible-depot"));
     div.addEventListener("drop", (ev) => { ev.preventDefault(); div.classList.remove("cible-depot");
       try { const d = JSON.parse(ev.dataTransfer.getData("text/plain")); deplacerPreuve(d.de, d.k, i); } catch (x) { /* rien */ } });
+    // Style « Neutre » : le texte du code sur sa ligne, puis la ligne des fonctions.
     const tete = document.createElement("div"); tete.className = "tete";
     const titre = document.createElement("strong");
     if (e.code) titre.textContent = e.code + " – " + e.libelle;
     else { titre.textContent = "Code à choisir"; titre.className = "a-choisir"; }
-    tete.appendChild(titre);
+    tete.appendChild(titre); div.appendChild(tete);
+    const fonctions = document.createElement("div"); fonctions.className = "fonctions";
+    const ico = (texte, titreIco, action, classe) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "ico" + (classe ? " " + classe : "");
+      b.textContent = texte; b.title = titreIco; if (action) b.addEventListener("click", action); fonctions.appendChild(b); return b;
+    };
     const cat = document.createElement("span");
     cat.className = "etiquette cat" + (e.categorie === "pathologie_principale" ? "" : " associe");
     cat.textContent = (e.categorie === "pathologie_principale" ? "Principal" : "Associé") + " ▾";
     cat.title = "Cliquer pour changer : Principal / Associé";
     cat.addEventListener("click", (ev) => { ev.stopPropagation(); menuCategorie(i, cat); });
-    tete.appendChild(cat);
-    if (!e.code && e.code_propose_non_codable) { const a = document.createElement("span"); a.className = "etiquette alerte"; a.textContent = "proposé : " + e.code_propose_non_codable + ", non codable"; tete.appendChild(a); }
-    const plusPrecis = (e.commentaires || []).find((k) => k.auteur === "outil" && /plus précis possible/.test(k.texte));
-    if (e.code && plusPrecis) { const a = document.createElement("span"); a.className = "etiquette info"; a.textContent = "code plus précis possible"; a.title = plusPrecis.texte; tete.appendChild(a); }
-    if (!e.preuves.length) { const a = document.createElement("span"); a.className = "etiquette vide"; a.textContent = "sans preuve"; a.title = "Gardez ce code ou supprimez-le."; tete.appendChild(a); }
-    const ajoutIA = (e.commentaires || []).find((k) => k.auteur === "outil" && /ajouté aux preuves par l'IA/.test(k.texte));
-    if (ajoutIA) { const a = document.createElement("span"); a.className = "etiquette info"; a.textContent = "preuve ajoutée par l'IA"; a.title = ajoutIA.texte + " Retirez-la avec ✕ si elle ne convient pas."; tete.appendChild(a); }
-    if (e.explication || e.confiance != null) { const a = document.createElement("span"); a.className = "discret"; a.textContent = "ⓘ"; a.title = (e.explication || "") + (e.confiance != null ? " (confiance " + e.confiance + ")" : ""); tete.appendChild(a); }
-    const loupe = document.createElement("span"); loupe.className = "loupe"; loupe.textContent = "🔍"; loupe.title = "Changer le code (recherche)"; loupe.style.cursor = "pointer";
-    loupe.addEventListener("click", () => ouvrirRecherche(div, i));
-    tete.appendChild(loupe);
-    const actions = document.createElement("div"); actions.className = "actions-code";
-    const suppr = document.createElement("button"); suppr.textContent = "Supprimer"; suppr.title = "Supprimer ce code (ses passages redeviennent de simples surlignages)";
-    suppr.addEventListener("click", () => supprimerCode(i));
-    actions.appendChild(suppr); tete.appendChild(actions);
-    div.appendChild(tete);
+    fonctions.appendChild(cat);
+    ico("Supprimer", "Supprimer ce code (ses passages redeviennent de simples surlignages)", () => supprimerCode(i));
+    ico("🔍", "Changer le code (recherche)", () => ouvrirRecherche(div, i));
+    const commentaires = e.commentaires || [];
+    const bulle = ico("💬", commentaires.length ? "Commentaires (" + commentaires.length + ")" : "Commentaires", () => basculerCommentaires(i),
+      "bulle" + (codageUI.commentairesOuverts.has(i) ? " ouvert" : ""));
+    if (commentaires.length) { const n = document.createElement("span"); n.className = "n"; n.textContent = commentaires.length; bulle.appendChild(n); }
+    // Les avertissements sont des icônes, leur explication au survol.
+    if (!e.code && e.code_propose_non_codable) ico("⚠", "Code proposé par l'IA : " + e.code_propose_non_codable + ", non codable ; choisissez un code avec 🔍.", null, "alerte");
+    const plusPrecis = commentaires.find((k) => k.auteur === "outil" && /plus précis possible/.test(k.texte));
+    if (e.code && plusPrecis) ico("◎", "Code plus précis possible — " + plusPrecis.texte, null, "info");
+    if (!e.preuves.length) ico("◌", "Sans preuve : aucun passage du texte n'appuie ce code. Gardez-le ou supprimez-le.", null, "alerte");
+    const ajoutIA = commentaires.find((k) => k.auteur === "outil" && /ajouté aux preuves par l'IA/.test(k.texte));
+    if (ajoutIA) ico("⚑", "Preuve ajoutée par l'IA — " + ajoutIA.texte + " Retirez-la avec ✕ si elle ne convient pas.", null, "info");
+    if (e.explication || e.confiance != null) ico("ⓘ", "Explication de l'IA : " + (e.explication || "") + (e.confiance != null ? " (confiance " + e.confiance + ")" : ""), null, "info");
+    div.appendChild(fonctions);
     const ul = document.createElement("ul"); ul.className = "preuves";
     e.preuves.forEach((p, k) => {
       const li = document.createElement("li"); li.className = "preuve"; li.draggable = true;
@@ -1183,8 +1204,28 @@
       dep.addEventListener("click", (ev) => { ev.stopPropagation(); menuDeplacer(i, k, ev.target); });
       outils.append(croix, dep); li.appendChild(outils); ul.appendChild(li);
     });
+    if (!e.preuves.length) { const li = document.createElement("li"); li.className = "vide"; li.textContent = "aucun passage cité"; ul.appendChild(li); }
     div.appendChild(ul);
+    // Les commentaires du code, dans la marge à droite du pavé, masqués par défaut (la saisie arrive à l'étape 3 du brief 7).
+    const marge = document.createElement("div"); marge.className = "marge"; marge.hidden = !codageUI.commentairesOuverts.has(i);
+    const titreMarge = document.createElement("div"); titreMarge.className = "titre";
+    const tt = document.createElement("span"); tt.textContent = "Commentaires · " + (e.code || "code à choisir");
+    const fermer = document.createElement("button"); fermer.type = "button"; fermer.className = "secondaire"; fermer.textContent = "fermer";
+    fermer.addEventListener("click", () => basculerCommentaires(i));
+    titreMarge.append(tt, fermer); marge.appendChild(titreMarge);
+    for (const c of commentaires) {
+      const l = document.createElement("div"); l.className = "ligne";
+      const a = document.createElement("span"); a.className = "auteur"; a.textContent = { humain: "vous", ia: "IA", outil: "outil", generateur: "source" }[c.auteur] || c.auteur;
+      const t = document.createElement("span"); t.className = c.auteur === "outil" ? "outil" : ""; t.textContent = c.texte;
+      l.append(a, t); marge.appendChild(l);
+    }
+    if (!commentaires.length) { const pv = document.createElement("p"); pv.className = "discret"; pv.textContent = "Aucun commentaire."; marge.appendChild(pv); }
+    div.appendChild(marge);
     return div;
+  }
+  function basculerCommentaires(i) {
+    if (codageUI.commentairesOuverts.has(i)) codageUI.commentairesOuverts.delete(i); else codageUI.commentairesOuverts.add(i);
+    rendreCodage();
   }
   function rendreNonCodes() {
     const c = travail.courant; const zone = $("codage-non-codes"); zone.textContent = "";

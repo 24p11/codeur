@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>codeur — essai : écran du dossier</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+  /* Essai (brief 7) sur le style ACTUEL de la page. Dossier INVENTÉ.
+     - la ligne d'informations suit le cadre du texte ;
+     - sous le texte : la ligne « n passages surlignés… », puis, en dessous, les boutons côte à côte, petits :
+       Tout effacer · Codage · Évaluation ; Codage et Évaluation s'excluent (le bouton actif est coloré) ;
+       Codage n'est actif que s'il y a un surlignage (ou un codage déjà fait) ;
+     - « Enregistrer mon codage » : la ligne d'état, puis le bouton en dessous ;
+     - dans le pavé du codage, les fonctions d'un code sont sous son texte ; 💬 ouvre les commentaires dans la marge. */
+  .infos-texte { margin: 0 0 .5rem; padding: .5rem 1.25rem; border: 1px solid var(--bord); border-radius: 8px; background: var(--fond-doux); line-height: 1.5; }
+  .sous-texte { margin-top: .5rem; }
+  .sous-texte .discret { display: block; margin-bottom: .35rem; }
+  .boutons-ligne { display: flex; gap: .4rem; flex-wrap: wrap; }
+  .boutons-ligne button { margin-top: 0; padding: .25rem .6rem; font-size: .9rem; }
+  button.bascule { background: var(--fond); color: var(--accent); }
+  button.bascule.actif { background: var(--accent); color: #fff; }
+  .bloc-evaluation { margin-top: 1.25rem; padding: .75rem 1rem; border: 1px solid var(--bord); border-radius: 8px; background: var(--fond-doux); }
+  .bloc-evaluation h2 { font-size: 1.05rem; margin: 0 0 .4rem; }
+  /* un code : le texte (code – libellé) sur sa ligne, les fonctions en dessous, les passages à puces ; la marge à droite du pavé */
+  .bloc-codage .code { position: relative; }
+  .bloc-codage .code .tete strong { display: block; }
+  .bloc-codage .code .fonctions { display: flex; align-items: center; gap: .15rem; margin: .15rem 0 .1rem; }
+  .bloc-codage .code .fonctions .ico { border: 0; background: none; color: var(--encre-douce); font-size: .9rem; padding: .05rem .35rem; border-radius: 4px; margin: 0; cursor: pointer; line-height: 1.3; }
+  .bloc-codage .code .fonctions .ico:hover { background: var(--accent-doux); color: var(--accent); }
+  .bloc-codage .code .fonctions .ico.ouvert { background: var(--accent-doux); color: var(--accent); }
+  .bloc-codage .code .fonctions .ico .n { font-size: .72rem; vertical-align: super; }
+  .bloc-codage .code .fonctions .ico.info { color: var(--encre-douce); } .bloc-codage .code .fonctions .ico.alerte { color: var(--alerte); }
+  .bloc-codage .code .fonctions .etiquette.cat { margin: 0 .3rem 0 0; }
+  .marge { position: absolute; left: 100%; top: 0; width: 20rem; margin-left: 2.5rem; font-size: .92rem; border-left: 2px solid var(--accent-doux); padding: .1rem 0 .1rem .8rem; }
+  .marge .titre { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: #8b949e; margin-bottom: .2rem; display: flex; justify-content: space-between; align-items: baseline; }
+  .marge .titre button { margin: 0; padding: 0 .4rem; font-size: .8rem; }
+  .marge .ligne { display: flex; gap: .5rem; align-items: baseline; padding: .15rem 0; }
+  .marge .auteur { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: #8b949e; min-width: 3.2rem; }
+  .marge .outil { color: var(--encre-douce); font-style: italic; }
+  .marge textarea { width: 100%; max-width: none; font-size: .92rem; min-height: 3.2rem; margin-top: .3rem; }
+  .marge .rappel { font-size: .78rem; color: #8b949e; margin: .15rem 0 0; display: flex; justify-content: space-between; }
+  @media (max-width: 1150px) { .marge { position: static; width: auto; margin: .3rem 0 .4rem 1rem; } }
+  .barre-enregistrer-colonne .discret { display: block; margin-bottom: .35rem; }
+</style>
+</head>
+<body>
+<header class="entete">
+  <div class="entete-titre"><strong>codeur</strong> <span class="sous-titre">prototype d'aide au codage CIM-10</span></div>
+  <div class="entete-droite"><span>prenom.nom@exemple.fr</span><button class="secondaire">Réglages de l'IA</button><button class="secondaire">Mon profil</button><button class="secondaire">Se déconnecter</button></div>
+</header>
+<main id="contenu">
+  <section class="ecran large">
+    <div class="dossier-entete">
+      <div><h1>3f8a21c0…</h1></div>
+      <div class="dossier-boutons"><button class="secondaire">Retour à la liste</button></div>
+    </div>
+    <div class="dossier-corps sans-panneau">
+      <div class="colonne-texte">
+        <p class="discret infos-texte">Hépato-gastro-entérologie<br>Chirurgie adultes &lt; 3 nuits, en hospitalisation complète<br>1 document d'origine — 1 012 caractères — version 1</p>
+<div id="texte-dossier" class="texte-dossier mode-simple mise-en-forme" tabindex="0"><span class="md-titre"><span class="md-marque">###</span> Compte rendu d'hospitalisation</span>
+<span class="md-gras"><span class="md-marque">**</span>Motif d'hospitalisation<span class="md-marque">**</span></span>
+Monsieur T., 68 ans, est admis pour la prise en charge chirurgicale programmée d'une <mark class="surl">hernie inguinale droite non compliquée</mark>, gênante à l'effort depuis six mois.
+
+<span class="md-gras"><span class="md-marque">**</span>Antécédents<span class="md-marque">**</span></span>
+- <mark class="surl">Hypertension artérielle traitée</mark> par un inhibiteur de l'enzyme de conversion, bien équilibrée.
+- <mark class="surl">Diabète de type 2 sous metformine</mark>, sans complication connue.
+- Tabagisme sevré depuis quatre ans, estimé à vingt paquets-années.
+- Appendicectomie dans l'enfance.
+
+<span class="md-gras"><span class="md-marque">**</span>Intervention<span class="md-marque">**</span></span>
+Cure de hernie inguinale droite par voie ouverte avec mise en place d'une prothèse, sous anesthésie générale. Suites opératoires simples. Douleur postopératoire modérée, contrôlée par les antalgiques de palier 1.
+
+<span class="md-trait">---</span>
+
+<span class="md-gras"><span class="md-marque">**</span>Conclusion<span class="md-marque">**</span></span>
+Retour à domicile à J1. Consultation de contrôle à trois semaines. Reprise du traitement habituel sans modification.
+
+Dr A. Exemple, chirurgie digestive</div>
+
+        <!-- sous le texte : la ligne du surlignage, puis les boutons en dessous, côte à côte -->
+        <div class="sous-texte">
+          <span id="compte-passages" class="discret"></span>
+          <div class="boutons-ligne">
+            <button id="bouton-codage" class="bascule actif">Codage</button>
+            <button id="bouton-evaluation" class="bascule">Évaluation</button>
+            <button id="bouton-tout-effacer" class="secondaire">Tout effacer</button>
+          </div>
+        </div>
+
+        <div id="bloc-evaluation" class="bloc-evaluation" hidden>
+          <h2>Noter ce compte rendu <span class="discret">· facultatif</span></h2>
+          <p class="discret">La grille de notation (cinq dimensions, de 1 à 5, un repère par niveau) arrive à l'étape 4.</p>
+        </div>
+
+        <div id="bloc-codage" class="bloc-codage A">
+          <div class="codage-tete"><h2>Codage</h2><span class="discret">Dernier codage enregistré : proposition de l'IA, le 22/10/2026 14:32.</span></div>
+          <div id="codage-contenu">
+            <div class="code cC0">
+              <div class="tete"><strong>K409 – Hernie inguinale unilatérale ou SAI, sans occlusion ni gangrène</strong></div>
+              <div class="fonctions"><span class="etiquette cat">Principal ▾</span><button class="ico" title="Supprimer ce code">Supprimer</button><button class="ico" title="Changer le code (recherche)">🔍</button><button class="ico bulle" data-cible="c1" title="Commentaires (1)">💬<span class="n">1</span></button></div>
+              <ul class="preuves"><li class="preuve">hernie inguinale droite non compliquée</li></ul>
+              <div class="marge" id="c1" hidden>
+                <div class="titre"><span>Commentaires · K409</span><button class="secondaire" data-cible="c1">fermer</button></div>
+                <div class="ligne"><span class="auteur">vous</span><span>Le côté n'est pas codé en CIM-10 ; K409 convient.</span></div>
+                <textarea placeholder="Votre commentaire sur ce code…"></textarea>
+                <p class="rappel"><span>Aucune donnée concernant un patient réel.</span><span>0 / 500</span></p>
+              </div>
+            </div>
+            <div class="code cC1">
+              <div class="tete"><strong>I10 – Hypertension essentielle (primitive)</strong></div>
+              <div class="fonctions"><span class="etiquette cat associe">Associé ▾</span><button class="ico" title="Supprimer ce code">Supprimer</button><button class="ico" title="Changer le code (recherche)">🔍</button><button class="ico bulle" data-cible="c2" title="Commenter">💬</button></div>
+              <ul class="preuves"><li class="preuve">Hypertension artérielle traitée</li></ul>
+              <div class="marge" id="c2" hidden>
+                <div class="titre"><span>Commentaires · I10</span><button class="secondaire" data-cible="c2">fermer</button></div>
+                <textarea placeholder="Votre commentaire sur ce code…"></textarea>
+                <p class="rappel"><span>Aucune donnée concernant un patient réel.</span><span>0 / 500</span></p>
+              </div>
+            </div>
+            <div class="code cC2">
+              <div class="tete"><strong>E119 – Diabète sucré de type 2, sans complication</strong></div>
+              <div class="fonctions"><span class="etiquette cat associe">Associé ▾</span><button class="ico" title="Supprimer ce code">Supprimer</button><button class="ico" title="Changer le code (recherche)">🔍</button><button class="ico bulle ouvert" data-cible="c3" title="Commentaires (1)">💬<span class="n">1</span></button><button class="ico info" title="Code plus précis possible : un code plus fin existe pour ce diabète (E11 avec cinquième caractère) ; vérifiez avec 🔍.">◎</button></div>
+              <ul class="preuves"><li class="preuve">Diabète de type 2 sous metformine</li></ul>
+              <div class="marge" id="c3">
+                <div class="titre"><span>Commentaires · E119</span><button class="secondaire" data-cible="c3">fermer</button></div>
+                <div class="ligne"><span class="auteur">outil</span><span class="outil">Un code plus précis existe pour ce diabète (E11 avec cinquième caractère) ; vérifiez avec 🔍.</span></div>
+                <textarea placeholder="Votre commentaire sur ce code…"></textarea>
+                <p class="rappel"><span>Aucune donnée concernant un patient réel.</span><span>0 / 500</span></p>
+              </div>
+            </div>
+          </div>
+          <div class="non-codes"><strong>Passages non codés (selon l'IA)</strong><ul><li>« Appendicectomie dans l'enfance » — antécédent sans incidence sur le séjour<a>Coder ce passage</a></li></ul></div>
+          <!-- Enregistrer : la ligne d'état, puis le bouton en dessous -->
+          <div class="sous-texte barre-enregistrer-colonne">
+            <span class="discret">Aucune modification depuis le dernier enregistrement. « Enregistrer mon codage » enregistre votre acceptation du codage tel quel.</span>
+            <div class="boutons-ligne"><button>Enregistrer mon codage</button></div>
+          </div>
+        </div>
+        <div class="barre-texte barre-bas"><span class="discret"></span><span class="barre-texte-boutons"><button class="secondaire">Retour à la liste</button></span></div>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+  // Essai : le compte des passages suit les surlignages (un clic sur un passage le retire) ;
+  // Codage et Évaluation s'excluent ; le bouton actif est coloré.
+  const texte = document.getElementById("texte-dossier");
+  const codageFait = true; // dans cet essai, un codage existe déjà
+  function nombre(n) { return new Intl.NumberFormat("fr-FR").format(n); }
+  function rafraichir() {
+    const n = texte.querySelectorAll("mark.surl").length;
+    document.getElementById("compte-passages").textContent = n === 0
+      ? "Aucun passage surligné : sélectionnez un passage avec la souris pour pouvoir faire le codage."
+      : nombre(n) + " passage" + (n > 1 ? "s" : "") + " surligné" + (n > 1 ? "s" : "") + " — cliquez sur un passage pour le retirer.";
+    document.getElementById("bouton-codage").disabled = n === 0 && !codageFait;
+    document.getElementById("bouton-tout-effacer").disabled = n === 0;
+  }
+  function montrer(vue) {
+    document.getElementById("bloc-codage").hidden = vue !== "codage";
+    document.getElementById("bloc-evaluation").hidden = vue !== "evaluation";
+    document.getElementById("bouton-codage").classList.toggle("actif", vue === "codage");
+    document.getElementById("bouton-evaluation").classList.toggle("actif", vue === "evaluation");
+  }
+  texte.addEventListener("click", (ev) => { const m = ev.target.closest("mark.surl"); if (m) { m.replaceWith(document.createTextNode(m.textContent)); rafraichir(); } });
+  document.getElementById("bouton-codage").addEventListener("click", () => montrer("codage"));
+  document.getElementById("bouton-evaluation").addEventListener("click", () => montrer("evaluation"));
+  document.querySelectorAll("[data-cible]").forEach((b) => b.addEventListener("click", () => {
+    const m = document.getElementById(b.dataset.cible); m.hidden = !m.hidden;
+    document.querySelectorAll('.bulle[data-cible="' + b.dataset.cible + '"]').forEach((x) => x.classList.toggle("ouvert", !m.hidden));
+  }));
+  rafraichir(); montrer("codage");
+</script>
+</body>
+</html>
