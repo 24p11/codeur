@@ -1,6 +1,6 @@
 # Schéma de la base de données
 
-*Version 1.4 — 22 octobre 2026 : champs `affichage` et `libelle_propose` (§3.4), table `recherches` (§5.4), colonnes MCO de `fiches`, table `descendants_codables` et fonctions de recherche (§6), fin du lot A2-A3 (commit `1811f57`).*
+*Version 1.4 — 22 octobre 2026 : fonction `valeurs_filtres()` et plafond de 1 000 lignes (§6, §10 point 28) ; champs `affichage` et `libelle_propose` (§3.4), table `recherches` (§5.4), colonnes MCO de `fiches`, table `descendants_codables` et fonctions de recherche (§6), fin du lot A2-A3 (commit `1811f57`).*
 
 *Version 1.3 — 22 octobre 2026 : ordre d'appariement (§3.7), auteur `outil`, code à choisir, tours de correction (§3.4, §3.10, §5.2, §10 points 25 à 27).*
 
@@ -374,7 +374,7 @@ Le testeur ajoute ses propres lignes, sans pouvoir les relire.
 | `descendants_codables` | Pour chaque code non codable ou souche (nœud), ses descendants codables avec libellé et ordre du kit, tels que livrés par recode-icd (jamais recalculés) ; sert à la boucle de correction et aux suggestions de 🔍 |
 | `regles_situations` | Le guide des situations cliniques, une ligne par règle : code, famille (tirée de la colonne « Type d'hospitalisation » du guide), libellé, type, spécificité, pathologie, code Z, détails (JSON), version |
 
-**Fonctions de recherche** (droits de l'appelant, chemin de recherche fixé, exécutables par les testeurs connectés) : `rechercher_codes(recherche, limite, seuil)` par ressemblance (trigrammes ; seuil 0,15 pour la boucle de correction, 0,3 pour 🔍), et `rechercher_codes_morceaux` : formulations contenant tous les morceaux tapés, accents et casse ignorés, morceaux de trois lettres ou moins en début de mot seulement ; classement : mot entier, début de mot, libellé officiel, autre formulation, formulation la plus courte ; codes codables seulement, un résultat par code.
+**Fonctions de recherche** (droits de l'appelant, chemin de recherche fixé, exécutables par les testeurs connectés) : `rechercher_codes(recherche, limite, seuil)` par ressemblance (trigrammes ; seuil 0,15 pour la boucle de correction, 0,3 pour 🔍), et `rechercher_codes_morceaux` : formulations contenant tous les morceaux tapés, accents et casse ignorés, morceaux de trois lettres ou moins en début de mot seulement ; classement : mot entier, début de mot, libellé officiel, autre formulation, formulation la plus courte ; codes codables seulement, un résultat par code. La fonction `valeurs_filtres()` (migration 19, mêmes règles) renvoie, par lot, les spécialités et types de prise en charge distincts des dossiers disponibles, avec leur effectif, pour les menus de recherche de la page.
 
 ---
 
@@ -453,5 +453,6 @@ Interprétations retenues lors de la création de la base (migrations de `supaba
 25. **Ligne `ia_humain` et tours de correction** : `codages.appel_llm` désigne le **dernier tour**, celui dont la réponse a donné le codage enregistré ; les tours d'un même codage sont reliés par `appels_llm.appel_initial` (migration 13).
 26. **`codage_precedent`** : la dernière ligne de codage du testeur sur ce document, quelle que soit son étape ; les compteurs sont calculés par rapport à elle.
 27. **Auteur `outil`** : s'ajoute aux auteurs `ia`, `humain`, `generateur`, pour les commentaires et les passages non codés (§3.4, §3.10).
+28. **Plafond de 1 000 lignes** : le service qui répond à la page (PostgREST) ne renvoie jamais plus de 1 000 lignes par demande, quelle que soit la limite demandée. Toute requête de la page qui pourrait dépasser ce nombre doit être paginée, découpée, ou remplacée par une fonction de la base qui renvoie un résultat agrégé (exemple : `valeurs_filtres()`). Contrôle fait le 22 octobre 2026 (`docs/page_web.md` §12).
 
 *Base créée le 18 octobre 2026 : projet `codeur`, région Irlande (Union européenne), PostgreSQL 17 ; sept migrations appliquées (la septième ne fait que mettre à jour le commentaire de `rum.rum` après le déplacement du fichier ATIH) ; vérification du schéma conforme ; tests d'accès : 32 essais réussis sur 32 (commit `3918a2c`).*
