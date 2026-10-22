@@ -24,6 +24,7 @@ Le schéma est écrit sous forme de **migrations** : des fichiers SQL numéroté
 | `20261022120000_rechercher_codes.sql` / `20261022130000_…operateur.sql` | Fonction `rechercher_codes(recherche, limite, seuil)` : codes codables par ressemblance (trigrammes) ; la seconde corrige l'opérateur qualifié et ajoute le seuil en paramètre |
 | `20261022140000_recherche_morceaux_et_recherches.sql` / `20261022150000_…correction.sql` | Fonction `rechercher_codes_morceaux(recherche, limite)` (recherche 🔍 par morceaux de mots) ; table `recherches` (journal des recherches, insertion seule) ; la seconde corrige la fonction et ajoute le critère « mot entier » |
 | `20261022160000_recherche_source_formulation.sql` | Les deux fonctions de recherche renvoient aussi la source et l'origine de la formulation |
+| `20261022170000_valeurs_filtres.sql` | Fonction `valeurs_filtres()` : par lot, les spécialités et types de prise en charge distincts des dossiers disponibles avec leur effectif, pour les listes de filtre de la page (PostgREST renvoie au plus 1 000 lignes par requête ; la page lisait toute la vue). Droits de l'appelant, `search_path` vide, exécutable par les testeurs connectés seulement |
 
 ## 2. Ce qu'il faut sur l'ordinateur
 

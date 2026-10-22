@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>codeur</title>
-  <link rel="stylesheet" href="style.css?v=A2-0.12">
+  <link rel="stylesheet" href="style.css?v=A2-0.13">
 </head>
 <body>
   <header class="entete">
@@ -124,6 +124,10 @@
       <h1>Dossiers</h1>
       <form id="formulaire-recherche" class="recherche">
         <div>
+          <label for="filtre-source">Source</label>
+          <select id="filtre-source"><option value="">Toutes</option></select>
+        </div>
+        <div>
           <label for="filtre-specialite">Spécialité</label>
           <select id="filtre-specialite"><option value="">Toutes</option></select>
         </div>
@@ -143,7 +147,7 @@
       <p id="liste-resume" class="discret"></p>
       <div class="tableau-conteneur">
         <table id="tableau-dossiers">
-          <thead><tr><th>Identifiant</th><th>Spécialité</th><th>Type de prise en charge</th><th class="num">Documents</th><th class="num">Longueur</th><th></th></tr></thead>
+          <thead><tr><th>Source</th><th>Identifiant</th><th>Spécialité</th><th>Type de prise en charge</th><th class="num">Documents</th><th class="num">Longueur</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -171,6 +175,7 @@
           <div class="barre-texte">
             <span id="compte-passages" class="discret"></span>
             <span class="barre-texte-boutons">
+              <button id="bouton-mise-en-forme" class="secondaire" title="Afficher le texte avec sa mise en forme (titres, gras) ou tel quel">Texte brut</button>
               <button id="bouton-tout-effacer" class="secondaire">Tout effacer</button>
             </span>
           </div>
@@ -229,9 +234,10 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@18.0.14/lib/marked.umd.js"></script>
-  <script src="positions.js?v=A2-0.12"></script>
-  <script src="codage.js?v=A2-0.12"></script>
-  <script src="config.js?v=A2-0.12"></script>
-  <script src="app.js?v=A2-0.12"></script>
+  <script src="positions.js?v=A2-0.13"></script>
+  <script src="markdown.js?v=A2-0.13"></script>
+  <script src="codage.js?v=A2-0.13"></script>
+  <script src="config.js?v=A2-0.13"></script>
+  <script src="app.js?v=A2-0.13"></script>
 </body>
 </html>

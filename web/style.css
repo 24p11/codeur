@@ -155,3 +155,9 @@ kbd { font: .75rem ui-monospace, Menlo, monospace; border: 1px solid currentColo
 .cC0 { --c: #ffd27a; } .cC1 { --c: #a8e0b8; } .cC2 { --c: #b9cdff; } .cC3 { --c: #f7b9c9; } .cC4 { --c: #d9c9f4; } .cC5 { --c: #ffd4b0; } .cC6 { --c: #a9e4ea; } .cC7 { --c: #dde3a0; } .cCX { --c: #d0d7de; }
 
 .barre-bas { margin-top: 1rem; }
+
+/* Mise en forme markdown sans retirer un caractère (web/markdown.js) : active seulement avec .mise-en-forme */
+.texte-dossier.mise-en-forme .md-titre { font-weight: 600; font-size: 1.08em; }
+.texte-dossier.mise-en-forme .md-gras { font-weight: 600; }
+.texte-dossier.mise-en-forme .md-marque { color: #b8b8b8; font-weight: 400; }
+.texte-dossier.mise-en-forme .md-trait { color: transparent; border-bottom: 1px solid var(--bord); line-height: .6; }

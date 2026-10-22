@@ -2,7 +2,9 @@
 et Python doivent donner les mêmes positions et le même texte cité.
 
 Textes de test : accents, caractères spéciaux (µ, ², →, ᵉ, ⅓), un émoji et une lettre mathématique hors du plan
-de base (2 unités UTF-16 chacun), plusieurs documents d'origine avec intitulés et lignes vides.
+de base (2 unités UTF-16 chacun), plusieurs documents d'origine avec intitulés et lignes vides, un texte markdown
+(titres, gras, trait) pour vérifier que la mise en forme sans retrait de caractère (web/markdown.js) découpe le texte
+sans l'altérer et que chaque passage reste exact.
 Pour chaque passage : (1) Python choisit des positions en points de code et le texte attendu texte[debut:fin] ;
 Node doit extraire le même texte et valider le passage ; (2) Python calcule les indices UTF-16 correspondants
 (ce que donne une sélection dans le navigateur) ; Node doit en déduire les mêmes positions en points de code.
@@ -19,6 +21,7 @@ TEXTES = {
     "accents": "Compte rendu d'hospitalisation\n\nMadame Élodie Lefèvre, 47 ans, hospitalisée pour une pneumopathie aiguë.\nTempérature à 38,5 °C ; créatinine 85 µmol/L ; surface 1,8 m² → DFG 72 mL/min.",
     "speciaux": "Hémoglobine 12,1 g/dL, plaquettes 250 G/L, ⅓ de la dose au 3ᵉ jour, pH ¦ 7,42 ¦ 7,35-7,45.",
     "hors_plan": "Patient 😀 très satisfait ; variable 𝑥 = 3 ; fin.",
+    "markdown": "### Motif d'hospitalisation\nPatiente de **72 ans**, **HTA** traitée.\n\n---\n\n## Conclusion\nRetour à domicile le 3ᵉ jour ; **suites simples** 😀.",
     "multi": "— Consultation —\n\nCompte rendu de consultation\n\nLe 14/05/2025, Mme Seguy, 43 ans.\n\n— Compte rendu opératoire —\n\nIntervention : HAL-Doppler.\n\n— Compte rendu d'hospitalisation —\n\nSuites simples.",
 }
 
@@ -33,7 +36,7 @@ def main() -> None:
     for nom, texte in TEXTES.items():
         n = len(texte)
         choix = [(0, 5), (10, 25), (n - 8, n), (0, n)]
-        for motif in ("µmol/L", "1,8 m²", "😀", "𝑥 = 3", "⅓ de la dose", "3ᵉ jour", "Mme Seguy, 43 ans.\n\n— Compte rendu opératoire —\n\nIntervention", "— Consultation —\n\nCompte", "aiguë.\nTempérature"):
+        for motif in ("µmol/L", "1,8 m²", "😀", "𝑥 = 3", "⅓ de la dose", "3ᵉ jour", "**HTA** traitée", "ans**, **HTA", "Conclusion\nRetour", "le 3ᵉ jour ; **suites", "Mme Seguy, 43 ans.\n\n— Compte rendu opératoire —\n\nIntervention", "— Consultation —\n\nCompte", "aiguë.\nTempérature"):
             i = texte.find(motif)
             if i >= 0:
                 choix.append((i, i + len(motif)))
@@ -48,11 +51,15 @@ def main() -> None:
     echecs = 0
     for (nom, debut, fin, attendu, longueur), s in zip(attendus, sorties):
         ok = (s["longueur"] == longueur and s["extrait"] == attendu and s["verif"] is True and s["verif_faux"] is False
-              and s["passage"] is not None and s["passage"]["debut"] == debut and s["passage"]["fin"] == fin and s["passage"]["texte"] == attendu)
+              and s["passage"] is not None and s["passage"]["debut"] == debut and s["passage"]["fin"] == fin and s["passage"]["texte"] == attendu
+              and s["decoupage_ok"] is True
+              and (nom != "markdown" or (s["nb_decorations"] == 14 and s["classes"] == ["md-gras", "md-marque", "md-titre", "md-trait"])))
         if not ok:
             echecs += 1
         apercu = attendu.replace("\n", "⏎")[:40]
         print(f"  [{'OK' if ok else 'ÉCHEC'}] {nom:9s} [{debut}:{fin}] {apercu!r}" + ("" if ok else f"  -> Node : {s}"))
+    print(f"\nMise en forme (web/markdown.js) : découpage vérifié sur chaque passage ; texte « markdown » : "
+          f"{sorties[[a[0] for a in attendus].index('markdown')]['nb_decorations']} décorations (2 titres avec leur marque, 3 gras avec leurs marques, 1 trait).")
     print(f"\nBILAN : {len(cas) - echecs} passages conformes sur {len(cas)} ; "
           f"{sum(1 for c in cas if any(ord(ch) > 0xFFFF for ch in c['texte']))} cas sur des textes contenant des caractères hors plan de base")
     sys.exit(1 if echecs else 0)

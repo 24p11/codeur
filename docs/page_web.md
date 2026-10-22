@@ -139,3 +139,29 @@ Quand un codage existe : un nouveau surlignage qui chevauche une preuve existant
 ### 11.6 Relire un essai
 
 `uv run python -I scripts/admin/voir_codage.py <id_source>` (clé secrète) affiche les lignes de codage (hors `scenario`) et les appels d'un dossier, sans le texte ni les textes cités, avec le contrôle « clé dans la requête : non ».
+
+## 12. Le filtre par source et la limite de 1 000 lignes (A2-0.13)
+
+La liste des dossiers a un menu **Source** (PARHAF, Synthétique…), alimenté par la table `lots` ; une colonne « Source » dans le tableau ; un tri par source puis identifiant ; les identifiants UUID des CRH synthétiques sont abrégés à l'écran (8 caractères, complet au survol et dans l'en-tête du dossier). Les menus de spécialité et de type ne montrent que les valeurs de la source choisie, avec leur effectif.
+
+**PostgREST ne renvoie jamais plus de 1 000 lignes par requête**, quelle que soit la limite demandée. Les valeurs des menus viennent donc de la fonction `valeurs_filtres()` (migration 19 : par lot, les valeurs distinctes et leur effectif, en une requête courte, droits de l'appelant). Requêtes de la page contrôlées le 22 octobre 2026 au regard de cette limite :
+
+| Requête | Lignes au plus | Verdict |
+|---|---|---|
+| liste des dossiers (`dossiers_disponibles`, `range` par page de 50, `count: exact`) | 50 | sûre ; le total vient du compte |
+| valeurs des menus (`valeurs_filtres()`) | quelques dizaines (2 lots × 56 spécialités × 12 types au plus) | sûre ; remplace la lecture de toute la vue (4 322 lignes, tronquée à 1 000) |
+| lots (`lots`) | nombre de lots | sûre |
+| ouverture d'un dossier (`documents`, `single`), profil (`profils`), dernier codage (`limit 1`) | 1 | sûre |
+| index des codes proposés (`fiches`, `in`) | nombre de codes proposés par le LLM (quelques dizaines) | sûre |
+| descendants des codes proposés (`descendants_codables`) | **une requête par code, `limit` = 60 candidats** | corrigée : une seule requête `in` sur tous les codes pouvait dépasser 1 000 lignes (F01 et F02 ont 126 descendants chacun ; les 20 plus gros nœuds en totalisent 1 916) |
+| descendants d'un code dans l'écran de codage (`eq noeud`) | 126 au plus (plus gros nœud du kit) | sûre |
+| candidats de catégorie (`fiches like`, `limit 60`), recherche 🔍 (`limit 40`), ressemblance (`limite 20` ou `60`), début de code (`limit 40`) | 20 à 60 | sûres |
+| écritures (`appels_llm`, `codages`, `recherches`, `profils`) | 1 | sans objet |
+
+## 13. La mise en forme du texte sans retirer un caractère (A2-0.13)
+
+Les CRH synthétiques sont en markdown (`###`, `**`, `---`). Le texte affiché reste **exactement** le texte de référence : `web/markdown.js` repère seulement des intervalles à décorer (en index UTF-16 : ligne de titre `#` à `######` suivi d'une espace ; `**gras**` sur une même ligne ; ligne `---`), et `rendreTexte()` enveloppe chaque morceau dans un `<span>` portant ses classes (`md-titre`, `md-gras`, `md-marque` pour les `#` et `**` eux-mêmes, `md-trait`). Les marques restent dans la page, en gris clair ; le trait `---` est rendu en couleur transparente avec une ligne fine en dessous (les trois tirets sont toujours là, sélectionnables). Les bornes de ces intervalles s'ajoutent aux bornes des surlignages et des preuves ; le calcul des positions à la sélection (`positionDansBloc`, somme des nœuds texte) ne voit aucune différence.
+
+**Interrupteur** : le bouton « Texte brut » / « Mise en forme » au-dessus du texte, mémorisé dans le navigateur (`localStorage`, clé `codeur.mise_en_forme`, mise en forme active par défaut) ; il ne change qu'une classe CSS, sans re-rendu ni effet sur les positions.
+
+**Vérification** : `scripts/tests/tester_positions.py` comporte un texte markdown (titres, gras, trait, un caractère hors plan de base) ; pour chaque passage de chaque texte, Node découpe le texte avec les décorations et le passage, et vérifie que les morceaux restituent le texte entier et que ceux couverts par le passage restituent exactement l'extrait attendu (35 passages sur 35 le 22 octobre 2026 ; 14 décorations sur le texte markdown).

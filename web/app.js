@@ -279,7 +279,16 @@
   // La liste lit la vue dossiers_disponibles (dernière version, sans les dossiers à corriger, sans texte
   // ni champ nettoyage). Les valeurs brutes de la base sont mises en forme pour l'affichage seulement.
   const PAR_PAGE = 50;
-  const liste = { page: 0, total: 0, filtres: { specialite: "", type: "", id: "" }, valeursChargees: false };
+  const liste = { page: 0, total: 0, filtres: { source: "", specialite: "", type: "", id: "" }, valeurs: null, lots: new Map() };
+  // Nom court d'une source pour l'affichage, d'après l'identifiant du lot (lots.id).
+  function nomSource(lot) {
+    if (!lot) return "—";
+    if (lot.startsWith("parhaf")) return "PARHAF";
+    if (lot.startsWith("synthetiques")) return "Synthétique";
+    return lot;
+  }
+  // Identifiant abrégé à l'écran : les UUID des CRH synthétiques sont réduits à leurs 8 premiers caractères.
+  function identCourt(id) { return /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(id) ? id.slice(0, 8) + "…" : id; }
 
   function enClair(valeur) {
     if (!valeur) return "—";
@@ -288,33 +297,59 @@
   }
   function nombre(n) { return new Intl.NumberFormat("fr-FR").format(n); }
 
+  // Les valeurs des listes de filtre viennent de la fonction valeurs_filtres() (migration 19) : par lot, les
+  // spécialités et types distincts avec leur effectif, en une requête courte (PostgREST renvoie au plus 1 000
+  // lignes par requête ; lire toute la vue ne convenait plus au-delà de 1 000 dossiers).
   async function chargerValeursRecherche() {
-    if (liste.valeursChargees) return;
-    const { data, error } = await base.from("dossiers_disponibles").select("specialite, type_prise_en_charge").limit(10000);
+    if (liste.valeurs) return;
+    const lots = await base.from("lots").select("id, description").order("id");
+    if (lots.error) { message("message-liste", "Les sources n'ont pas pu être chargées : " + lots.error.message, true); return; }
+    const { data, error } = await base.rpc("valeurs_filtres");
     if (error) { message("message-liste", "Les valeurs de recherche n'ont pas pu être chargées : " + error.message, true); return; }
+    liste.valeurs = data;
+    const lotsPresents = new Set(data.map((v) => v.lot));
+    for (const l of lots.data) if (lotsPresents.has(l.id)) liste.lots.set(l.id, l.description);
+    const sel = $("filtre-source");
+    for (const [id] of liste.lots) {
+      const opt = document.createElement("option");
+      opt.value = id; opt.textContent = nomSource(id) + " (" + nombre(data.filter((v) => v.lot === id).reduce((t, v) => t + v.nb, 0)) + ")";
+      sel.appendChild(opt);
+    }
+    remplirValeurs();
+  }
+  // Les listes de spécialité et de type ne montrent que les valeurs de la source choisie (toutes si aucune).
+  function remplirValeurs() {
+    const source = $("filtre-source").value;
     const specialites = new Map(), types = new Map();
-    for (const d of data) {
-      if (d.specialite) specialites.set(d.specialite, (specialites.get(d.specialite) || 0) + 1);
-      if (d.type_prise_en_charge) types.set(d.type_prise_en_charge, (types.get(d.type_prise_en_charge) || 0) + 1);
+    for (const v of liste.valeurs) {
+      if (source && v.lot !== source) continue;
+      if (v.specialite) specialites.set(v.specialite, (specialites.get(v.specialite) || 0) + v.nb);
+      if (v.type_prise_en_charge) types.set(v.type_prise_en_charge, (types.get(v.type_prise_en_charge) || 0) + v.nb);
     }
     const remplir = (select, valeurs) => {
+      const courant = select.value;
+      select.textContent = "";
+      const vide = document.createElement("option"); vide.value = ""; vide.textContent = select.id === "filtre-type" ? "Tous" : "Toutes";
+      select.appendChild(vide);
       for (const [brut, n] of [...valeurs.entries()].sort((a, b) => a[0].localeCompare(b[0], "fr"))) {
         const opt = document.createElement("option");
         opt.value = brut; opt.textContent = enClair(brut) + " (" + nombre(n) + ")";
         select.appendChild(opt);
       }
+      select.value = valeurs.has(courant) ? courant : "";
     };
     remplir($("filtre-specialite"), specialites);
     remplir($("filtre-type"), types);
-    liste.valeursChargees = true;
   }
+  $("filtre-source").addEventListener("change", remplirValeurs);
 
   async function chargerPage() {
     message("message-liste", "");
     let req = base.from("dossiers_disponibles")
-      .select("id, id_source, specialite, type_prise_en_charge, nb_documents_origine, longueur", { count: "exact" })
-      .order("id_source");
+      .select("id, lot, id_source, specialite, type_prise_en_charge, nb_documents_origine, longueur", { count: "exact" })
+      .order("lot").order("id_source");
     const f = liste.filtres;
+    if (f.source) req = req.eq("lot", f.source);
     if (f.specialite) req = req.eq("specialite", f.specialite);
     if (f.type) req = req.eq("type_prise_en_charge", f.type);
     if (f.id) req = req.ilike("id_source", "%" + f.id.replace(/[%_]/g, "") + "%");
@@ -327,11 +362,13 @@
     for (const d of data) {
       const tr = document.createElement("tr");
       const cellules = [
-        ["ident", d.id_source], ["", enClair(d.specialite)], ["", enClair(d.type_prise_en_charge)],
+        ["", nomSource(d.lot)], ["ident", identCourt(d.id_source)], ["", enClair(d.specialite)], ["", enClair(d.type_prise_en_charge)],
         ["num", nombre(d.nb_documents_origine)], ["num", nombre(d.longueur) + " car."],
       ];
       for (const [classe, texte] of cellules) {
-        const td = document.createElement("td"); td.className = classe; td.textContent = texte; tr.appendChild(td);
+        const td = document.createElement("td"); td.className = classe; td.textContent = texte;
+        if (classe === "ident") td.title = d.id_source;
+        tr.appendChild(td);
       }
       const td = document.createElement("td");
       const bouton = document.createElement("button");
@@ -354,13 +391,13 @@
   }
   $("formulaire-recherche").addEventListener("submit", (ev) => {
     ev.preventDefault();
-    liste.filtres = { specialite: $("filtre-specialite").value, type: $("filtre-type").value, id: $("filtre-id").value.trim() };
+    liste.filtres = { source: $("filtre-source").value, specialite: $("filtre-specialite").value, type: $("filtre-type").value, id: $("filtre-id").value.trim() };
     liste.page = 0;
     chargerPage();
   });
   $("bouton-effacer-recherche").addEventListener("click", () => {
-    $("filtre-specialite").value = ""; $("filtre-type").value = ""; $("filtre-id").value = "";
-    liste.filtres = { specialite: "", type: "", id: "" }; liste.page = 0;
+    $("filtre-source").value = ""; remplirValeurs(); $("filtre-id").value = "";
+    liste.filtres = { source: "", specialite: "", type: "", id: "" }; liste.page = 0;
     chargerPage();
   });
   $("page-precedente").addEventListener("click", () => { if (liste.page > 0) { liste.page -= 1; chargerPage(); } });
@@ -479,15 +516,24 @@
       const d = P.pointsVersU16(texte, p.debut), f = P.pointsVersU16(texte, p.fin);
       frontieres.add(d); frontieres.add(f); preuvesCodes.push([d, f, i]);
     } });
-    const bornes = [...frontieres].sort((a, b) => a - b);
+    // Mise en forme markdown sans retirer un caractère (web/markdown.js) : des intervalles à décorer, qui
+    // ajoutent leurs bornes ; chaque morceau est enveloppé dans un <span> portant les classes qui le couvrent.
+    const decos = Markdown.decorations(texte);
+    const bornes = Markdown.bornes(texte, [...couvertures, ...preuvesCodes, ...decos].concat([...frontieres].map((x) => [x, x])));
     const bloc = $("texte-dossier");
     bloc.textContent = "";
+    bloc.classList.toggle("mise-en-forme", miseEnForme());
+    const poser = (d, f, noeud) => {
+      const classes = decos.filter(([cd, cf]) => cd <= d && f <= cf).map((x) => x[2]);
+      if (!classes.length) { bloc.appendChild(noeud); return; }
+      const span = document.createElement("span"); span.className = [...new Set(classes)].join(" "); span.appendChild(noeud); bloc.appendChild(span);
+    };
     for (let i = 0; i + 1 < bornes.length; i++) {
       const d = bornes[i], f = bornes[i + 1];
       const morceau = texte.slice(d, f);
       const couv = couvertures.filter(([cd, cf]) => cd <= d && f <= cf);
       const couvCodes = preuvesCodes.filter(([cd, cf]) => cd <= d && f <= cf);
-      if (!couv.length && !couvCodes.length) { bloc.appendChild(document.createTextNode(morceau)); continue; }
+      if (!couv.length && !couvCodes.length) { poser(d, f, document.createTextNode(morceau)); continue; }
       const m = document.createElement("mark");
       if (couvCodes.length) {
         const idx = couvCodes.map((c) => c[2]);
@@ -502,9 +548,20 @@
           : MODE_ENSEMBLES ? "Ensemble" + (cles.length > 1 ? "s " : " ") + cles.join(", ") : "Passage" + (cles.length > 1 ? "s " : " ") + cles.map((k) => k + 1).join(", ");
       }
       m.textContent = morceau;
-      bloc.appendChild(m);
+      poser(d, f, m);
     }
   }
+  // Interrupteur de la mise en forme (titres, gras, traits), mémorisé dans le navigateur ; le texte brut reste
+  // le même dans la page, seul le style change.
+  const CLE_MISE_EN_FORME = "codeur.mise_en_forme";
+  function miseEnForme() { try { return localStorage.getItem(CLE_MISE_EN_FORME) !== "non"; } catch (e) { return true; } }
+  function afficherInterrupteur() { $("bouton-mise-en-forme").textContent = miseEnForme() ? "Texte brut" : "Mise en forme"; }
+  $("bouton-mise-en-forme").addEventListener("click", () => {
+    try { localStorage.setItem(CLE_MISE_EN_FORME, miseEnForme() ? "non" : "oui"); } catch (e) { /* stockage indisponible */ }
+    $("texte-dossier").classList.toggle("mise-en-forme", miseEnForme());
+    afficherInterrupteur();
+  });
+  afficherInterrupteur();
   function couleurCode(i) {
     const e = travail.courant && travail.courant.ensembles[i];
     return (!e || !e.code) ? "cCX" : "cC" + (i % 8);
@@ -777,9 +834,14 @@
       const f = await base.from("fiches").select("code, libelle, codable, statut_mco").in("code", uniques);
       if (f.error) throw new Error("lecture de l'index impossible : " + f.error.message);
       for (const x of f.data) index.set(x.code, { codable: x.codable, libelle: x.libelle, statut: x.statut_mco });
-      const d = await base.from("descendants_codables").select("noeud, code, libelle, ordre_kit").in("noeud", uniques).order("ordre_kit");
-      if (d.error) throw new Error("lecture des descendants impossible : " + d.error.message);
-      for (const x of d.data) { if (!descendants.has(x.noeud)) descendants.set(x.noeud, []); descendants.get(x.noeud).push({ code: x.code, libelle: x.libelle }); }
+      // Une requête par code, limitée au nombre de candidats que la correction présente : un nœud peut avoir
+      // plus de cent descendants et PostgREST ne renvoie jamais plus de 1 000 lignes par requête.
+      const reponses = await Promise.all(uniques.map((c) => base.from("descendants_codables").select("code, libelle")
+        .eq("noeud", c).order("ordre_kit").limit(K.LIMITE_CANDIDATS)));
+      reponses.forEach((d, i) => {
+        if (d.error) throw new Error("lecture des descendants impossible : " + d.error.message);
+        if (d.data.length) descendants.set(uniques[i], d.data.map((x) => ({ code: x.code, libelle: x.libelle })));
+      });
     }
     return { index, descendants };
   }
