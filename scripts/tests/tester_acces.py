@@ -210,6 +210,30 @@ def main() -> None:
         essai("écrire dans une table de référence (interdit)", "refus",
               lambda: rows(c1.table("lots").insert({"id": "x", "source": "x", "version": "x"}, returning="minimal").execute()))
 
+        # ---------------------------------------------------------------- 2 bis. le lot des CRH synthétiques (s'il est chargé)
+        LOT_SYNTH = "synthetiques-run08-e500"
+        synth = admin.table("documents").select("id").eq("lot", LOT_SYNTH).eq("version", 1).order("id").limit(1).execute().data
+        if synth:
+            print(f"\n=== 3. Lot {LOT_SYNTH} vu par un testeur ===")
+            sid = synth[0]["id"]
+            essai("synthétique : lire le texte et les colonnes de recherche", "succès",
+                  lambda: rows(c1.table("documents").select("id, id_source, specialite, type_prise_en_charge, texte").eq("id", sid).execute()))
+            essai("synthétique : lire la colonne nettoyage (interdit)", "refus",
+                  lambda: rows(c1.table("documents").select("id, nettoyage").eq("id", sid).execute()))
+            essai("synthétique : lire le codage scenario (invisible)", "vide",
+                  lambda: rows(c1.table("codages").select("id, etape").eq("document", sid).eq("etape", "scenario").execute()))
+            essai("synthétique : aucun codage scenario visible sur tout le lot", "vide",
+                  lambda: rows(c1.table("codages").select("id").eq("etape", "scenario").limit(5).execute()))
+            vue = c1.table("dossiers_disponibles").select("id, specialite, type_prise_en_charge", count="exact").eq("lot", LOT_SYNTH).range(0, 999).execute()
+            essai("synthétique : 500 dossiers dans dossiers_disponibles", "succès", lambda: [vue.count] if vue.count == 500 else [])
+            essai("synthétique : type_prise_en_charge renseigné sur les 500", "succès",
+                  lambda: [1] if sum(bool(v["type_prise_en_charge"]) for v in vue.data) == 500 else [])
+            essai("synthétique : 36 dossiers sans spécialité (null, jamais vide)", "succès",
+                  lambda: [1] if sum(v["specialite"] is None for v in vue.data) == 36 and not any(v["specialite"] == "" for v in vue.data) else [])
+            valeurs = c1.table("dossiers_disponibles").select("specialite, type_prise_en_charge").limit(10000).execute().data
+            total = c1.table("dossiers_disponibles").select("id", count="exact", head=True).execute().count
+            print(f"  liste des valeurs de filtre (requête de la page, limit 10000) : {len(valeurs)} lignes reçues pour {total} dossiers disponibles")
+
     finally:
         # ---------------------------------------------------------------- 3. nettoyage (clé secrète)
         print("\n=== 4. Nettoyage avec la clé secrète ===")
