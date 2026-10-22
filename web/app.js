@@ -301,6 +301,12 @@
   // spécialités et types distincts avec leur effectif, en une requête courte (PostgREST renvoie au plus 1 000
   // lignes par requête ; lire toute la vue ne convenait plus au-delà de 1 000 dossiers).
   async function chargerValeursRecherche() {
+    // Une seule promesse partagée : deux appels rapprochés (restauration de session, puis changement d'état de
+    // connexion) remplissaient chacun les menus, d'où des sources en double (corrigé en A2-0.14).
+    if (!liste.chargement) liste.chargement = chargerValeursRecherche_().catch((e) => { liste.chargement = null; throw e; });
+    return liste.chargement;
+  }
+  async function chargerValeursRecherche_() {
     if (liste.valeurs) return;
     const lots = await base.from("lots").select("id, description").order("id");
     if (lots.error) { message("message-liste", "Les sources n'ont pas pu être chargées : " + lots.error.message, true); return; }
@@ -310,6 +316,7 @@
     const lotsPresents = new Set(data.map((v) => v.lot));
     for (const l of lots.data) if (lotsPresents.has(l.id)) liste.lots.set(l.id, l.description);
     const sel = $("filtre-source");
+    while (sel.options.length > 1) sel.remove(1);
     for (const [id] of liste.lots) {
       const opt = document.createElement("option");
       opt.value = id; opt.textContent = nomSource(id) + " (" + nombre(data.filter((v) => v.lot === id).reduce((t, v) => t + v.nb, 0)) + ")";
@@ -1115,8 +1122,10 @@
     if (!c.ensembles.length) { const p = document.createElement("p"); p.className = "discret"; p.textContent = "Aucun code. Sélectionnez un passage dans le texte pour en créer un."; zone.appendChild(p); }
     c.ensembles.forEach((e, i) => zone.appendChild(rendreCode(e, i)));
     rendreNonCodes();
-    $("bouton-enregistrer-codage").disabled = !travail.modifie;
-    if (!travail.modifie && !$("codage-sauvegarde").textContent.startsWith("Modifications")) $("codage-sauvegarde").textContent = "Aucune modification depuis le dernier enregistrement.";
+    $("bouton-enregistrer-codage").disabled = !travail.courant;
+    if (!travail.modifie && !$("codage-sauvegarde").textContent.startsWith("Modifications") && !$("codage-sauvegarde").textContent.startsWith("Codage ")) {
+      $("codage-sauvegarde").textContent = "Aucune modification depuis le dernier enregistrement. « Enregistrer mon codage » enregistre votre acceptation du codage tel quel.";
+    }
     rendreTexte(); rendreCompte();
   }
   function rendreCode(e, i) {
@@ -1398,12 +1407,16 @@
     return { id: ins.data.id, compteurs };
   }
   $("bouton-enregistrer-codage").addEventListener("click", async () => {
-    if (!travail.courant || !travail.modifie) return;
+    if (!travail.courant) return;
     const b = $("bouton-enregistrer-codage"); b.disabled = true;
+    const sansModification = !travail.modifie;
     try {
       const { compteurs } = await enregistrerRevue();
-      $("codage-sauvegarde").textContent = "Codage enregistré dans la base à " + new Date().toLocaleTimeString("fr-FR") + " (votre revue). Compteurs : " + compteurs.conserves + " conservé(s), " + compteurs.modifies + " modifié(s), " + compteurs.preuves_modifiees + " preuves modifiées, " + compteurs.retires + " retiré(s), " + compteurs.ajoutes + " ajouté(s).";
-      message("message-dossier", "");
+      const heure = new Date().toLocaleTimeString("fr-FR");
+      $("codage-sauvegarde").textContent = sansModification
+        ? "Codage accepté tel quel, enregistré dans la base à " + heure + " (votre revue, tout conservé : " + compteurs.conserves + " code(s))."
+        : "Codage enregistré dans la base à " + heure + " (votre revue). Compteurs : " + compteurs.conserves + " conservé(s), " + compteurs.modifies + " modifié(s), " + compteurs.preuves_modifiees + " preuves modifiées, " + compteurs.retires + " retiré(s), " + compteurs.ajoutes + " ajouté(s).";
+      message("message-dossier", sansModification ? "Votre acceptation du codage tel quel est enregistrée." : "Votre codage est enregistré.");
       rendreCodage();
     } catch (e) {
       message("message-dossier", "L'enregistrement a échoué : " + e.message, true);
