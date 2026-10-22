@@ -1172,7 +1172,6 @@
   // travail.courant : la copie de travail, modifiable ; sauvegardée dans le navigateur jusqu'à « Enregistrer mon codage ».
   const travail = { base: null, courant: null, modifie: false, localEnAttente: null };
   const codageUI = { ressort: null, recherche: null, commentairesOuverts: new Set(), commentaireDossierOuvert: false, vue: "codage", appelEnCours: false, couleurs: new Map() };
-  document.querySelectorAll(".selecteur button").forEach((b) => b.addEventListener("click", () => { enregistrerVariante(b.dataset.variante); if (travail.courant) rendreCodage(); }));
   const CLE_CODAGE = () => "codeur.codage." + etat.utilisateur.id + "." + dossier.doc.id;
   function copier(o) { return JSON.parse(JSON.stringify(o)); }
 
@@ -1251,7 +1250,6 @@
     c.ensembles.forEach((e, i) => zone.appendChild(rendreCode(e, i)));
     rendreNonCodes();
     rendreCommentaireDossier();
-    document.querySelectorAll(".selecteur button").forEach((b) => b.classList.toggle("actif", b.dataset.variante === variante));
     $("bouton-enregistrer-codage").disabled = !travail.courant;
     if (!travail.modifie && !$("codage-sauvegarde").textContent.startsWith("Modifications") && !$("codage-sauvegarde").textContent.startsWith("Codage ")) {
       $("codage-sauvegarde").textContent = "Aucune modification depuis le dernier enregistrement. « Enregistrer mon codage » enregistre votre acceptation du codage tel quel.";

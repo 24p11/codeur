@@ -213,4 +213,4 @@ Le format du codage prévoit des commentaires sur chaque code (`ensembles[].comm
 - Les commentaires d'auteur `outil` restent affichés en italique dans la marge et portés par les icônes d'avertissement (§14).
 - Les commentaires ancrés sur un passage du texte ne sont pas dans cette séance.
 
-**Sélecteur d'affichage** : l'en-tête du pavé porte les trois boutons A · B · C, qui changent l'affichage immédiatement et mémorisent le choix dans le navigateur (le même que le réglage « Affichage du codage »).
+**Choix de l'affichage** : uniquement dans l'écran « Réglages de l'IA » (liste « Affichage du codage »), à la demande de Rémi ; un sélecteur A · B · C dans l'en-tête du pavé, brièvement ajouté en A2-0.19, a été retiré en A2-0.20.
