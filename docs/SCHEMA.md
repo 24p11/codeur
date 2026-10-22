@@ -1,5 +1,7 @@
 # Schéma de la base de données
 
+*Version 1.2 — 21 octobre 2026 : passages non codés (§3.4, §3.5), affichage du codage et modifications par l'utilisateur (§3.5), version de la mention acceptée (§5.1, §7), précisions 20 à 24 (§10).*
+
 *Version 1.1 — 18 octobre 2026 (précisions de mise en œuvre de la base, §10).*
 
 *Version 1.0 — 18 octobre 2026. Établi lors de la séance sur le schéma, à partir de la note `docs/exploration/inventaire_corpus.md`. Ce document fait foi pour la structure de la base ; `CADRAGE.md` décrit le projet dans son ensemble.*
@@ -18,7 +20,7 @@ Ce document décrit comment les informations sont rangées dans la base Supabase
 3. **Le texte d'un document est figé.** Les éléments de preuve sont repérés par leur position dans le texte : si le texte changeait, toutes les positions deviendraient fausses.
 4. **Peu de colonnes, des champs JSON pour le reste.** Les sources futures n'auront pas toutes le niveau de détail de PARHAF. Les colonnes sont réservées à ce qu'on recherche ou filtre souvent ; le reste est rangé dans des champs JSON, indexés et interrogeables.
 5. **Le testeur ne voit que ce qu'un codeur voit en réalité** : le texte du compte rendu. Le codage initial (celui du scénario), les évaluations de qualité faites par le LLM et les réponses brutes du LLM restent dans la base, inaccessibles aux testeurs.
-6. **Les codes CIM-10 sont toujours écrits sans point**, avec l'éventuelle extension PMSI collée au code, comme dans le RUM : `K409`, `I5009`, `K635+0`, `E11ni`.
+6. **Les codes CIM-10 sont toujours écrits sans point**, avec l'éventuelle extension PMSI collée au code, comme dans le RUM : `K409`, `I5009`, `K635+0`, `F03+00`. La forme de référence est la colonne `code_atih` de l’index recode-icd (l’extension « ni » n’existe pas dans le kit ATIH 2025).
 
 ---
 
@@ -136,6 +138,10 @@ Les lignes de cette table ne sont **jamais modifiées ni supprimées** ; seules 
       "explication": null,
       "commentaires": []
     }
+  ],
+  "passages_non_codes": [
+    { "debut": 88, "fin": 118, "texte": "appendicectomie dans l'enfance",
+      "raison": "Antécédent sans incidence sur le séjour", "auteur": "ia" }
   ]
 }
 ```
@@ -152,6 +158,7 @@ Les lignes de cette table ne sont **jamais modifiées ni supprimées** ; seules 
 | `preuves` | Les éléments de preuve : position de début et de fin dans le texte, et texte cité. Un champ facultatif `introuvable: true` signale une citation qui n'a pas pu être retrouvée dans le texte |
 | `confiance`, `explication` | Remplis par l'IA quand elle propose un code ; vides sinon |
 | `commentaires` | Commentaires sur ce code |
+| `passages_non_codes` | Les passages surlignés que l'IA (ou l'utilisateur) a déclarés **non codés** : position, texte cité, `raison` et `auteur` (`ia` ou `humain`). Liste vide si aucun. Absente des codages `scenario` |
 
 **Les commentaires** portent toujours leur auteur (`ia`, `humain`, ou `generateur` pour les remarques issues du chargement des CRH synthétiques) et l'étape où ils ont été écrits. Ils passent d'une version à la suivante, sauf si le code auquel ils sont attachés est retiré.
 
@@ -165,9 +172,20 @@ Avant l'appel au LLM, l'utilisateur **surligne des passages sans les regrouper**
 
 **Garantie apportée par l'outil** : chaque passage envoyé doit se retrouver dans la réponse, rattaché à un ensemble ou déclaré non codé. Un passage absent de la réponse est signalé à l'utilisateur. La liste des passages envoyés est conservée dans la requête de `appels_llm`, et les ensembles produits dans la ligne `ia_humain` : on peut ainsi mesurer la capacité du LLM à faire les ensembles.
 
-Après l'appel, l'utilisateur revoit les ensembles dans le panneau prévu à cet effet : déplacer un passage d'un ensemble à un autre, retirer un passage, séparer ou fusionner des ensembles.
+**Le LLM désigne les passages par leur numéro**, jamais par leurs positions : la page numérote les passages envoyés, le LLM répond « ensemble I10 : passages 1, 3 et 4 », et c'est la page qui recopie les positions et le texte cité de chaque passage. Les preuves d'un codage `ia_humain` sont donc toujours exactes. Un même passage peut appuyer plusieurs codes (par exemple un diabète avec néphropathie) ; la page le signale sans le refuser.
 
-*À préciser au lot A2* : le format exact des passages déclarés non codés dans le JSON du codage, et la possibilité, lors d'un appel répété, que le LLM propose de rattacher un nouveau passage à un ensemble déjà codé (simple proposition, sans modifier le code de l'ensemble).
+**Passages non codés** : ils sont rangés dans la liste `passages_non_codes` du JSON (§3.4), avec la raison donnée par le LLM. L'utilisateur peut ensuite coder un tel passage lui-même.
+
+**Affichage et modifications par l'utilisateur** (lot A2-A3). Les codes s'affichent **sous le texte**, chacun avec la liste de ses passages cités ; plusieurs variantes d'affichage sont comparées (liste simple, encadrés de couleur…), avec les mêmes données et les mêmes actions. L'utilisateur peut :
+
+- **changer le code** (recherche par code ou par mots, parmi les seuls codes codables) : les preuves restent attachées ;
+- **retirer** une preuve, **ajouter** un passage sélectionné à un code, **déplacer** une preuve d'un code à un autre (glisser-déposer, ou menu « Déplacer vers… ») ;
+- **créer un code** à partir d'un passage sélectionné, **supprimer** un code ;
+- **désigner la pathologie principale** (une seule : la précédente passe en diagnostic associé).
+
+Un code dont on a retiré toutes les preuves est conservé, signalé « sans preuve » ; l'utilisateur décide de le garder ou de le supprimer. Ces modifications restent dans le navigateur (sauvegarde locale) jusqu'au clic sur « Enregistrer mon codage », qui crée la ligne `revue_humain`.
+
+*Reste à préciser* : la possibilité, lors d'un appel répété, que le LLM propose de rattacher un nouveau passage à un ensemble déjà codé (simple proposition, sans modifier le code de l'ensemble).
 
 ### 3.6 Les appels répétés à l'IA
 
@@ -273,7 +291,9 @@ Le résultat du groupage, quand il sera mis en place, sera rangé dans la table 
 
 ### 5.1 `profils`
 
-Les informations saisies à l'inscription. Une ligne par compte. Colonnes : `id` (le compte Supabase), `nom`, `prenom`, `statut` (medecin_dim, tim, autre_medecin, interne, etudiant, autre), `etablissement`, `accord_le` (date de l'accord pour l'utilisation des annotations à des fins de recherche), `cree_le`.
+Les informations saisies à l'inscription. Une ligne par compte. Colonnes : `id` (le compte Supabase), `nom`, `prenom`, `statut` (medecin_dim, tim, autre_medecin, interne, etudiant, autre), `etablissement`, `accord_le` (date de l'accord pour l'utilisation des annotations à des fins de recherche), `version_mention` (la version de la mention d'information acceptée, lue dans le repère `<!-- version: … -->` de `docs/mention_information.md`), `cree_le`.
+
+Quand la version de la mention change, la page redemande l'accord à la connexion suivante. `accord_le` et `version_mention` ne peuvent être écrits par le testeur qu'à l'inscription (la base impose alors l'heure d'accord) ou par la fonction `accepter_mention` (§10, point 21).
 
 ### 5.2 `appels_llm`
 
@@ -333,7 +353,7 @@ Ces règles sont appliquées **par la base elle-même**, et non seulement par l'
 | `rum` | lire et ajouter ses propres lignes |
 | `appels_llm` | ajouter ses propres lignes, sans pouvoir les relire |
 | `evaluations` | ajouter ses propres lignes ; relire uniquement celles dont il est l'auteur humain, jamais celles de l'IA |
-| `profils` | créer (à l'inscription), lire et modifier son propre profil |
+| `profils` | créer (à l'inscription), lire son propre profil, et en modifier seulement `nom`, `prenom`, `statut` et `etablissement` ; l'accord se renouvelle par la fonction `accepter_mention` |
 
 Le chargement des données de référence et du codage initial se fait par les scripts Python, avec la clé secrète, sur l'ordinateur du responsable du projet.
 
@@ -386,5 +406,11 @@ Interprétations retenues lors de la création de la base (migrations de `supaba
 
 18. **`nettoyage` est fermé aux testeurs** (migration `20261018130000_dossiers_disponibles.sql`) : ce champ contient les blocs retirés au chargement, dont des codes du scénario. La lecture de `documents` est donc accordée **colonne par colonne** : **toute nouvelle colonne de `documents` doit recevoir explicitement son droit de lecture** dans sa migration, faute de quoi la page ne la verra pas.
 19. **Vue `dossiers_disponibles`**, lue par la page pour la liste des dossiers, avec les droits du testeur (`security_invoker`) : dernière version de chaque document, sans les documents `a_corriger` ; colonnes `id`, `lot`, `id_source`, `version`, `specialite`, `type_prise_en_charge`, `nb_documents_origine`, `longueur` (en caractères).
+
+20. **Colonnes calculées de `documents`** (migration `20261018140000_documents_colonnes_generees.sql`) : `nb_documents_origine` et `a_corriger` sont calculées par la base à partir de `nettoyage`, et lisibles par les testeurs. La vue `dossiers_disponibles` les lit, ce qui lui permet de fonctionner avec les droits du testeur (`security_invoker`) sans jamais lire `nettoyage`.
+21. **Version de la mention** (migration `20261018150000_profils_version_mention.sql`) : colonne `profils.version_mention` ; modification de `profils` accordée colonne par colonne (`nom`, `prenom`, `statut`, `etablissement`) ; à l'inscription, un déclencheur impose `accord_le` = heure de la base ; la fonction `accepter_mention(version)` est la seule voie pour renouveler l'accord : elle s'exécute avec les droits de son propriétaire, ne touche que la ligne du testeur connecté, et fixe son chemin de recherche (`search_path` vide, noms de tables complets). Toute fonction exécutée avec les droits de son propriétaire doit suivre la même règle.
+22. **Page d'édition (lot A6)** : une nouvelle version d'un document **n'hérite pas** de l'anomalie `a_corriger` de la version dont elle est issue ; c'est ce qui la rend disponible aux testeurs.
+23. **Passages non codés** : liste `passages_non_codes` du JSON du codage (§3.4, §3.5).
+24. **Les preuves des codages `ia_humain`** sont recopiées par la page à partir des passages envoyés, que le LLM désigne par leur numéro (§3.5).
 
 *Base créée le 18 octobre 2026 : projet `codeur`, région Irlande (Union européenne), PostgreSQL 17 ; sept migrations appliquées (la septième ne fait que mettre à jour le commentaire de `rum.rum` après le déplacement du fichier ATIH) ; vérification du schéma conforme ; tests d'accès : 32 essais réussis sur 32 (commit `3918a2c`).*

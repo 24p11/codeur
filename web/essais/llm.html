@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>codeur — essai d'accès au LLM</title>
+  <style>
+    body { margin: 0; padding: 1.5rem; font: 16px/1.5 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #1f2328; background: #fff; max-width: 72ch; margin-inline: auto; }
+    label { display: block; font-weight: 600; margin: .75rem 0 .25rem; }
+    input { width: 100%; padding: .5rem .6rem; font: inherit; border: 1px solid #d0d7de; border-radius: 6px; }
+    button { font: inherit; padding: .5rem .9rem; border-radius: 6px; border: 1px solid #0a5c8a; background: #0a5c8a; color: #fff; cursor: pointer; margin-top: .75rem; }
+    button:disabled { opacity: .55; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f6f8fa; padding: .75rem; border-radius: 6px; border: 1px solid #d0d7de; }
+    .ok { color: #116329; } .ko { color: #9a3412; }
+    .discret { color: #57606a; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <h1>Essai d'accès au LLM depuis une page web</h1>
+  <p class="discret">Cette page envoie une courte demande au service indiqué, directement depuis votre navigateur, avec votre clé. La clé n'est envoyée qu'au service du LLM ; elle n'est ni enregistrée ni transmise ailleurs. Rien n'est écrit dans la base de <code>codeur</code>.</p>
+  <label for="adresse">Adresse du service</label>
+  <input id="adresse" value="https://api.mistral.ai/v1">
+  <label for="modele">Modèle</label>
+  <input id="modele" value="mistral-large-latest">
+  <label for="cle">Clé</label>
+  <input id="cle" type="password" autocomplete="off" placeholder="votre clé API">
+  <button id="bouton">Envoyer la demande d'essai</button>
+  <h2>Résultat</h2>
+  <pre id="resultat">(aucun essai pour l'instant)</pre>
+  <script>
+    "use strict";
+    const $ = (id) => document.getElementById(id);
+    function ecrire(lignes) { $("resultat").textContent = lignes.join("\n"); }
+    async function appel(adresse, modele, cle, json) {
+      const corps = {
+        model: modele,
+        temperature: 0,
+        messages: [
+          { role: "system", content: "Tu réponds en français, très brièvement." },
+          { role: "user", content: json
+              ? "Réponds uniquement par un objet JSON de la forme {\"ville\": \"…\", \"pays\": \"…\"} pour la capitale de la France."
+              : "Quelle est la capitale de la France ? Réponds en une phrase." },
+        ],
+      };
+      if (json) corps.response_format = { type: "json_object" };
+      const debut = performance.now();
+      const rep = await fetch(adresse.replace(/\/+$/, "") + "/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cle },
+        body: JSON.stringify(corps),
+      });
+      const duree = Math.round(performance.now() - debut);
+      const texte = await rep.text();
+      let donnees = null;
+      try { donnees = JSON.parse(texte); } catch (e) { /* pas du JSON */ }
+      return { statut: rep.status, duree, texte, donnees };
+    }
+    $("bouton").addEventListener("click", async () => {
+      const adresse = $("adresse").value.trim(), modele = $("modele").value.trim(), cle = $("cle").value.trim();
+      if (!adresse || !modele || !cle) { ecrire(["Renseignez l'adresse, le modèle et la clé."]); return; }
+      $("bouton").disabled = true;
+      const lignes = ["Navigateur : " + navigator.userAgent, "Page : " + location.href, ""];
+      ecrire(lignes.concat(["Essai 1 (réponse en texte) : en cours…"]));
+      for (const [nom, json] of [["Essai 1 (réponse en texte)", false], ["Essai 2 (réponse au format JSON demandé via response_format)", true]]) {
+        try {
+          const r = await appel(adresse, modele, cle, json);
+          if (r.statut === 200 && r.donnees && r.donnees.choices) {
+            const contenu = r.donnees.choices[0].message.content;
+            const u = r.donnees.usage || {};
+            lignes.push(nom + " : RÉUSSI (HTTP 200, " + r.duree + " ms)",
+              "  modèle : " + (r.donnees.model || modele),
+              "  réponse : " + String(contenu).replace(/\s+/g, " ").slice(0, 300),
+              "  tokens : entrée " + u.prompt_tokens + ", sortie " + u.completion_tokens + ", total " + u.total_tokens);
+            if (json) { try { JSON.parse(contenu); lignes.push("  le contenu est un JSON valide : oui"); } catch (e) { lignes.push("  le contenu est un JSON valide : NON"); } }
+          } else {
+            lignes.push(nom + " : ÉCHEC (HTTP " + r.statut + ", " + r.duree + " ms)", "  réponse du service : " + r.texte.slice(0, 400));
+          }
+        } catch (e) {
+          lignes.push(nom + " : ÉCHEC avant toute réponse — " + e.name + " : " + e.message,
+            "  (un « TypeError: Failed to fetch » ou « NetworkError » signifie un blocage réseau ou un refus d'appel depuis une page web ; ouvrez la console, F12, pour le détail)");
+        }
+        lignes.push("");
+        ecrire(lignes);
+      }
+      $("bouton").disabled = false;
+    });
+  </script>
+</body>
+</html>

@@ -74,6 +74,7 @@ def main() -> None:
         essai("non connecté : lire les documents", "refus", lambda: rows(anon.table("documents").select("id").execute()))
         essai("non connecté : lire les fiches", "refus", lambda: rows(anon.table("fiches").select("code").execute()))
         essai("non connecté : lire la vue dossiers_disponibles", "refus", lambda: rows(anon.table("dossiers_disponibles").select("id").execute()))
+        essai("non connecté : lire descendants_codables", "refus", lambda: rows(anon.table("descendants_codables").select("code").limit(1).execute()))
 
         print("\n=== 3. Premier compte connecté (clé publique) ===")
         c1 = create_client(env["SUPABASE_URL"], env["SUPABASE_PUBLISHABLE_KEY"])
@@ -194,6 +195,10 @@ def main() -> None:
               lambda: rows(c1.table("documents").insert({"lot": lot_id, "id_source": "DOC-TEST-2", "texte": "x", "cree_par": u1}, returning="minimal").execute()))
         essai("modifier un document (interdit)", "refus",
               lambda: rows(c1.table("documents").update({"specialite": "x"}).eq("id", doc_id).execute()))
+        essai("lire descendants_codables (référentiel, lecture seule)", "succès",
+              lambda: rows(c1.table("descendants_codables").select("noeud, code").eq("noeud", "Z992").execute()))
+        essai("écrire dans descendants_codables (interdit)", "refus",
+              lambda: rows(c1.table("descendants_codables").insert({"noeud": "Z992", "code": "Z992+0", "libelle": "x", "ordre_kit": 1, "version_livraison": "x"}, returning="minimal").execute()))
         essai("écrire dans une table de référence (interdit)", "refus",
               lambda: rows(c1.table("lots").insert({"id": "x", "source": "x", "version": "x"}, returning="minimal").execute()))
 

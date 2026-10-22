@@ -28,11 +28,11 @@ docs/referentiels/                      (dans le dépôt)
 
 donnees/referentiels/                   (hors du dépôt)
 └── recode-icd/
-    └── <version-de-la-livraison>/      un dossier par livraison, jamais modifié
-        ├── index.csv                   la liste des codes, avec l'indicateur « codable »
-        ├── fiches/                     les fiches d'identité, une par code
-        ├── formulations.csv            les formulations (synonymes), avec leur source
-        └── LIVRAISON.md                version, date, version ATIH d'origine, empreintes
+    └── <version-de-la-livraison>/      un dossier par livraison (ex. 65701d6_atih-2025), jamais modifié
+        ├── recode-icd_…tar.gz          l'archive livrée
+        └── extrait/<livraison>/        sa décompression : codes.csv (tous les codes, clé code_atih),
+                                        formulations.csv, descendants_codables.csv, cards_library/ (index.csv,
+                                        CONTRAT.md, fiches par chapitre), LIVRAISON.md, guide et mode d'emploi
 ```
 
 **Une livraison de recode-icd n'est jamais modifiée** : une nouvelle livraison crée un nouveau dossier. La base indique toujours la version chargée (table `fiches`, colonne de version), et l'on peut revenir à une livraison antérieure.
@@ -45,9 +45,9 @@ donnees/referentiels/                   (hors du dépôt)
 
 | Référentiel | Usage dans `codeur` | Lot | État | Version | Licence |
 |---|---|---|---|---|---|
-| **Index des codes** : code complet sans point, extension collée ; libellé ; indicateur « codable » ; statuts MCO | Vérification des codes, boucle de correction, contrôles qualité | B3 | À livrer | | Données ATIH |
-| **Fiches d'identité des codes** : une par code codable, éventuellement vide si elle n'apporte rien | Revue par l'IA | B3 (livraison actuelle), puis chantier recode-icd | À livrer | | À préciser |
-| **Formulations** : code, formulation, source | Recherche par mots-clés, codes candidats dans le prompt | B3 | À livrer | | **À vérifier source par source** (CépiDc, AP-HP, formulations générées…) |
+| **Index des codes** : code complet sans point, extension collée ; libellé ; indicateur « codable » ; statuts MCO | Vérification des codes, boucle de correction, contrôles qualité | B3 | **Chargé** le 22 octobre 2026 (`fiches`, 42 897 codes ; `descendants_codables`, 19 974) | `65701d6_atih-2025` (kit ATIH 2025) | Données ATIH |
+| **Fiches d'identité des codes** : une par code codable, éventuellement vide si elle n'apporte rien | Revue par l'IA | B3 (livraison actuelle), puis chantier recode-icd | Livrées (15 282 fiches dans `cards_library/`), **non chargées** (attendent la revue) | `65701d6_atih-2025` | À préciser |
+| **Formulations** : code, formulation, source | Recherche par mots-clés, codes candidats dans le prompt | B3 | **Chargé** le 22 octobre 2026 (`synonymes`, 109 987 formulations + 42 897 libellés) | `65701d6_atih-2025` | **Aucune licence indiquée dans la livraison** : en base seulement, jamais dans le dépôt ; sources CepiDc 2015, CIM-10 index, thésaurus AP-HP |
 
 ### 3.2 Référentiels réglementaires et métier
 

@@ -19,6 +19,7 @@ Le schéma est écrit sous forme de **migrations** : des fichiers SQL numéroté
 | `20261018130000_dossiers_disponibles.sql` | Lecture de `documents` accordée colonne par colonne (jamais `nettoyage`) ; vue `dossiers_disponibles` pour la liste de la page |
 | `20261018140000_documents_colonnes_generees.sql` | Colonnes générées `nb_documents_origine` et `a_corriger`, lisibles ; la vue les lit à la place de `nettoyage` et reste en `security_invoker` |
 | `20261018150000_profils_version_mention.sql` | Colonne `profils.version_mention` ; modification de `profils` limitée à nom, prénom, statut, établissement ; fonction `accepter_mention(version)` (seule voie pour `accord_le` et `version_mention`) ; déclencheur : `accord_le` à l'heure de la base à l'inscription |
+| `20261022100000_referentiels_recode_icd.sql` | `fiches` : `statut_mco`, `interdit_dp/dr/das` ; `synonymes` : `version_livraison`, unicité (code, formulation, source) ; table `descendants_codables` (lecture seule pour les testeurs) |
 
 ## 2. Ce qu'il faut sur l'ordinateur
 
