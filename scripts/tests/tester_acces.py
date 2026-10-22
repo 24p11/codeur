@@ -129,7 +129,7 @@ def main() -> None:
                                                            "verdict": "douteux", "notes": {"organisation": 3}}, returning="minimal").execute()))
         essai("enregistrer sa propre évaluation (humain)", "succès",
               lambda: rows(c1.table("evaluations").insert({"utilisateur": u1, "document": doc_id, "auteur": "humain",
-                                                           "notes": {"organisation": 4}}).execute()))
+                                                           "notes": {"organisation": 4, "langage": None}, "version_grille": "grille_v1"}).execute()))
         evals = c1.table("evaluations").select("id, auteur").eq("document", doc_id).execute().data
         essai("relire ses évaluations : seulement celles de l'humain", "succès" if evals and all(e["auteur"] == "humain" for e in evals) else "refus",
               lambda: [e for e in evals if e["auteur"] == "humain"])

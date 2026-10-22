@@ -501,6 +501,7 @@
     rendre(); cacherBarre();
     await chargerCodageExistant();
     majBoutons();
+    chargerEvaluationExistante();
   }
 
   // Les « unités » surlignées : en mode passages, chaque passage ; en mode ensembles, chaque ensemble.
@@ -828,6 +829,87 @@
   // les lectures de l'index, les écritures dans appels_llm et codages, et l'enchaînement.
   const K = window.CodeurCodage;
   const prompts = {};
+  // --- Notation de la qualité du compte rendu (brief 7, étape 4) ---------------------------------------
+  // La grille est le fichier versionné web/grille_qualite.md : un titre « ## » par dimension, une ligne par niveau
+  // « n — repère ». Les clés des notes (SCHEMA.md §5.3) suivent l'ordre des dimensions.
+  const CLES_DIMENSIONS = ["organisation", "langage", "coherence_medicale", "synthese", "qualite_generale"];
+  let grille = null;
+  async function lireGrille() {
+    if (grille) return grille;
+    const rep = await fetch("grille_qualite.md", { cache: "no-store" });
+    if (!rep.ok) throw new Error("grille de qualité introuvable (HTTP " + rep.status + ")");
+    const md = await rep.text();
+    const v = md.match(/<!--\s*version:\s*([^\s>]+)\s*-->/);
+    if (!v) throw new Error("grille de qualité sans repère de version");
+    const dimensions = [];
+    for (const ligne of md.split("\n")) {
+      const t = ligne.match(/^##\s+(.+?)\s*$/);
+      if (t) { const [nom, sous] = t[1].split(/\s*:\s*/); dimensions.push({ nom, sous: sous || null, reperes: {} }); continue; }
+      const r = ligne.match(/^([1-5])\s*[—–-]\s*(.+?)\s*$/);
+      if (r && dimensions.length) dimensions[dimensions.length - 1].reperes[r[1]] = r[2];
+    }
+    if (dimensions.length !== 5 || dimensions.some((d) => Object.keys(d.reperes).length !== 5)) throw new Error("grille de qualité incomplète (cinq dimensions, cinq niveaux chacune)");
+    dimensions.forEach((d, i) => { d.cle = CLES_DIMENSIONS[i]; });
+    grille = { version: v[1], dimensions };
+    return grille;
+  }
+  const evaluation = { notes: {}, derniere: null };
+  async function chargerEvaluationExistante() {
+    evaluation.notes = {}; evaluation.derniere = null;
+    $("evaluation-commentaire").value = ""; $("evaluation-sauvegarde").textContent = ""; $("evaluation-etat").textContent = "";
+    message("evaluation-message", "");
+    try { await lireGrille(); } catch (e) { message("evaluation-message", "La grille de notation n'a pas pu être lue (" + e.message + ").", true); return; }
+    const r = await base.from("evaluations").select("id, cree_le, notes, commentaire, version_grille").eq("document", dossier.doc.id)
+      .eq("utilisateur", etat.utilisateur.id).eq("auteur", "humain").order("cree_le", { ascending: false }).limit(1);
+    if (r.error) { message("evaluation-message", "Votre note n'a pas pu être relue : " + r.error.message, true); }
+    else if (r.data.length) {
+      evaluation.derniere = r.data[0];
+      evaluation.notes = { ...(r.data[0].notes || {}) };
+      $("evaluation-commentaire").value = r.data[0].commentaire || "";
+      $("evaluation-etat").textContent = "Dernière note enregistrée le " + new Date(r.data[0].cree_le).toLocaleString("fr-FR") +
+        (r.data[0].version_grille && r.data[0].version_grille !== grille.version ? " (grille " + r.data[0].version_grille + ")" : "") + ".";
+    }
+    rendreEvaluation();
+  }
+  function rendreEvaluation() {
+    const zone = $("evaluation-contenu"); zone.textContent = "";
+    if (!grille) return;
+    for (const d of grille.dimensions) {
+      const dim = document.createElement("div"); dim.className = "dim";
+      const nom = document.createElement("span"); nom.className = "nom"; nom.textContent = d.nom;
+      if (d.sous) { const small = document.createElement("small"); small.textContent = d.sous; nom.appendChild(small); }
+      const choix = document.createElement("span"); choix.className = "choix";
+      const valeur = evaluation.notes[d.cle];
+      for (let n = 1; n <= 5; n++) {
+        const b = document.createElement("button"); b.type = "button"; b.textContent = n; b.title = n + " — " + d.reperes[n];
+        b.className = valeur === n ? "actif" : "";
+        b.addEventListener("click", () => { evaluation.notes[d.cle] = valeur === n ? null : n; rendreEvaluation(); });
+        choix.appendChild(b);
+      }
+      const repere = document.createElement("span"); repere.className = "repere";
+      repere.textContent = valeur ? valeur + " — " + d.reperes[valeur] : "Non notée.";
+      dim.append(nom, choix, repere); zone.appendChild(dim);
+    }
+    const nb = CLES_DIMENSIONS.filter((k) => evaluation.notes[k]).length;
+    $("evaluation-sauvegarde").textContent = nb === 5 ? "" : (nb === 0 ? "Aucune dimension notée pour l'instant." : nb + " dimension" + (nb > 1 ? "s" : "") + " notée" + (nb > 1 ? "s" : "") + " sur 5 : une note incomplète peut être enregistrée.");
+  }
+  $("evaluation-commentaire").addEventListener("input", () => { $("evaluation-compte").textContent = nombre($("evaluation-commentaire").value.length) + " / 1 000"; });
+  $("bouton-enregistrer-note").addEventListener("click", async () => {
+    if (!dossier.doc || !grille) return;
+    const notes = {}; for (const k of CLES_DIMENSIONS) notes[k] = evaluation.notes[k] || null;
+    const commentaire = $("evaluation-commentaire").value.trim() || null;
+    if (!Object.values(notes).some(Boolean) && !commentaire) { message("evaluation-message", "Notez au moins une dimension, ou écrivez un commentaire, avant d'enregistrer.", true); return; }
+    const b = $("bouton-enregistrer-note"); b.disabled = true; message("evaluation-message", "");
+    const ins = await base.from("evaluations").insert({ utilisateur: etat.utilisateur.id, document: dossier.doc.id, auteur: "humain",
+      notes, commentaire, version_grille: grille.version }).select("id, cree_le").single();
+    b.disabled = false;
+    if (ins.error) { message("evaluation-message", "La note n'a pas pu être enregistrée : " + ins.error.message, true); return; }
+    evaluation.derniere = { id: ins.data.id, cree_le: ins.data.cree_le, notes, commentaire, version_grille: grille.version };
+    $("evaluation-etat").textContent = "Dernière note enregistrée le " + new Date(ins.data.cree_le).toLocaleString("fr-FR") + ".";
+    const nb = Object.values(notes).filter(Boolean).length;
+    message("evaluation-message", "Votre note est enregistrée (" + nb + " dimension" + (nb > 1 ? "s" : "") + " sur 5" + (commentaire ? ", avec un commentaire" : "") + ").");
+  });
+
   async function lirePrompt(nom) {
     if (prompts[nom]) return prompts[nom];
     const rep = await fetch("prompts/" + nom + ".md", { cache: "no-store" });

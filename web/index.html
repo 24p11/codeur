@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>codeur</title>
-  <link rel="stylesheet" href="style.css?v=A2-0.16">
+  <link rel="stylesheet" href="style.css?v=A2-0.17">
 </head>
 <body>
   <header class="entete">
@@ -183,8 +183,16 @@
             </div>
           </div>
           <div id="bloc-evaluation" class="bloc-evaluation" hidden>
-            <h2>Noter ce compte rendu <span class="discret">· facultatif</span></h2>
-            <p class="discret">La grille de notation (cinq dimensions, de 1 à 5, un repère par niveau) arrive à l'étape 4 de cette séance.</p>
+            <div class="codage-tete"><h2>Noter ce compte rendu <span class="discret">· facultatif</span></h2><span id="evaluation-etat" class="discret"></span></div>
+            <p id="evaluation-message" class="message" hidden></p>
+            <div id="evaluation-contenu" class="notation"></div>
+            <label for="evaluation-commentaire">Commentaire libre <span class="discret">(facultatif)</span></label>
+            <textarea id="evaluation-commentaire" rows="3" maxlength="1000" placeholder="Votre remarque sur la qualité de ce compte rendu…"></textarea>
+            <p class="discret rappel-donnees"><span>Aucune donnée concernant un patient réel.</span><span id="evaluation-compte">0 / 1 000</span></p>
+            <div class="sous-texte">
+              <span id="evaluation-sauvegarde" class="discret"></span>
+              <div class="boutons-ligne"><button id="bouton-enregistrer-note">Enregistrer ma note</button></div>
+            </div>
           </div>
           <div id="bloc-codage" class="bloc-codage" hidden>
             <div class="codage-tete">
@@ -235,10 +243,10 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@18.0.14/lib/marked.umd.js"></script>
-  <script src="positions.js?v=A2-0.16"></script>
-  <script src="markdown.js?v=A2-0.16"></script>
-  <script src="codage.js?v=A2-0.16"></script>
-  <script src="config.js?v=A2-0.16"></script>
-  <script src="app.js?v=A2-0.16"></script>
+  <script src="positions.js?v=A2-0.17"></script>
+  <script src="markdown.js?v=A2-0.17"></script>
+  <script src="codage.js?v=A2-0.17"></script>
+  <script src="config.js?v=A2-0.17"></script>
+  <script src="app.js?v=A2-0.17"></script>
 </body>
 </html>

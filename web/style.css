@@ -189,3 +189,16 @@ button.bascule.actif { background: var(--accent); color: #fff; }
 .texte-dossier.mise-en-forme .md-gras { font-weight: 600; }
 .texte-dossier.mise-en-forme .md-marque { color: #b8b8b8; font-weight: 400; }
 .texte-dossier.mise-en-forme .md-trait { color: transparent; border-bottom: 1px solid var(--bord); line-height: .6; }
+
+/* Notation de la qualité du compte rendu (brief 7, étape 4) : cinq lignes, cinq pastilles, le repère du niveau choisi sous la ligne */
+.notation .dim { display: grid; grid-template-columns: minmax(9rem, 14rem) auto; gap: .25rem 1rem; align-items: baseline; padding: .45rem 0; border-top: 1px solid var(--bord); }
+.notation .dim:last-of-type { border-bottom: 1px solid var(--bord); }
+.notation .dim .nom { font-weight: 600; }
+.notation .dim .nom small { display: block; font-weight: 400; color: var(--encre-douce); font-size: .85rem; }
+.notation .choix { display: flex; gap: .3rem; }
+.notation .choix button { width: 2.1rem; height: 2.1rem; padding: 0; margin: 0; border-radius: 50%; background: var(--fond); color: var(--encre-douce); border-color: var(--bord); }
+.notation .choix button:hover { border-color: var(--accent); color: var(--accent); }
+.notation .choix button.actif { background: var(--accent); color: #fff; border-color: var(--accent); }
+.notation .repere { grid-column: 2; font-size: .9rem; color: var(--encre-douce); min-height: 1.2em; }
+.bloc-evaluation textarea { max-width: none; margin-top: .25rem; }
+.rappel-donnees { display: flex; justify-content: space-between; font-size: .8rem; margin: .2rem 0 0; }
