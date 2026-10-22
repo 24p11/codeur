@@ -108,8 +108,9 @@
     etat.accordDonne = true; // les deux cases étaient cochées
     if (etat.reacceptation) {
       // Nouvelle acceptation : seule voie de mise à jour de accord_le et version_mention (fonction de la base).
+      $("bouton-vers-inscription").disabled = true; // un seul envoi, même en cas de double clic
       const { error } = await base.rpc("accepter_mention", { version: mention.version });
-      if (error) { erreur("Votre accord n'a pas pu être enregistré : " + error.message); return; }
+      if (error) { erreur("Votre accord n'a pas pu être enregistré : " + error.message); $("bouton-vers-inscription").disabled = false; return; }
       const { data } = await base.from("profils").select("*").eq("id", etat.utilisateur.id).single();
       etat.profil = data;
       $("bouton-profil").hidden = false;
@@ -166,7 +167,10 @@
       nom: $("profil-nom").value.trim(), prenom: $("profil-prenom").value.trim(),
       statut: $("profil-statut").value, etablissement: $("profil-etablissement").value.trim(),
     };
+    const b = ev.submitter || $("formulaire-profil").querySelector("button[type=submit], button:not([type])");
+    if (b) b.disabled = true;
     const { data, error } = await base.from("profils").update(modifs).eq("id", etat.utilisateur.id).select().single();
+    if (b) b.disabled = false;
     if (error) { message("message-profil", "La modification a échoué : " + error.message, true); return; }
     etat.profil = data;
     message("message-profil", "Profil enregistré.");
@@ -1425,7 +1429,14 @@
   });
 
   // --- Après connexion : profil existant ou parcours d'inscription --------------------------------------
+  let demarreePour; // identifiant de l'utilisateur (ou "deconnecte") pour lequel le démarrage a déjà eu lieu
   async function demarrer(session) {
+    // La page reçoit la session deux fois à l'ouverture (lecture de la session, puis événement de changement
+    // d'état) : le démarrage ne se fait qu'une fois par utilisateur connecté, pour ne lancer qu'une fois les
+    // lectures et affichages qui suivent (profil, mention, liste).
+    const cle = session && session.user ? session.user.id : "deconnecte";
+    if (demarreePour === cle) return;
+    demarreePour = cle;
     const connecte = !!(session && session.user);
     $("utilisateur-courant").hidden = !connecte;
     $("bouton-deconnexion").hidden = !connecte;
