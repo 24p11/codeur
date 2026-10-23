@@ -1,8 +1,12 @@
 # Guide des situations cliniques
 
-Ce dossier reçoit le **guide des situations cliniques**, c'est-à-dire la liste des règles de hiérarchisation (`D1`, `T3`, `S1-Chronic`…) avec, pour chacune, sa famille (tirée de la colonne « Type d'hospitalisation »), son libellé, son type, sa spécificité, la ou les pathologies concernées et l'éventuel code Z de prise en charge.
+Ce dossier contient le **guide des situations cliniques** de `codeur` : la liste des règles de hiérarchisation (`D1`, `T3`, `S1-Chronic`…) avec, pour chacune, sa famille (colonne « Type d'hospitalisation »), sa spécificité, la ou les pathologies concernées et le ou les modes de prise en charge possibles ; et, pour chaque règle officielle, l'**extrait du guide méthodologique MCO** qui la définit.
 
-- Fichier attendu : `guide_situations_cliniques.csv`, version corrigée par Rémi (doublons S2/S3, codes Z95/Z96, règles D5/D6, pathologie de S4, noms de listes à remplacer par leur contenu ; voir `CADRAGE.md` §7).
-- Usage dans l'outil : proposition de la règle de hiérarchisation par le LLM, contrôle de cohérence entre la règle et la pathologie principale, valeur du champ `regle_hierarchisation` du codage.
-- Chargé dans la table `regles_situations` par un script du lot B3 (`docs/SCHEMA.md` §6 et §10.11).
-- État et version : voir `docs/referentiels/README.md`, §3.2.
+| Fichier | Contenu |
+|---|---|
+| `guide_situations_cliniques.csv` | Le guide, version 1 (23 octobre 2026), exporté de la feuille de Rémi : colonnes `Règle`, `Type d'hospitalisation`, `Spécificité`, `Pathologie`, `Mode de prise en charge` ; 43 lignes ; `DS2` renommée `SD2` conformément au guide officiel. Certaines lignes sont des sous-règles du projet Stream qui affinent une règle officielle (`D3-1`, `T2-R52`, `S1-Chronic`…) ; leur rattachement est fait au chargement (brief 8, étape 3) |
+| `extraits_guide_methodologique_2026.csv` | Les extraits officiels, **mot pour mot**, du guide méthodologique MCO 2026 (version provisoire, `../atih/guide_methodologique_mco_2026_provisoire.pdf`) : colonnes `regle_officielle`, `section`, `page` (numéro imprimé), `extrait`, `note` (limites incertaines, réparations). Une ligne par règle D1 à D9, T1 à T15, S1 à S4, SD1, SD2, M1, M2, plus les passages sans étiquette (situations équivalentes au traitement unique, IVG, IMG), deux passages de préambule (définition du DP, conclusion du chapitre VI) et deux passages proposés en plus (encadré sur les maladies chroniques, remarque sur le mot « bilan »). Produit par `scripts/referentiels/extraire_guide.py`, qui ne répare que les coupures de l'extraction (numéros de page, notes de bas de page, retours à la ligne, lettres espacées) |
+
+Lecture du tableau : l'espace sépare une liste (`Z43 Z44`), le tiret marque un intervalle (`Z80-Z99`), « chapitres I à XVII » désigne des chapitres (`../cim/chapitres.csv`), « Aucun » signifie aucune exigence, « Aucun Z42 » se lit « Aucun ou Z42 » ; un nom de liste renvoie au fichier de même nom dans `../cim/listes_codes/` ou `../ccam/listes_actes/`. Une pathologie vide (S4) est voulue.
+
+Usage dans l'outil : proposition de la règle de hiérarchisation et du mode de prise en charge par le LLM (second appel), contrôle de cohérence entre la règle et la pathologie principale, valeur du champ `regle_hierarchisation` du codage. Chargé dans la table `regles_situations` (`docs/SCHEMA.md` §6).

@@ -209,6 +209,12 @@ def main() -> None:
         essai("non connecté : recherche par morceaux (interdit)", "refus", lambda: rows(anon.rpc("rechercher_codes_morceaux", {"recherche": "hta"}).execute()))
         essai("écrire dans une table de référence (interdit)", "refus",
               lambda: rows(c1.table("lots").insert({"id": "x", "source": "x", "version": "x"}, returning="minimal").execute()))
+        essai("lire les chapitres de la CIM (connecté)", "succès", lambda: rows(c1.table("chapitres").select("numero").eq("numero", "II").execute()))
+        essai("lire une liste de codes (connecté)", "succès", lambda: rows(c1.table("listes_codes").select("code").eq("liste", "icd_codes_legal_abortion").limit(1).execute()))
+        essai("écrire dans listes_codes (interdit)", "refus",
+              lambda: rows(c1.table("listes_codes").insert({"liste": "x", "nature": "cim", "code": "I10"}, returning="minimal").execute()))
+        essai("non connecté : lire les chapitres (interdit)", "refus", lambda: rows(anon.table("chapitres").select("numero").execute()))
+        essai("non connecté : lire une liste (interdit)", "refus", lambda: rows(anon.table("listes_codes").select("code").limit(1).execute()))
 
         # ---------------------------------------------------------------- 2 bis. le lot des CRH synthétiques (s'il est chargé)
         LOT_SYNTH = "synthetiques-run08-e500"

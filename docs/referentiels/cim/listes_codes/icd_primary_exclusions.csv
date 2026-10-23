@@ -1,0 +1,97 @@
+code,libelle
+Z001,Examen de routine de l'enfant
+Z004,"Examen psychiatrique général, non classé ailleurs"
+Z005,Examen d'un donneur éventuel d'organe et de tissu
+Z006,Examen de comparaison et de contrôle dans le cadre d'un programme de recherche clinique
+Z008,Autres examens généraux
+Z012,Examen dentaire
+Z013,Mesure de la tension artérielle
+Z014,Examen gynécologique (de routine) (général)
+Z015,Tests cutanés de diagnostic et de sensibilisation
+Z016,"Examen radiologique, non classé ailleurs"
+Z017,Examens de laboratoire
+Z018,Autres examens spéciaux précisés
+Z027,Délivrance d'un certificat médical
+Z028,Autres examens à des fins administratives
+Z029,"Examen à des fins administratives, sans précision"
+Z030,Mise en observation pour suspicion de tuberculose
+Z031,Mise en observation pour suspicion de tumeur maligne
+Z032,Mise en observation pour suspicion de troubles mentaux et du comportement
+Z033,Mise en observation pour suspicion d'affection du système nerveux
+Z034,Mise en observation pour suspicion d'infarctus du myocarde
+Z035,Mise en observation pour suspicion d'autres affections cardio-vasculaires
+Z036,Mise en observation pour suspicion d'effet toxique de substances ingérées
+Z038,Mise en observation pour suspicion d'autres maladies
+Z039,"Mise en observation pour suspicion de maladie, sans précision"
+Z041,Examen et mise en observation après un accident de transport
+Z042,Examen et mise en observation après un accident de travail
+Z043,Examen et mise en observation après un autre accident
+Z044,Examen et mise en observation après allégation de viol et de séduction
+Z045,Examen et mise en observation après d'autres blessures dues à une agression
+Z046,"Examen psychiatrique général, à la demande des autorités"
+Z04800,Examen et mise en observation pour enregistrement électroencéphalographique de longue durée
+Z04801,Examen et mise en observation pour polysomnographie
+Z04802,Examen et mise en observation pour bilan préopératoire
+Z04880,Autres examens et mises en observation pour d'autres raisons précisées
+Z081,Examen de contrôle après radiothérapie pour tumeur maligne
+Z082,Examen de contrôle après chimiothérapie pour tumeur maligne
+Z087,Examen de contrôle après traitements combinés pour tumeur maligne
+Z088,Examen de contrôle après d'autres traitements pour tumeur maligne
+Z089,"Examen de contrôle après traitement pour tumeur maligne, sans précision"
+Z090,Examen de contrôle après traitement chirurgical d'autres affections
+Z091,Examen de contrôle après radiothérapie pour d'autres affections
+Z092,Examen de contrôle après chimiothérapie pour d'autres affections
+Z093,Examen de contrôle après psychothérapie
+Z094,Examen de contrôle après traitement d'une fracture
+Z097,Examen de contrôle après traitements combinés pour d'autres affections
+Z098,Examen de contrôle après d'autres traitements pour d'autres affections
+Z099,"Examen de contrôle après traitement pour une affection, sans précision"
+Z201,Sujets en contact avec et exposés à la tuberculose
+Z202,Sujets en contact avec et exposés à des infections dont le mode de transmission est essentiellement sexuel
+Z206,Sujets en contact avec et exposés au virus de l'immunodéficience humaine [VIH]
+Z209,Sujets en contact avec et exposés à une maladie transmissible non précisée
+Z21,Infection asymptomatique par le virus de l'immunodéficience humaine [VIH]
+Z223,Sujet porteur d'autres maladies bactériennes précisées
+Z226,Sujet porteur d'une infection à virus lymphotrope des lymphocytes T humains de type 1 [HTLV-1]
+Z227,Sujet porteur d'infection tuberculeuse latente
+Z228,Sujet porteur d'autres maladies infectieuses
+Z229,"Sujet porteur d'une maladie infectieuse, sans précision"
+Z238,Nécessité d'une vaccination contre d'autres maladies bactériennes uniques
+Z251,Nécessité d'une vaccination contre la grippe
+Z258,Nécessité d'une vaccination contre d'autres maladies virales uniques précisées
+Z268,Nécessité d'une vaccination contre d'autres maladies infectieuses uniques précisées
+Z269,"Nécessité d'une vaccination (contre une maladie infectieuse, sans précision)"
+Z271,Nécessité d'une vaccination associée contre diphtérie-tétanos-coqueluche [DTCoq]
+Z273,Nécessité d'une vaccination contre diphtérie-tétanos-coqueluche et poliomyélite [DTCoq+polio]
+Z274,Nécessité d'une vaccination contre rougeole-oreillons-rubéole [ROR]
+Z278,Nécessité d'une vaccination contre d'autres associations de maladies infectieuses
+Z279,"Nécessité d'une vaccination associée contre plusieurs maladies infectieuses, sans précision"
+Z440,Mise en place et ajustement d'un bras artificiel (total) (partiel)
+Z441,Mise en place et ajustement d'une jambe artificielle (totale) (partielle)
+Z442,Mise en place et ajustement d'un oeil artificiel
+Z448,Mise en place et ajustement d'autres appareils de prothèse externe
+Z449,Mise en place et ajustement d'un appareil de prothèse externe non précisé
+Z450,Ajustement et entretien de dispositifs cardiaques
+Z451,Ajustement et entretien d'une pompe à perfusion
+Z452,Ajustement et entretien d'un dispositif d'accès vasculaire
+Z453,Ajustement et entretien d'une prothèse auditive implantée
+Z4580,Ajustement et entretien d'une prothèse interne urinaire
+Z4582,Ajustement et entretien d'une prothèse intra-oculaire
+Z4583,Ajustement et entretien d'une prothèse interne des voies aériennes supérieures
+Z4584,Ajustement et entretien d'une prothèse interne du système nerveux central
+Z4588,Ajustement et entretien d'autres prothèses internes
+Z459,Ajustement et entretien d'une prothèse interne non précisée
+Z462,Mise en place et ajustement d'autres appareils en rapport avec le système nerveux et les organes des sens
+Z463,Mise en place et ajustement d'une prothèse dentaire
+Z465,Mise en place et ajustement d'une iléostomie et autres dispositifs intestinaux
+Z466,Mise en place et ajustement d'un appareil urinaire
+Z467,Mise en place et ajustement d'un appareil orthopédique
+Z468,Mise en place et ajustement d'autres appareils précisés
+Z470,Soins de contrôle impliquant l'enlèvement d'une plaque et autre prothèse interne (orthopédique) de fixation
+Z4788,Autres soins de contrôle orthopédique NCA
+Z489,"Soin de contrôle chirurgical, sans précision"
+C118,Tumeur maligne à localisations contiguës de rhinopharynx
+C138,Tumeur maligne à localisations contiguës de l'hypopharynx
+C258,Tumeur maligne à localisations contiguës du pancréas
+C328,Tumeur maligne à localisations contiguës du larynx
+Z491,Dialyse extra-corporelle

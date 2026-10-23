@@ -1,0 +1,23 @@
+numero,ordre,intitule,premier_code,dernier_code
+I,1,Certaines maladies infectieuses et parasitaires,A00,B99
+II,2,Tumeurs,C00,D48
+III,3,"Maladies du sang et des organes hématopoïétiques et certains troubles du système immunitaire",D50,D89
+IV,4,"Maladies endocriniennes, nutritionnelles et métaboliques",E00,E90
+V,5,Troubles mentaux et du comportement,F00,F99
+VI,6,Maladies du système nerveux,G00,G99
+VII,7,Maladies de l'œil et de ses annexes,H00,H59
+VIII,8,Maladies de l'oreille et de l'apophyse mastoïde,H60,H95
+IX,9,Maladies de l'appareil circulatoire,I00,I99
+X,10,Maladies de l'appareil respiratoire,J00,J99
+XI,11,Maladies de l'appareil digestif,K00,K93
+XII,12,Maladies de la peau et du tissu cellulaire sous-cutané,L00,L99
+XIII,13,Maladies du système ostéo-articulaire des muscles et du tissu conjonctif,M00,M99
+XIV,14,Maladies de l'appareil génito-urinaire,N00,N99
+XV,15,"Grossesse, accouchement et puerpéralité",O00,O99
+XVI,16,Certaines affections dont l'origine se situe dans la période périnatale,P00,P96
+XVII,17,"Malformations congénitales et anomalies chromosomiques",Q00,Q99
+XVIII,18,"Symptômes, signes et résultats anormaux d'examens cliniques et de laboratoire, non classés ailleurs",R00,R99
+XIX,19,"Lésions traumatiques, empoisonnements et certaines autres conséquences de causes externes",S00,T98
+XX,20,Causes externes de morbidité et de mortalité,V01,Y98
+XXI,21,Facteurs influant sur l'état de santé et motifs de recours aux services de santé,Z00,Z99
+XXII,22,Codes d'utilisation particulière,U00,U99

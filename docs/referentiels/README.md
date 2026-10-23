@@ -19,9 +19,19 @@ Le dépôt est public. Les référentiels sont donc rangés à deux endroits :
 docs/referentiels/                      (dans le dépôt)
 ├── README.md                           ce fichier
 ├── atih/
-│   └── formats_mco_2026.xlsx           format officiel du RUM (RSS non groupé, format 023)
+│   ├── formats_mco_2026.xlsx           format officiel du RUM (RSS non groupé, format 023)
+│   └── guide_methodologique_mco_2026_provisoire.pdf   guide méthodologique MCO 2026 (version provisoire, 19 décembre 2025)
+├── cim/
+│   ├── README.md                       la CIM-10 à usage PMSI dans codeur
+│   ├── chapitres.csv                   les 22 chapitres et leurs intervalles de codes (table chapitres)
+│   ├── listes_codes/                   une liste de codes CIM-10 par fichier, format code,libelle, README (table listes_codes)
+│   └── recode-icd/                     la documentation de la livraison recode-icd, sans données, README
+├── ccam/
+│   └── listes_actes/                   les listes d'actes CCAM (aucune pour l'instant), README
 ├── situations_cliniques/
-│   └── guide_situations_cliniques.csv  guide des règles de hiérarchisation, corrigé
+│   ├── README.md
+│   ├── guide_situations_cliniques.csv  le guide (version 1, 23 octobre 2026, DS2 renommée SD2)
+│   └── extraits_guide_methodologique_2026.csv   les extraits officiels de chaque règle (étape 2 du brief 8)
 └── qualite/
     ├── grille_qualite.md               les cinq dimensions et leurs repères de 1 à 5
     └── controles_pmsi.md               les règles de contrôle qualité du prototype
@@ -54,7 +64,11 @@ donnees/referentiels/                   (hors du dépôt)
 | Référentiel | Usage | Lot | État | Version | Licence |
 |---|---|---|---|---|---|
 | **Format RUM** (`atih/formats_mco_2026.xlsx`), feuille « RSS non groupé format 023 » | Structure du champ RUM | — | Fourni | 023 | Publication ATIH |
-| **Guide des situations cliniques** (`situations_cliniques/`) | Proposition de la règle de hiérarchisation, contrôle règle / pathologie principale | Avant A2 | **En cours de correction** (doublons S2/S3, Z95/Z96, D5/D6, S4, noms de listes à remplacer) | | Interne au projet |
+| **Guide méthodologique MCO 2026** (`atih/guide_methodologique_mco_2026_provisoire.pdf`) | Définition du DP (chap. IV §1.1), guide des situations cliniques (chap. VI), règles M1 et M2 ; extraits officiels des règles | Brief 8 | Fourni (version provisoire du 19 décembre 2025, applicable au 1er janvier 2026, 164 pages) | 2026 provisoire | Publication ATIH |
+| **Chapitres de la CIM-10** (`cim/chapitres.csv`) | Lecture de « chapitres I à XVII » dans le guide, fonction `regles_compatibles` | Brief 8 | Vérifié contre l'index (chaque code dans un et un seul chapitre) ; table `chapitres` | kit ATIH 2025 | Classification OMS/ATIH |
+| **Listes de codes CIM-10** (`cim/listes_codes/`, 23 listes) | Pathologies et modes de prise en charge des règles du guide | Brief 8 | Converties au format `code,libelle`, contrôlées contre l'index, 15 codes retirés (README du dossier) ; table `listes_codes` | 23 octobre 2026 | Projet Stream |
+| **Listes d'actes CCAM** (`ccam/listes_actes/`) | Règle T10-irradiations | Brief 8 | **Aucune disponible** : la règle est signalée non évaluable | | Projet Stream |
+| **Guide des situations cliniques** (`situations_cliniques/guide_situations_cliniques.csv`) | Proposition de la règle de hiérarchisation et du mode de prise en charge, contrôle règle / pathologie principale | Brief 8 | Version 1 (23 octobre 2026) : 43 lignes, règles officielles à rattacher (étape 3), extraits officiels (étape 2) | 1 | Interne au projet |
 
 ### 3.3 Référentiels à rédiger
 
