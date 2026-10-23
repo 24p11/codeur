@@ -160,7 +160,17 @@ def main() -> None:
     SORTIE.parent.mkdir(parents=True, exist_ok=True)
     with open(SORTIE, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["regle_officielle", "section", "page", "extrait", "note"]); w.writeheader(); w.writerows(lignes)
-    print("\n".join(bilan)); print(f"\n{len(lignes)} extraits écrits dans {SORTIE.relative_to(RACINE)} ; total {sum(len(l['extrait']) for l in lignes)} caractères")
+    # version markdown de relecture (même contenu)
+    md = ["# Extraits officiels du guide méthodologique MCO 2026 (relecture)", "",
+          "*Version de relecture, produite depuis `extraits_guide_methodologique_2026.csv` (qui reste le fichier de référence) par "
+          "`scripts/referentiels/extraire_guide.py`. Mot pour mot ; seules les coupures de l'extraction ont été réparées. Pages : numéros imprimés.*", ""]
+    for l in lignes:
+        md += [f"## {l['regle_officielle']} — {l['section']}, p. {l['page']}", ""]
+        if l["note"]: md += [f"> **Note :** {l['note']}", ""]
+        for para in l["extrait"].split("\n"): md += [para, ""]
+        md += ["---", ""]
+    SORTIE.with_suffix(".md").write_text("\n".join(md), encoding="utf-8")
+    print("\n".join(bilan)); print(f"\n{len(lignes)} extraits écrits dans {SORTIE.relative_to(RACINE)} (et sa version .md de relecture) ; total {sum(len(l['extrait']) for l in lignes)} caractères")
 
 
 if __name__ == "__main__":
