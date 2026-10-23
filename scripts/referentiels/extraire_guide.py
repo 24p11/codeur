@@ -30,7 +30,8 @@ REPARATIONS = [
 # Deux sortes d'extraits (relecture de Rémi, 23 octobre 2026) : l'extrait propre à une règle (type « regle » : le paragraphe de
 # son étiquette et ses exemples) et le passage commun (type « commun » : un passage qui vaut pour plusieurs règles, rangé une seule
 # fois avec la liste des règles qu'il concerne) ; plus les préambules (type « preambule »).
-# Champs : type, règle officielle (vide pour un passage commun, un préambule, l'IVG et l'IMG), règles concernées, section,
+# Champs : type, règle officielle (vide pour un passage commun, un préambule, l'IVG et l'IMG), règles ou lignes du tableau concernées
+# (le troisième champ ; pour un extrait propre, la ligne du tableau quand l'extrait ne vaut pas pour toute la règle officielle), section,
 # pages PDF (début, fin), repère de début (regex), repère de fin (regex, inclus), note, suffixe éventuel (note du guide).
 NOTE_16 = "Note du guide : La plupart des séjours pour intervention plastique réparatrice des séquelles d’une lésion traumatique ou d’une perte de substance postopératoire font en effet appel à la catégorie Z42 pour le codage du DP. Le DR peut être un code Z s’il correspond, tel Z90.1, à un « état permanent » (se reporter au point 1)."
 EXTRAITS = [
@@ -46,7 +47,8 @@ EXTRAITS = [
     ("commun", "", "T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11 T12 T13 T14 T15", "VI §1.2", (135, 135), r"1\.2\. HOSPITALISATION POUR TRAITEMENT", r"comprend le traitement répétitif et le traitement unique\.", "Introduction du §1.2 : la situation de traitement."),
     ("commun", "", "T3 T4 T5 T6 T7 T8 T9 T10 T11 T14 T15", "VI §1.2.2", (137, 137), r"1\.2\.2\. Traitement unique", r"chirurgical, « interventionnel » ou médical\.", "Introduction du §1.2.2 : le traitement unique."),
     ("commun", "", "T4 T5 T6 T7 T14 T15", "VI §1.2.2.1", (137, 137), r"•\s+Cas particuliers\s*\n\s*Certaines situations de traitement unique chirurgical", r"l’un des suivants\.", "Introduction des cas particuliers du traitement unique chirurgical (catégories Z40 à Z52)."),
-    ("commun", "", "T10 T11", "VI §1.2.2.3", (141, 141), r"•\s+Cas particuliers\s*\n\s*Il existe des exceptions :", r"la maladie traitée est\s*enregistrée comme DR chaque fois qu’elle respecte sa définition\.", "Les exceptions au traitement unique médical : le passage porte les étiquettes T10 (deux fois) et T11 ; rangé une seule fois."),
+    ("commun", "", "T9-initiation-tt-chronic T9-diabetes T12 T13 IVG ITG", "VI §1.2.3", (141, 141), r"1\.2\.3\. Situations équivalentes \(au traitement unique\)", r"les circonstances suivantes :", "Introduction du §1.2.3 : situations équivalentes au traitement unique (lignes du tableau)."),
+    ("commun", "", "T10 T11", "VI §1.2.2.3", (141, 141), r"•\s+Cas particuliers\s*\n\s*Il existe des exceptions :", r"la maladie traitée est\s*enregistrée comme DR chaque fois qu’elle respecte sa définition\.", "Les exceptions au traitement unique médical : le passage porte les étiquettes T10 (deux fois) et T11 ; rangé une seule fois, il est le seul extrait de ces deux règles."),
     ("commun", "", "S1 S2 S3 S4 SD1 SD2", "VI §1.3", (143, 143), r"1\.3\. HOSPITALISATION POUR SURVEILLANCE", r"la surveillance négative et la surveillance\s*positive\.", "Introduction du §1.3 : la situation de surveillance."),
     ("commun", "", "S1 S2 S3", "VI §1.3.1", (144, 144), r"Dans une situation de surveillance négative l’affection surveillée", r"les kystes rénaux sont\s*un DAS\.", "Paragraphes du §1.3.1 qui suivent S3 : l'affection surveillée en DR, l'affection sans rapport découverte incidemment."),
     ("commun", "", "S1 S2 S3 S4 SD1 SD2", "VI §1.3.3", (145, 145), r"Il résulte de la définition de la situation de surveillance", r"\(point 1\.2\.3 – 2° chapitre IV\)\.", "Dernier paragraphe du §1.3.3 (après SD2) : la modification du traitement ne transforme pas une surveillance en traitement."),
@@ -72,10 +74,8 @@ EXTRAITS = [
     ("regle", "T14", "T14", "VI §1.2.2.1, cas particuliers 6°", (139, 140), r"6°\) Traitement unique en deux temps", r"d’une complication de la maladie absente lors du premier acte\.", ""),
     ("regle", "T8", "T8", "VI §1.2.2.2", (140, 140), r"1\.2\.2\.2\. Traitement Unique « Interventionnel »", r"le DP de la seconde chimioembolisation est\s*l’hépatocarcinome\.", "L'étiquette est écrite [REGLE T8] dans le guide. Le rappel de la règle T6 qui suit n'est pas repris."),
     ("regle", "T9", "T9", "VI §1.2.2.3", (140, 141), r"1\.2\.2\.3\. Traitement Unique Médical", r"celui- ?ci poursuivant le traitement de l’endocardite, elle reste le DP de son RUM\.", ""),
-    ("regle", "T10", "T10", "VI §1.2.2.3, cas particuliers", (141, 141), r"o\s+la curiethérapie et les irradiations en dose unique", r"le DP doit être\s*codé Z51\.2 \[Règle T10\]", "Les deux étiquettes T10 ; le passage entier (exceptions, DR, exemples) est le passage commun T10-T11."),
-    ("regle", "T11", "T11", "VI §1.2.2.3, cas particuliers", (141, 141), r"o\s+les soins palliatifs", r"le DP est codé\s*Z51\.5\. \[Règle T11\]", "L'étiquette T11 ; le passage entier est le passage commun T10-T11."),
-    ("regle", "T9", "T9", "VI §1.2.3, 1°", (141, 141), r"1\.2\.3\. Situations équivalentes \(au traitement unique\)", r"du chapitre I doivent être respectées\.", "Sans étiquette dans le guide : situation équivalente au traitement unique (mise en route du traitement d'une maladie chronique), sous-règle T9-initiation-tt-chronic."),
-    ("regle", "T9", "T9", "VI §1.2.3, 2°", (142, 142), r"2°\) Chez les patients diabétiques", r"avec\s*lequel le patient quittera l’unité\.", "Sans étiquette dans le guide : situation équivalente au traitement unique (changement de stratégie thérapeutique chez le diabétique), sous-règle T9-diabetes."),
+    ("regle", "T9", "T9-initiation-tt-chronic", "VI §1.2.3, 1°", (141, 141), r"1°\) La mise en route du traitement d’une maladie chronique", r"du chapitre I doivent être respectées\.", "Sans étiquette dans le guide : situation équivalente au traitement unique (mise en route du traitement d'une maladie chronique) ; vaut pour la seule ligne T9-initiation-tt-chronic."),
+    ("regle", "T9", "T9-diabetes", "VI §1.2.3, 2°", (142, 142), r"2°\) Chez les patients diabétiques", r"avec\s*lequel le patient quittera l’unité\.", "Sans étiquette dans le guide : situation équivalente au traitement unique (changement de stratégie thérapeutique chez le diabétique) ; vaut pour la seule ligne T9-diabetes."),
     ("regle", "T12", "T12", "VI §1.2.3, 3°", (142, 142), r"3°\) L’accouchement normal", r"\[Règle T12\]\s*\.", ""),
     ("regle", "T13", "T13", "VI §1.2.3, 4°", (142, 142), r"4°\) La naissance d’un enfant", r"RUM du nouveau-né en maternité\s*\.", ""),
     ("regle", "", "IVG", "VI §1.2.3, 5°", (142, 142), r"5°\) L’interruption volontaire de grossesse", r"par le quatrième\s*caractère du code O04\.–\.", "Pas de règle officielle (sans étiquette dans le guide) ; ligne IVG du tableau. Lettres espacées de l'extraction réparées."),
@@ -178,11 +178,15 @@ def main() -> None:
         suffixe = SUFFIXES.get((typ, regle))
         if suffixe: texte += "\n" + suffixe
         page = f"{pd - DECALAGE}" + ("" if pd == pf else f"-{pf - DECALAGE}")
-        lignes.append({"type": typ, "regle_officielle": regle, "regles": regles, "section": section, "page": page, "extrait": texte, "note": note})
+        # `regles` : les règles officielles concernées ; `lignes` : les lignes du tableau concernées quand l'extrait ne vaut pas pour toute la règle
+        regles_off = regle if typ == "regle" else " ".join(dict.fromkeys(x.split("-")[0] for x in regles.split())) if regles else ""
+        lignes_tab = "" if typ == "preambule" else (regles if (typ == "regle" and regles != regle) or (typ == "commun" and "-" in regles) else "")
+        if typ == "regle" and not regle: lignes_tab = regles  # IVG, ITG : pas de règle officielle, la ligne du tableau
+        lignes.append({"type": typ, "regle_officielle": regles_off, "lignes": lignes_tab, "section": section, "page": page, "extrait": texte, "note": note})
         bilan.append(f"  {typ:9s} {(regle or regles)[:34]:34s} {section:30s} p. {page:8s} {len(texte):5d} car. ≈ {len(texte) // 4:4d} tokens")
     SORTIE.parent.mkdir(parents=True, exist_ok=True)
     with open(SORTIE, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=["type", "regle_officielle", "regles", "section", "page", "extrait", "note"]); w.writeheader(); w.writerows(lignes)
+        w = csv.DictWriter(f, fieldnames=["type", "regle_officielle", "lignes", "section", "page", "extrait", "note"]); w.writeheader(); w.writerows(lignes)
     # version markdown de relecture (même contenu), par sorte d'extrait
     titres = {"preambule": "Préambule", "commun": "Passages communs à plusieurs règles", "regle": "Extraits propres à chaque règle"}
     md = ["# Extraits officiels du guide méthodologique MCO 2026 (relecture)", "",
@@ -194,7 +198,10 @@ def main() -> None:
         md += [f"# {titres[typ]} ({sum(1 for l in lignes if l['type'] == typ)} extraits, {tot} caractères, ≈ {tot // 4} tokens)", ""]
         for l in lignes:
             if l["type"] != typ: continue
-            entete = (l["regle_officielle"] or l["regles"]) if typ == "regle" else (l["regles"] and "règles " + l["regles"].replace(" ", ", ") or "toutes les règles")
+            l = dict(l)
+            if typ == "regle": entete = (l["regle_officielle"] or "sans règle officielle") + (f" (ligne {l['lignes']})" if l["lignes"] else "")
+            elif l["lignes"]: entete = "lignes " + l["lignes"].replace(" ", ", ")
+            else: entete = l["regle_officielle"] and "règles " + l["regle_officielle"].replace(" ", ", ") or "toutes les règles"
             md += [f"## {entete} — {l['section']}, p. {l['page']} ({len(l['extrait'])} car.)", ""]
             if l["note"]: md += [f"> **Note :** {l['note']}", ""]
             for para in l["extrait"].split("\n"): md += [para, ""]

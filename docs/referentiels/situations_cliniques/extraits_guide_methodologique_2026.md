@@ -40,7 +40,7 @@ EN CONCLUSION : le diagnostic principal du RUM dépend de la situation clinique.
 
 ---
 
-# Passages communs à plusieurs règles (13 extraits, 12755 caractères, ≈ 3188 tokens)
+# Passages communs à plusieurs règles (14 extraits, 12886 caractères, ≈ 3221 tokens)
 
 ## règles D1, D2, D3, D4, D5, D6, D7, D8, D9 — VI §1.1, p. 122 (349 car.)
 
@@ -152,9 +152,19 @@ Certaines situations de traitement unique chirurgical font appel pour le codage 
 
 ---
 
+## lignes T9-initiation-tt-chronic, T9-diabetes, T12, T13, IVG, ITG — VI §1.2.3, p. 133 (131 car.)
+
+> **Note :** Introduction du §1.2.3 : situations équivalentes au traitement unique (lignes du tableau).
+
+1.2.3. Situations équivalentes (au traitement unique)
+
+On assimile à la situation de traitement unique les circonstances suivantes :
+
+---
+
 ## règles T10, T11 — VI §1.2.2.3, p. 133 (1542 car.)
 
-> **Note :** Les exceptions au traitement unique médical : le passage porte les étiquettes T10 (deux fois) et T11 ; rangé une seule fois.
+> **Note :** Les exceptions au traitement unique médical : le passage porte les étiquettes T10 (deux fois) et T11 ; rangé une seule fois, il est le seul extrait de ces deux règles.
 
 • Cas particuliers
 
@@ -258,7 +268,7 @@ Il n’appartient pas au médecin responsable de l’information médicale ni au
 
 ---
 
-# Extraits propres à chaque règle (36 extraits, 34205 caractères, ≈ 8551 tokens)
+# Extraits propres à chaque règle (34 extraits, 33709 caractères, ≈ 8427 tokens)
 
 ## D1 — VI §1.1.1, p. 122 (717 car.)
 
@@ -658,39 +668,17 @@ Exemples :
 
 ---
 
-## T10 — VI §1.2.2.3, cas particuliers, p. 133 (263 car.)
+## T9 (ligne T9-initiation-tt-chronic) — VI §1.2.3, 1°, p. 133 (310 car.)
 
-> **Note :** Les deux étiquettes T10 ; le passage entier (exceptions, DR, exemples) est le passage commun T10-T11.
-
-o la curiethérapie et les irradiations en dose unique : le DP doit être codé Z51.01, comme dans les autres cas d’irradiation externe et interne ; [Règle T10]
-
-o l’injection de fer (pour carence martiale) en injection unique : le DP doit être codé Z51.2 [Règle T10]
-
----
-
-## T11 — VI §1.2.2.3, cas particuliers, p. 133 (101 car.)
-
-> **Note :** L'étiquette T11 ; le passage entier est le passage commun T10-T11.
-
-o les soins palliatifs : dès lors que leur définition est respectée le DP est codé Z51.5. [Règle T11]
-
----
-
-## T9 — VI §1.2.3, 1°, p. 133 (442 car.)
-
-> **Note :** Sans étiquette dans le guide : situation équivalente au traitement unique (mise en route du traitement d'une maladie chronique), sous-règle T9-initiation-tt-chronic.
-
-1.2.3. Situations équivalentes (au traitement unique)
-
-On assimile à la situation de traitement unique les circonstances suivantes :
+> **Note :** Sans étiquette dans le guide : situation équivalente au traitement unique (mise en route du traitement d'une maladie chronique) ; vaut pour la seule ligne T9-initiation-tt-chronic.
 
 1°) La mise en route du traitement d’une maladie chronique ou de longue durée, c’est-à-dire l’hospitalisation nécessitée par la première administration d’un traitement médicamenteux appelé à être ensuite poursuivi au long cours. Les conditions précisées dans le point 1.5 du chapitre I doivent être respectées.
 
 ---
 
-## T9 — VI §1.2.3, 2°, p. 134 (1480 car.)
+## T9 (ligne T9-diabetes) — VI §1.2.3, 2°, p. 134 (1480 car.)
 
-> **Note :** Sans étiquette dans le guide : situation équivalente au traitement unique (changement de stratégie thérapeutique chez le diabétique), sous-règle T9-diabetes.
+> **Note :** Sans étiquette dans le guide : situation équivalente au traitement unique (changement de stratégie thérapeutique chez le diabétique) ; vaut pour la seule ligne T9-diabetes.
 
 2°) Chez les patients diabétiques non amélioré par une adaptation ambulatoire du traitement, la nécessité d’une rupture dans la prise en charge globale avec changement de la stratégie thérapeutique répondant au moins à l’un des critères suivants :
 
@@ -730,7 +718,7 @@ On désigne ainsi un accouchement en présentation du sommet sans complication c
 
 ---
 
-## IVG — VI §1.2.3, 5°, p. 134 (324 car.)
+## sans règle officielle (ligne IVG) — VI §1.2.3, 5°, p. 134 (324 car.)
 
 > **Note :** Pas de règle officielle (sans étiquette dans le guide) ; ligne IVG du tableau. Lettres espacées de l'extraction réparées.
 
@@ -740,7 +728,7 @@ Le DP du séjour d’IVG est codé avec la catégorie O04 de la CIM–10 interru
 
 ---
 
-## ITG — VI §1.2.3, 6°, p. 134 (325 car.)
+## sans règle officielle (ligne ITG) — VI §1.2.3, 6°, p. 134 (325 car.)
 
 > **Note :** Pas de règle officielle (sans étiquette dans le guide) ; l'IMG correspond à la ligne ITG du tableau. Le paragraphe se termine sans point.
 
