@@ -10,7 +10,7 @@ D6,HOSPITALISATION POUR DIAGNOSTIC,situation de poussée aigue d'une maladie chr
 D7,HOSPITALISATION POUR DIAGNOSTIC,complication d’une maladie chronique,chapitres I à XVII ,Aucun
 D8,HOSPITALISATION POUR DIAGNOSTIC,affection ou lésion intercurrente concomitante,chapitres I à XVII ,Aucun
 D9,HOSPITALISATION POUR DIAGNOSTIC,bilan initial d’extension d’un cancer,chapitres II,Aucun
-T1,HOSPITALISATION POUR TRAITEMENT,traitement répétitif,chapitres I à XVII ,Z511 Z512 Z513 Z491 Z5131
+T1,HOSPITALISATION POUR TRAITEMENT,traitement répétitif,chapitres I à XVII ,Z511 Z512 Z513 Z491 Z5131 Z492 Z4920 Z4921 Z5100 Z5101 Z5180
 T2-R52,HOSPITALISATION POUR TRAITEMENT,traitement de la douleur chronique rebelle,R5210 R5218,Aucun
 T2-R18,HOSPITALISATION POUR TRAITEMENT,évacuation d’une ascite,R18,Aucun
 T2-J9,HOSPITALISATION POUR TRAITEMENT,évacuation d’un épanchement pleural,J90 J91 J94,Aucun
@@ -19,14 +19,14 @@ T3,HOSPITALISATION POUR TRAITEMENT,traitement unique chirurgical,chapitres I à 
 T4,HOSPITALISATION POUR TRAITEMENT,traitement unique chirurgical à des fins esthétiques,chapitres I à XVII ,Z410 Z411
 T5,HOSPITALISATION POUR TRAITEMENT,chirurgie plastique non esthétique,chapitres I à XVII ,Aucun Z42
 T6,HOSPITALISATION POUR TRAITEMENT,opération est réalisée pour des raisons non médicale,Aucun,Z4180
-T7,HOSPITALISATION POUR TRAITEMENT,soins spécifiques de stomies,Aucun,Z43 Z44 Z45 Z46 Z47 Z49
+T7,HOSPITALISATION POUR TRAITEMENT,soins spécifiques de stomies,Aucun,Z43 Z44 Z45 Z46 Z47 Z490
 IVG,HOSPITALISATION POUR IVG,,icd_codes_legal_abortion,Aucun
 ITG,HOSPITALISATION POUR ITG,,icd_codes_medical_abortion,Aucun
 T8,HOSPITALISATION POUR TRAITEMENT,"acte thérapeutique par voie endoscopique, endovasculaire ou d'imagerie interventionnelle",chapitres I à XVII ,Aucun
 T9,HOSPITALISATION POUR TRAITEMENT,traitement médical unique,chapitres I à XVII ,Aucun
 T9-initiation-tt-chronic,HOSPITALISATION POUR TRAITEMENT,mise en route du traitement d’une maladie chronique,chapitres I à XVII ,Aucun
 T9-diabetes,HOSPITALISATION POUR TRAITEMENT,changement de la stratégie thérapeutique,icd_codes_diabetes_chronic,Aucun
-T10-irradiations,HOSPITALISATION POUR TRAITEMENT,curiethérapie et ou d'une irradiation en dose unique,"procedure_curitherapy, procedure_single_irradiation",Aucun
+T10-irradiations,HOSPITALISATION POUR TRAITEMENT,curiethérapie et ou d'une irradiation en dose unique,"procedure_curitherapy, procedure_single_irradiation",Z5101
 T10-fer,HOSPITALISATION POUR TRAITEMENT,injection de fer,icd_codes_iron_deficiency_anemia,Z512
 T11,HOSPITALISATION POUR TRAITEMENT,soins palliatifs,chapitres I à XVII ,Z515
 T12,HOSPITALISATION POUR ACCOUCHEMENT,,icd_codes_spontaneous_vertex_delivery,Aucun
