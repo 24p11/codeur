@@ -718,9 +718,9 @@ On désigne ainsi un accouchement en présentation du sommet sans complication c
 
 ---
 
-## sans règle officielle (ligne IVG) — VI §1.2.3, 5°, p. 134 (324 car.)
+## IVG — VI §1.2.3, 5°, p. 134 (324 car.)
 
-> **Note :** Pas de règle officielle (sans étiquette dans le guide) ; ligne IVG du tableau. Lettres espacées de l'extraction réparées.
+> **Note :** Règle IVG : sans étiquette dans le guide (§1.2.3, 5°) ; ligne IVG du tableau. Lettres espacées de l'extraction réparées.
 
 5°) L’interruption volontaire de grossesse
 
@@ -728,9 +728,9 @@ Le DP du séjour d’IVG est codé avec la catégorie O04 de la CIM–10 interru
 
 ---
 
-## sans règle officielle (ligne ITG) — VI §1.2.3, 6°, p. 134 (325 car.)
+## IMG (ligne ITG) — VI §1.2.3, 6°, p. 134 (325 car.)
 
-> **Note :** Pas de règle officielle (sans étiquette dans le guide) ; l'IMG correspond à la ligne ITG du tableau. Le paragraphe se termine sans point.
+> **Note :** Règle IMG : sans étiquette dans le guide (§1.2.3, 6°) ; correspond à la ligne ITG du tableau. Le paragraphe se termine sans point.
 
 6°) L’interruption médicale de grossesse
 

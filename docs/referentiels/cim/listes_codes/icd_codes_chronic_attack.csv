@@ -6,6 +6,13 @@ E1100,"Diabète sucré de type 2, insulinotraité, avec coma"
 E1108,"Diabète sucré de type 2 non insulinotraité ou sans précision, avec coma"
 E1110,"Diabète sucré de type 2 insulinotraité, avec acidocétose"
 E1118,"Diabète sucré de type 2 non insulinotraité ou sans précision, avec acidocétose"
+E120,"Diabète sucré de malnutrition, avec coma"
+E121,"Diabète sucré de malnutrition, avec acidocétose"
+E130,"Autres diabètes sucrés précisés, avec coma"
+E131,"Autres diabètes sucrés précisés, avec acidocétose"
+E140,"Diabète sucré, sans précision, avec coma"
+E141,"Diabète sucré, sans précision, avec acidocétose"
+I200,Angine de poitrine instable
 J440,Maladie pulmonaire obstructive chronique avec infection aiguë des voies respiratoires inférieures
 J441,"Maladie pulmonaire obstructive chronique avec épisodes aigus, sans précision"
 J46,État de mal asthmatique

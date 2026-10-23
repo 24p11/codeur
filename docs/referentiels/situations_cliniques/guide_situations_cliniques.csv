@@ -10,7 +10,7 @@ D6,HOSPITALISATION POUR DIAGNOSTIC,situation de poussée aigue d'une maladie chr
 D7,HOSPITALISATION POUR DIAGNOSTIC,complication d’une maladie chronique,chapitres I à XVII ,Aucun
 D8,HOSPITALISATION POUR DIAGNOSTIC,affection ou lésion intercurrente concomitante,chapitres I à XVII ,Aucun
 D9,HOSPITALISATION POUR DIAGNOSTIC,bilan initial d’extension d’un cancer,chapitres II,Aucun
-T1,HOSPITALISATION POUR TRAITEMENT,traitement répétitif,chapitres I à XVII ,Z511 Z512 Z513 Z51 Z491 Z5131
+T1,HOSPITALISATION POUR TRAITEMENT,traitement répétitif,chapitres I à XVII ,Z511 Z512 Z513 Z491 Z5131
 T2-R52,HOSPITALISATION POUR TRAITEMENT,traitement de la douleur chronique rebelle,R5210 R5218,Aucun
 T2-R18,HOSPITALISATION POUR TRAITEMENT,évacuation d’une ascite,R18,Aucun
 T2-J9,HOSPITALISATION POUR TRAITEMENT,évacuation d’un épanchement pleural,J90 J91 J94,Aucun

@@ -78,8 +78,8 @@ EXTRAITS = [
     ("regle", "T9", "T9-diabetes", "VI §1.2.3, 2°", (142, 142), r"2°\) Chez les patients diabétiques", r"avec\s*lequel le patient quittera l’unité\.", "Sans étiquette dans le guide : situation équivalente au traitement unique (changement de stratégie thérapeutique chez le diabétique) ; vaut pour la seule ligne T9-diabetes."),
     ("regle", "T12", "T12", "VI §1.2.3, 3°", (142, 142), r"3°\) L’accouchement normal", r"\[Règle T12\]\s*\.", ""),
     ("regle", "T13", "T13", "VI §1.2.3, 4°", (142, 142), r"4°\) La naissance d’un enfant", r"RUM du nouveau-né en maternité\s*\.", ""),
-    ("regle", "", "IVG", "VI §1.2.3, 5°", (142, 142), r"5°\) L’interruption volontaire de grossesse", r"par le quatrième\s*caractère du code O04\.–\.", "Pas de règle officielle (sans étiquette dans le guide) ; ligne IVG du tableau. Lettres espacées de l'extraction réparées."),
-    ("regle", "", "ITG", "VI §1.2.3, 6°", (142, 142), r"6°\) L’interruption médicale de grossesse", r"la cause fœtale ou\s*maternelle de l’IMG", "Pas de règle officielle (sans étiquette dans le guide) ; l'IMG correspond à la ligne ITG du tableau. Le paragraphe se termine sans point."),
+    ("regle", "IVG", "IVG", "VI §1.2.3, 5°", (142, 142), r"5°\) L’interruption volontaire de grossesse", r"par le quatrième\s*caractère du code O04\.–\.", "Règle IVG : sans étiquette dans le guide (§1.2.3, 5°) ; ligne IVG du tableau. Lettres espacées de l'extraction réparées."),
+    ("regle", "IMG", "ITG", "VI §1.2.3, 6°", (142, 142), r"6°\) L’interruption médicale de grossesse", r"la cause fœtale ou\s*maternelle de l’IMG", "Règle IMG : sans étiquette dans le guide (§1.2.3, 6°) ; correspond à la ligne ITG du tableau. Le paragraphe se termine sans point."),
     ("regle", "S1", "S1", "VI §1.3.1", (143, 144), r"1\.3\.1\. Surveillance négative", r"du chapitre XXI de la CIM–10\) du chapitre V\.", "Se termine par la phrase qui précède S2 (consignes d'emploi des codes de surveillance négative)."),
     ("regle", "S2", "S2", "VI §1.3.1", (144, 144), r"Les codes de la catégorie Z94 s’imposent", r"\[Règle S2\]", ""),
     ("regle", "S3", "S3", "VI §1.3.1", (144, 144), r"De même, les codes de la catégorie Z95", r"\[Règle S3\]", ""),
@@ -179,9 +179,8 @@ def main() -> None:
         if suffixe: texte += "\n" + suffixe
         page = f"{pd - DECALAGE}" + ("" if pd == pf else f"-{pf - DECALAGE}")
         # `regles` : les règles officielles concernées ; `lignes` : les lignes du tableau concernées quand l'extrait ne vaut pas pour toute la règle
-        regles_off = regle if typ == "regle" else " ".join(dict.fromkeys(x.split("-")[0] for x in regles.split())) if regles else ""
+        regles_off = regle if typ == "regle" else " ".join(dict.fromkeys(("IMG" if x == "ITG" else x.split("-")[0]) for x in regles.split())) if regles else ""
         lignes_tab = "" if typ == "preambule" else (regles if (typ == "regle" and regles != regle) or (typ == "commun" and "-" in regles) else "")
-        if typ == "regle" and not regle: lignes_tab = regles  # IVG, ITG : pas de règle officielle, la ligne du tableau
         lignes.append({"type": typ, "regle_officielle": regles_off, "lignes": lignes_tab, "section": section, "page": page, "extrait": texte, "note": note})
         bilan.append(f"  {typ:9s} {(regle or regles)[:34]:34s} {section:30s} p. {page:8s} {len(texte):5d} car. ≈ {len(texte) // 4:4d} tokens")
     SORTIE.parent.mkdir(parents=True, exist_ok=True)

@@ -5,7 +5,7 @@ Listes issues du **projet Stream** (génération de CRH synthétiques), fournies
 | Fichier | Codes | Usage (guide des situations cliniques, version 1) |
 |---|---|---|
 | `icd_codes_cardic_vascular_implants.csv` | 11 | disponible, non citée par le guide |
-| `icd_codes_chronic_attack.csv` | 16 | règle D6 (codes spécifiques de poussée aiguë, à confirmer à l'étape 3) |
+| `icd_codes_chronic_attack.csv` | 23 | règle D6 (codes spécifiques de poussée aiguë, à confirmer à l'étape 3) |
 | `icd_codes_diabetes_chronic.csv` | 69 | règle T9-diabetes (pathologie) |
 | `icd_codes_family_history.csv` | 69 | disponible, non citée par le guide |
 | `icd_codes_iron_deficiency_anemia.csv` | 5 | règle T10-fer (pathologie) |
@@ -49,3 +49,7 @@ Un code est retiré seulement s'il n'existe pas dans le kit ATIH 2025 ou s'il n'
 | `icd_codes_personnel_history` | `Z86090` | non codable sans descendant (pere_interdit) | aucun équivalent |
 | `icd_codes_transplanted_organ` | `Z94801` | non codable sans descendant (supprime) | équivalents déjà dans la liste (Z94800, Z94802, Z94803, Z94804, Z94809) |
 | `icd_primary_exclusions` | `Z2028` | inconnu du kit 2025 | aucun équivalent |
+
+## Codes ajoutés (23 octobre 2026)
+
+`icd_codes_chronic_attack` sert de pathologie à la règle D6 (« code spécifique de poussée aiguë »). Ajoutés pour couvrir les exemples de la règle D6 du guide méthodologique : `I200` (angor instable) ; et, le guide écrivant « E1–.1 » pour l'acidocétose diabétique, les codes de coma et d'acidocétose des diabètes E12, E13 et E14 sous leur forme codable dans le kit 2025 (`E120`, `E121`, `E130`, `E131`, `E140`, `E141`) ; le type 1 (`E100`, `E101`) et le type 2 (`E1100`, `E1108`, `E1110`, `E1118`) y étaient déjà.
