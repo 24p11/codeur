@@ -1,8 +1,10 @@
 # Extraits officiels du guide méthodologique MCO 2026 (relecture)
 
-*Version de relecture, produite depuis `extraits_guide_methodologique_2026.csv` (qui reste le fichier de référence) par `scripts/referentiels/extraire_guide.py`. Mot pour mot ; seules les coupures de l'extraction ont été réparées. Pages : numéros imprimés.*
+*Version de relecture, produite depuis `extraits_guide_methodologique_2026.csv` (qui reste le fichier de référence) par `scripts/referentiels/extraire_guide.py`. Mot pour mot ; seules les coupures de l'extraction ont été réparées. Pages : numéros imprimés. Lors de l'appel au LLM, la page envoie le préambule, les extraits des règles candidates, et une seule fois chaque passage commun qui concerne au moins l'une d'elles.*
 
-## préambule DP — IV §1.1, p. 63-64
+# Préambule (2 extraits, 1781 caractères, ≈ 445 tokens)
+
+## toutes les règles — IV §1.1, p. 63-64 (1529 car.)
 
 > **Note :** Définition du diagnostic principal (chapitre IV, §1.1), jusqu'à la fin du §1.1. « chapitre 0 » (renvoi au guide des situations cliniques) est tel quel dans la version provisoire.
 
@@ -24,7 +26,7 @@ Le DP est déterminé à la fin du séjour du patient dans l’unité médicale,
 
 ---
 
-## préambule conclusion — VI §1.5, p. 140
+## toutes les règles — VI §1.5, p. 140 (252 car.)
 
 > **Note :** Conclusion du chapitre VI : les trois situations cliniques.
 
@@ -38,9 +40,65 @@ EN CONCLUSION : le diagnostic principal du RUM dépend de la situation clinique.
 
 ---
 
-## préambule maladies chroniques — VI §1.4, p. 139
+# Passages communs à plusieurs règles (13 extraits, 12755 caractères, ≈ 3188 tokens)
 
-> **Note :** Proposé en plus : l'encadré du §1.4 qui énumère les seules circonstances où une maladie chronique peut être le DP (règles D1, D5, D9, T–, SD2).
+## règles D1, D2, D3, D4, D5, D6, D7, D8, D9 — VI §1.1, p. 122 (349 car.)
+
+> **Note :** Introduction du §1.1 : la situation de diagnostic.
+
+1.1. HOSPITALISATION POUR DIAGNOSTIC
+
+La situation est celle d’un patient hospitalisé en raison d’une symptomatologie, pour un diagnostic étiologique. Le mot symptomatologie inclut les signes cliniques et les résultats anormaux d’examens complémentaires.
+
+Que le diagnostic s’accompagne ou non d'un traitement au cours du séjour, la règle est la même.
+
+---
+
+## règles D1, D2 — VI §1.1.3, p. 124 (1400 car.)
+
+> **Note :** Résumé de la situation de diagnostic, placé à la fin du §1.1.3 (après D4).
+
+La situation clinique de diagnostic est ainsi caractérisée par une démarche médicale de nature diagnostique. Celle-ci vise, à partir de la symptomatologie qui a motivé l’hospitalisation, à établir un diagnostic (suivi ou non d’un traitement). Au terme d’un séjour correspondant à cette situation, le diagnostic a pu ou non être fait :
+
+• soit il l’a été, et le traitement réalisé ;
+
+o Exemple : hospitalisation pour fièvre et toux ; diagnostic de pneumonie, traitement ; DP : la pneumonie
+
+• soit il a été fait mais le traitement remis à plus tard ;
+
+o Exemple : hospitalisation d’un enfant pour une suspicion de tumeur osseuse ; diagnostic d’ostéome ; sortie du patient avec les rendez-vous de consultation préanesthésique et d’admission en chirurgie pour traitement ; DP : ostéome
+
+• soit il n’a pas été fait de diagnostic étiologique ; la symptomatologie a été vainement explorée ; elle a pu disparaitre (spontanément ou du fait d’un traitement symptomatique) ou bien elle peut persister, des investigations complémentaires étant prévues ultérieurement. On rapproche de cette situation le décès précoce survenu avant qu’un diagnostic étiologique n’ait pu être fait.
+
+o Exemples :
+
+– hospitalisation pour douleurs abdominales ; disparition des douleurs, pas de cause trouvée ; DP : douleurs abdominales ;
+
+– hospitalisation pour état de choc ; décès précoce sans diagnostic étiologique ; DP : état de choc.
+
+---
+
+## règles D5, D6, D7, D8 — VI §1.1.4, p. 125 (289 car.)
+
+> **Note :** Introduction du §1.1.4 : situations équivalentes chez un patient atteint d'une maladie chronique.
+
+1.1.4. Situations équivalentes
+
+Sont équivalentes à celle décrite au point 1.1.1 les situations rencontrées chez un patient atteint d’une affection chronique ou de longue durée connue, antérieurement diagnostiquée, admis pour une symptomatologie aboutissant à l’un des diagnostics suivants.
+
+---
+
+## règles D5, D7, D8 — VI §1.1.4, p. 126 (337 car.)
+
+> **Note :** Dernier paragraphe du 3° (après D8).
+
+Ces trois situations sont conformes à la règle D1. Le patient est hospitalisé pour une symptomatologie (celle de la poussée, de la complication ou de l’affection intercurrente) appelant un diagnostic étiologique. Le DP est l’affection diagnostiquée, c’est-à-dire la maladie en poussée aigüe, la complication ou l’affection intercurrente.
+
+---
+
+## règles D1, D5, D9, T9, SD2 — VI §1.4, p. 139 (601 car.)
+
+> **Note :** Encadré du §1.4 : les seules circonstances où une maladie chronique peut être le DP.
 
 Il résulte de ce qui vient d’être exposé qu’une maladie chronique ou de longue durée ne peut être le DP d’un séjour que dans les circonstances suivantes :
 
@@ -58,15 +116,153 @@ Il résulte de ce qui vient d’être exposé qu’une maladie chronique ou de l
 
 ---
 
-## D1 — VI §1.1, 1.1.1, p. 122
+## règles T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15 — VI §1.2, p. 127 (916 car.)
 
-> **Note :** Limite de début incertaine : l'extrait commence par l'introduction du §1.1 (définition de la situation de diagnostic), qui précède la règle D1. Le crochet fermant de l'étiquette « [Règle D1 » manque dans le guide lui-même.
+> **Note :** Introduction du §1.2 : la situation de traitement.
 
-1.1. HOSPITALISATION POUR DIAGNOSTIC
+1.2. HOSPITALISATION POUR TRAITEMENT
 
-La situation est celle d’un patient hospitalisé en raison d’une symptomatologie, pour un diagnostic étiologique. Le mot symptomatologie inclut les signes cliniques et les résultats anormaux d’examens complémentaires.
+La situation est celle d’un patient atteint d’une affection connue, diagnostiquée avant l’admission, hospitalisé pour le traitement de celle-ci.
 
-Que le diagnostic s’accompagne ou non d'un traitement au cours du séjour, la règle est la même.
+Les circonstances du diagnostic préalable n’importent pas : le diagnostic de l’affection a pu être fait par un médecin généraliste ou spécialiste « de ville », par un service médical d’urgence et de réanimation (SMUR), lors du passage dans une structure d’accueil des urgences, lors d’un séjour précédent dans une autre unité médicale, y compris l’unité d’hospitalisation de courte durée, du même établissement de santé ou d’un autre, etc. La situation de traitement est présente lorsque le diagnostic de l’affection est fait au moment de l’entrée du patient dans l’unité médicale et que l’admission a pour but le traitement de l’affection. La situation clinique de traitement comprend le traitement répétitif et le traitement unique.
+
+---
+
+## règles T3, T4, T5, T6, T7, T8, T9, T10, T11, T14, T15 — VI §1.2.2, p. 129 (406 car.)
+
+> **Note :** Introduction du §1.2.2 : le traitement unique.
+
+1.2.2. Traitement unique
+
+Le traitement « unique » est ainsi désigné par opposition au traitement répétitif. Du point de vue du recueil d’informations du PMSI en MCO, un traitement non répétitif au sens de la situation 1.2.1 est un traitement unique.
+
+Dans la situation de traitement unique le DP est en général l’affection traitée.
+
+Le traitement unique peut être chirurgical, « interventionnel » ou médical.
+
+---
+
+## règles T4, T5, T6, T7, T14, T15 — VI §1.2.2.1, p. 129 (243 car.)
+
+> **Note :** Introduction des cas particuliers du traitement unique chirurgical (catégories Z40 à Z52).
+
+• Cas particuliers
+
+Certaines situations de traitement unique chirurgical font appel pour le codage du DP aux codes des catégories Z40 à Z52 de la CIM–10. Sont spécialement dans ce cas les hospitalisations dont le motif a été l’un des suivants.
+
+---
+
+## règles T10, T11 — VI §1.2.2.3, p. 133 (1542 car.)
+
+> **Note :** Les exceptions au traitement unique médical : le passage porte les étiquettes T10 (deux fois) et T11 ; rangé une seule fois.
+
+• Cas particuliers
+
+Il existe des exceptions :
+
+o la curiethérapie et les irradiations en dose unique : le DP doit être codé Z51.01, comme dans les autres cas d’irradiation externe et interne ; [Règle T10]
+
+o l’injection de fer (pour carence martiale) en injection unique : le DP doit être codé Z51.2 [Règle T10]
+
+o les soins palliatifs : dès lors que leur définition est respectée le DP est codé Z51.5. [Règle T11]
+
+Au terme des séjours pour curiethérapie à bas débit de dose, irradiation en dose unique, pour soins palliatifs ou injection de fer (pour carence martiale), le diagnostic relié est l’affection qui a motivé la prise en charge.
+
+Exemples :
+
+– séjour pour curiethérapie à bas débit de dose pour cancer de la prostate : DP Z51.01, DR C61 ;
+
+– séjour de soins palliatifs pour cancer du corps utérin en phase terminale : DP Z51.5, DR C54.– ;
+
+– séjours de soins palliatifs pour SIDA avec cachexie : DP Z51.5, DR B22.2.
+
+– séjours pour injection de fer pour anémie par carence martiale : DP Z51.2, l’anémie D50.– en DAS ou en DR dans le respect de la définition du DR.
+
+Tous les séjours pour chimiothérapie, radiothérapie, transfusion sanguine, oxygénothérapie hyperbare et aphérèse sanguine, injection de fer (pour carence martiale) qu’il s’agisse d’hospitalisation complète ou de séances, doivent avoir en position de DP le code adéquat de la catégorie Z51 de la CIM–10. Lorsqu’un code Z51.0–, Z51.1, Z51.2, Z51.3–, Z51.5 ou Z51.8– est en position de DP, la maladie traitée est enregistrée comme DR chaque fois qu’elle respecte sa définition.
+
+---
+
+## règles S1, S2, S3, S4, SD1, SD2 — VI §1.3, p. 135 (1380 car.)
+
+> **Note :** Introduction du §1.3 : la situation de surveillance.
+
+1.3. HOSPITALISATION POUR SURVEILLANCE
+
+La situation est celle d’un patient atteint d'une affection connue, antérieurement diagnostiquée, éventuellement traitée (antérieurement traitée ou en cours de traitement), hospitalisé pour la surveillance de celle-ci.
+
+Par séjour de surveillance on entend tout séjour visant au suivi médical d’une affection, à faire le point sur son évolution ou sur l’adéquation de son traitement, affection diagnostiquée antérieurement au séjour et déjà traitée (précédemment opérée, par exemple) ou en cours de traitement. La situation de surveillance est rencontrée pour l’essentiel dans deux types de circonstances :
+
+• surveillance des maladies chroniques ou de longue durée : elle correspond en particulier à l’appellation courante de « bilan » ; elle concerne souvent — mais pas seulement — des prises en charge « à froid », programmées, de brève durée ; au cours ou au terme du séjour, des investigations ultérieures peuvent être programmées ou des décisions thérapeutiques prises : institution, poursuite ou modification d’un traitement, indication opératoire, etc. ;
+
+• la surveillance d’un patient transféré d’un autre établissement de santé après un traitement (surveillance postopératoire ou postinterventionnelle, ou après traitement médical).
+
+La situation clinique de surveillance comprend la surveillance négative et la surveillance positive.
+
+---
+
+## règles S1, S2, S3 — VI §1.3.1, p. 136 (1146 car.)
+
+> **Note :** Paragraphes du §1.3.1 qui suivent S3 : l'affection surveillée en DR, l'affection sans rapport découverte incidemment.
+
+Dans une situation de surveillance négative l’affection surveillée doit être enregistrée comme DR lorsqu’elle respecte sa définition.
+
+Exemple : bilan de synthèse annuel de l'infection par le VIH ; absence d’affection nouvelle ; DP : code Z de surveillance, DR : l'infection par le VIH (maladie chronique, présente lors du séjour, objet de la surveillance).
+
+Si une affection sans rapport avec la maladie surveillée est découverte incidemment au cours du séjour, conformément à la définition du DP la situation est néanmoins de surveillance négative car l’affection découverte n’est pas « le problème de santé qui a motivé l’admission ». L’affection découverte est un diagnostic associé significatif (DAS).
+
+Exemple : hospitalisation pour surveillance après colectomie pour cancer ; « bilan » négatif ; découverte d’une diverticulose sigmoïdienne au cours de la coloscopie, ou de calculs biliaires ou de kystes rénaux lors de l’échographie abdominale. Le code du DP est Z08.0, le DR est le cancer colique (la situation est de surveillance négative à son égard) ; la diverticulose sigmoïdienne, les calculs biliaires ou les kystes rénaux sont un DAS.
+
+---
+
+## règles S1, S2, S3, S4, SD1, SD2 — VI §1.3.3, p. 137 (757 car.)
+
+> **Note :** Dernier paragraphe du §1.3.3 (après SD2) : la modification du traitement ne transforme pas une surveillance en traitement.
+
+Il résulte de la définition de la situation de surveillance que la modification, l’adaptation, pendant ou au terme du séjour, du traitement d’une affection connue, antérieurement diagnostiquée, antérieurement traitée ou en cours de traitement, ne transforme pas une situation de surveillance négative en situation de traitement et n’autorise pas à coder l’affection comme DP. Les prescriptions (examens paracliniques, modification du traitement) conséquences des constatations ou investigations faites au cours d’un séjour pour surveillance font partie de la surveillance, à l’exception du cas particulier de la nécessité d’une rupture de la prise en charge globale avec changement thérapeutique chez les patients diabétiques (point 1.2.3 – 2° chapitre IV).
+
+---
+
+## règles D9, S1, SD1, SD2 — VI §1.3.4, p. 137-138 (3389 car.)
+
+> **Note :** Remarque sur le mot « bilan ».
+
+1.3.4. Remarque à propos de la notion de « bilan »
+
+Le mot « bilan » est un faux ami aux sens multiples. Le langage médical courant l’emploie en effet dans des situations diverses. Par exemple :
+
+• « bilan de céphalées » aboutissant au diagnostic de tumeur cérébrale (ou à toute autre étiologie) ou à l'absence de diagnostic : sens de « bilan diagnostique » renvoyant à la situation de diagnostic (1.1) ;
+
+• « bilan de cirrhose » conduisant au diagnostic d'hépatocarcinome ou à l'absence de découverte nouvelle ; bilan d'un « alcoolotabagisme » ou d'antécédents familiaux de cancer : sens de « bilan de surveillance » renvoyant à la situation de surveillance (1.3).
+
+En conséquence, devant le mot bilan, il faut se garder d’en déduire par réflexe un codage « en Z » du DP. La mention de ce mot dans la description d'un séjour hospitalier ne constitue jamais une aide au choix du DP et l'analyse doit toujours être faite en termes de situation clinique. Il faut déterminer quel était le but du « bilan ». Il est parfois diagnostique, et son codage alors n’emploie pas un code Z : situation de diagnostic (1.1). Il est souvent de surveillance : en cas de surveillance positive (situation 1.3.2) son codage n’emploie pas un code Z, il ne le fait qu’en cas de surveillance négative (situation 1.3.1). Un « bilan » peut être aussi prétendu « de dépistage » et l’on relira ce qui est dit de cette notion dans le point 1.1.3.
+
+Le bilan d’un cancer : le but d'un bilan peut aussi être de déterminer l’extension d'une tumeur maligne. Le bilan d’un cancer peut être fait dans deux situations :
+
+• dans les suites du diagnostic positif : c’est la situation de bilan initial d’extension d’un cancer, dite de stadification préthérapeutique, traitée dans le point 1.1.4 (4°) ;
+
+• à distance du diagnostic positif et du bilan initial d’extension préthérapeutique : surveillance (habituellement programmée) au cours du traitement, à son terme ou ultérieurement en période de rémission ; il s’agit de la situation de surveillance décrite dans le point 1.3 ; les règles de choix du DP sont celles qui ont été énoncées.
+
+Exemples : surveillance d'un cancer du sein au cours ou au terme d’une chimiothérapie…
+
+– découverte d'une métastase osseuse ; situation de surveillance positive (1.3.2) : le DP est la métastase ;
+
+– pas d’affection nouvelle ; situation de surveillance négative (1.3.1) : DP : surveillance (ici code Z08.–) ; le cancer du sein est le DR.
+
+En conclusion, un séjour pour « bilan » d’un cancer renvoie à deux types de situation clinique qui dictent le choix du DP :
+
+• bilan initial de stadification préthérapeutique : situation équivalente à celle de diagnostic (1.3.1) ; quel que soit son résultat le DP est le cancer primitif (règle D9) ; il n’y a pas de DR ;
+
+• autres bilans : situations de surveillance négative ou positive (1.3) ; le DP est un code Z (règle S1), une complication du cancer (telle une métastase) ou une complication de son traitement (règle SD1). Il n’est jamais le cancer primitif ; celui-ci est enregistré en position de DR lorsque la surveillance est négative puisque dans cette situation le DP est un code Z. Le cancer primitif n’est le DP qu’en cas de récidive (règle SD2).
+
+Il n’appartient pas au médecin responsable de l’information médicale ni au codeur de trancher entre cancer et antécédent de cancer. Ce diagnostic est de la compétence du médecin qui dispense les soins.
+
+---
+
+# Extraits propres à chaque règle (36 extraits, 34205 caractères, ≈ 8551 tokens)
+
+## D1 — VI §1.1.1, p. 122 (717 car.)
+
+> **Note :** Le crochet fermant de l'étiquette « [Règle D1 » manque dans le guide lui-même.
 
 1.1.1. Le séjour a permis le diagnostic de l’affection causale
 
@@ -84,7 +280,7 @@ Dans cette situation, le codage du DP utilise en général les chapitres I à XV
 
 ---
 
-## D2 — VI §1.1.2, p. 122-123
+## D2 — VI §1.1.2, p. 122-123 (1940 car.)
 
 1.1.2. Il n'a pas été découvert de cause à la symptomatologie
 
@@ -112,7 +308,9 @@ La même règle s’applique aux circonstances dans lesquelles le motif d'admiss
 
 ---
 
-## D3 — VI §1.1.3, 1° à 3°, p. 123-124
+## D3 — VI §1.1.3, 1° à 3°, p. 123-124 (1588 car.)
+
+> **Note :** Appel de note « 80 » retiré après « tests allergologiques ».
 
 1.1.3. Cas particuliers
 
@@ -134,15 +332,13 @@ Exemple — Hospitalisation pour enregistrement polysomnographique en raison de 
 
 – pas de cause diagnostiquée : DP Z04.801, DR ronflements.
 
-2) Lors des séjours pour tests allergologiques 80. Que le résultat soit positif ou négatif, le DP est codé Z01.5. Ce code s’impose conformément à sa note d’inclusion, quelle que soit la voie d’administration de l’allergène (cutanée ou autre).
+2) Lors des séjours pour tests allergologiques. Que le résultat soit positif ou négatif, le DP est codé Z01.5. Ce code s’impose conformément à sa note d’inclusion, quelle que soit la voie d’administration de l’allergène (cutanée ou autre).
 
 3) Lors des séjours pour bilan préopératoire ou préinterventionnel. Z04.802 s’impose comme DP, qu’une affection soit ou non découverte au cours du bilan. Une affection découverte au cours du bilan est enregistrée comme un diagnostic associé.
 
 ---
 
-## D4 — VI §1.1.3, 4°, p. 124
-
-> **Note :** Limite de fin incertaine : après le N.B., le passage « La situation clinique de diagnostic est ainsi caractérisée… » résume toute la situation de diagnostic (D1, D2) ; il est gardé ici parce qu'il suit la règle D4 sans autre étiquette.
+## D4 — VI §1.1.3, 4°, p. 124 (1054 car.)
 
 4) Lors des séjours, en général programmés pour une situation d’examen diagnostique motivée par un antécédent personnel ou familial (de cancer ou de polyadénome colique, par exemple) ou par une symptomatologie quelconque (élévation du PSA, par exemple), le DP est, en l’absence de mise en évidence du diagnostic, est la raison des explorations. [Règle D4]
 
@@ -152,33 +348,9 @@ N.B. : On prendra garde à l’emploi parfois inapproprié du mot « dépistage 
 
 Dans le cas d’un patient présentant un problème personnel de santé, les codes des catégories Z11 à Z13 de la CIM-10 ne doivent pas être employés.
 
-La situation clinique de diagnostic est ainsi caractérisée par une démarche médicale de nature diagnostique. Celle-ci vise, à partir de la symptomatologie qui a motivé l’hospitalisation, à établir un diagnostic (suivi ou non d’un traitement). Au terme d’un séjour correspondant à cette situation, le diagnostic a pu ou non être fait :
-
-• soit il l’a été, et le traitement réalisé ;
-
-o Exemple : hospitalisation pour fièvre et toux ; diagnostic de pneumonie, traitement ; DP : la pneumonie
-
-• soit il a été fait mais le traitement remis à plus tard ;
-
-o Exemple : hospitalisation d’un enfant pour une suspicion de tumeur osseuse ; diagnostic d’ostéome ; sortie du patient avec les rendez-vous de consultation préanesthésique et d’admission en chirurgie pour traitement ; DP : ostéome
-
-• soit il n’a pas été fait de diagnostic étiologique ; la symptomatologie a été vainement explorée ; elle a pu disparaitre (spontanément ou du fait d’un traitement symptomatique) ou bien elle peut persister, des investigations complémentaires étant prévues ultérieurement. On rapproche de cette situation le décès précoce survenu avant qu’un diagnostic étiologique n’ait pu être fait.
-
-o Exemples :
-
-– hospitalisation pour douleurs abdominales ; disparition des douleurs, pas de cause trouvée ; DP : douleurs abdominales ;
-
-– hospitalisation pour état de choc ; décès précoce sans diagnostic étiologique ; DP : état de choc.
-
 ---
 
-## D5 — VI §1.1.4, 1°, p. 125
-
-> **Note :** Limite de début incertaine : l'extrait commence par l'introduction du §1.1.4 (situations équivalentes chez un patient atteint d'une maladie chronique), commune à D5, D6, D7 et D8.
-
-1.1.4. Situations équivalentes
-
-Sont équivalentes à celle décrite au point 1.1.1 les situations rencontrées chez un patient atteint d’une affection chronique ou de longue durée connue, antérieurement diagnostiquée, admis pour une symptomatologie aboutissant à l’un des diagnostics suivants.
+## D5 — VI §1.1.4, 1°, p. 125 (2208 car.)
 
 1°) Poussée aigüe de la maladie chronique ou de longue durée.
 
@@ -198,7 +370,7 @@ On ne doit pas considérer toute maladie chronique ou de longue durée comme ét
 
 ---
 
-## D6 — VI §1.1.4, 1°, p. 125
+## D6 — VI §1.1.4, 1°, p. 125 (399 car.)
 
 L’affection chronique sous-jacente n’est pas le DP des séjours pour poussée aigüe quand la CIM–10 contient des rubriques ad hoc. [Règle D6]
 
@@ -218,7 +390,7 @@ Exemples :
 
 ---
 
-## D7 — VI §1.1.4, 2°, p. 126
+## D7 — VI §1.1.4, 2°, p. 126 (1648 car.)
 
 > **Note :** Le texte se termine par une virgule dans le guide (appel de note 4 retiré).
 
@@ -240,9 +412,7 @@ La règle D7 s’applique dans le cas d’une maladie chronique ou de longue dur
 
 ---
 
-## D8 — VI §1.1.4, 3°, p. 126
-
-> **Note :** Le dernier paragraphe (« Ces trois situations sont conformes à la règle D1… ») vaut pour D5, D7 et D8.
+## D8 — VI §1.1.4, 3°, p. 126 (567 car.)
 
 3°) Affection ou lésion intercurrente, indépendante de la maladie chronique ou de longue durée.
 
@@ -250,11 +420,9 @@ Lorsque le séjour a été motivé par le diagnostic d’une affection ou d’un
 
 Exemple : hospitalisation d’un patient diabétique à la suite d’une chute en raison de douleurs et d’une impotence d’un membre inférieur ; une fracture du col du fémur est diagnostiquée et traitée ; DP : fracture du col du fémur.
 
-Ces trois situations sont conformes à la règle D1. Le patient est hospitalisé pour une symptomatologie (celle de la poussée, de la complication ou de l’affection intercurrente) appelant un diagnostic étiologique. Le DP est l’affection diagnostiquée, c’est-à-dire la maladie en poussée aigüe, la complication ou l’affection intercurrente.
-
 ---
 
-## D9 — VI §1.1.4, 4°, p. 126-127
+## D9 — VI §1.1.4, 4°, p. 126-127 (1172 car.)
 
 4°) Par convention on considère également comme une situation équivalente le bilan initial d’extension d’un cancer. En matière de choix du DP on l’assimile à la situation 1.1.1 : au terme du séjour concerné le DP est la tumeur maligne. On désigne par « bilan initial d’extension d’un cancer » le séjour au cours duquel sont effectuées les investigations suivant la découverte — le diagnostic positif — d’une maladie maligne, investigations notamment nécessaires pour déterminer son stade (par exemple, selon la classification TNM) et pour décider du protocole thérapeutique qui sera appliqué (bilan parfois dit de « stadification » préthérapeutique). [Règle D9]
 
@@ -266,15 +434,7 @@ Exemple : hospitalisation d'un patient tabagique en raison d'hémoptysies ; déc
 
 ---
 
-## T1 — VI §1.2, 1.2.1, p. 127-128
-
-> **Note :** Limite de début incertaine : l'extrait commence par l'introduction du §1.2 (définition de la situation de traitement), qui précède la règle T1.
-
-1.2. HOSPITALISATION POUR TRAITEMENT
-
-La situation est celle d’un patient atteint d’une affection connue, diagnostiquée avant l’admission, hospitalisé pour le traitement de celle-ci.
-
-Les circonstances du diagnostic préalable n’importent pas : le diagnostic de l’affection a pu être fait par un médecin généraliste ou spécialiste « de ville », par un service médical d’urgence et de réanimation (SMUR), lors du passage dans une structure d’accueil des urgences, lors d’un séjour précédent dans une autre unité médicale, y compris l’unité d’hospitalisation de courte durée, du même établissement de santé ou d’un autre, etc. La situation de traitement est présente lorsque le diagnostic de l’affection est fait au moment de l’entrée du patient dans l’unité médicale et que l’admission a pour but le traitement de l’affection. La situation clinique de traitement comprend le traitement répétitif et le traitement unique.
+## T1 — VI §1.2.1, p. 127-128 (2701 car.)
 
 1.2.1. Traitement répétitif
 
@@ -314,7 +474,9 @@ Dans la situation de traitement répétitif, le DP étant un code Z, il faut men
 
 ---
 
-## T2 — VI §1.2.1, cas particuliers, p. 128-129
+## T2 — VI §1.2.1, cas particuliers, p. 128-129 (1122 car.)
+
+• Cas particuliers
 
 Il existe des exceptions : [Règle T2]
 
@@ -330,17 +492,7 @@ Le DP n’étant pas un code Z, il ne doit pas être mentionné de DR dans le RU
 
 ---
 
-## T3 — VI §1.2.2, 1.2.2.1, p. 129
-
-> **Note :** Limite de début incertaine : l'extrait commence par l'introduction du §1.2.2 (traitement unique chirurgical, interventionnel ou médical).
-
-1.2.2. Traitement unique
-
-Le traitement « unique » est ainsi désigné par opposition au traitement répétitif. Du point de vue du recueil d’informations du PMSI en MCO, un traitement non répétitif au sens de la situation 1.2.1 est un traitement unique.
-
-Dans la situation de traitement unique le DP est en général l’affection traitée.
-
-Le traitement unique peut être chirurgical, « interventionnel » ou médical.
+## T3 — VI §1.2.2.1, p. 129 (788 car.)
 
 1.2.2.1. Traitement unique chirurgical [Règle T3]
 
@@ -360,11 +512,7 @@ Dans cette situation, le DP n’étant pas un code Z, il ne doit pas être menti
 
 ---
 
-## T4 — VI §1.2.2.1, cas particuliers 1°, p. 129-130
-
-> **Note :** Commence par la phrase d'introduction des cas particuliers (catégories Z40 à Z52), commune à T4, T5, T6, T7, T15 et T14.
-
-Certaines situations de traitement unique chirurgical font appel pour le codage du DP aux codes des catégories Z40 à Z52 de la CIM–10. Sont spécialement dans ce cas les hospitalisations dont le motif a été l’un des suivants.
+## T4 — VI §1.2.2.1, cas particuliers 1°, p. 129-130 (1059 car.)
 
 1°) Un acte de chirurgie esthétique : on désigne ainsi toute intervention de chirurgie plastique non prise en charge par l’assurance maladie obligatoire. Dans son cas le DP doit toujours être codé Z41.0 ou Z41.1, à l’exclusion de tout autre code. [Règle T4]
 
@@ -378,7 +526,9 @@ S’agissant de chirurgie esthétique, par conséquent en l’absence d’affect
 
 ---
 
-## T5 — VI §1.2.2.1, cas particuliers 2°, p. 130
+## T5 — VI §1.2.2.1, cas particuliers 2°, p. 130 (1668 car.)
+
+> **Note :** La note 16 du guide est reprise à la fin (« Note du guide : … »).
 
 2°) Un acte de chirurgie plastique non esthétique, de réparation d’une lésion congénitale ou acquise, pris en charge par l’assurance maladie obligatoire : le DP doit être codé avec un code des chapitres I à XIX ou un code de la catégorie Z42. [Règle T5]
 
@@ -400,11 +550,13 @@ Exemples :
 
 – séjour pour rhinoplastie pour déviation de la cloison nasale : DP J34.2, pas de DR.
 
+Note du guide : La plupart des séjours pour intervention plastique réparatrice des séquelles d’une lésion traumatique ou d’une perte de substance postopératoire font en effet appel à la catégorie Z42 pour le codage du DP. Le DR peut être un code Z s’il correspond, tel Z90.1, à un « état permanent » (se reporter au point 1).
+
 ---
 
-## T6 — VI §1.2.2.1, cas particuliers 3°, p. 130
+## T6 — VI §1.2.2.1, cas particuliers 3°, p. 130 (987 car.)
 
-> **Note :** La règle T6 est rappelée une seconde fois dans le §1.2.2.2 (p. 132), à propos des actes interventionnels ; ce rappel n'est pas repris ici.
+> **Note :** La règle T6 est rappelée une seconde fois dans le §1.2.2.2 (p. 132) ; ce rappel n'est pas repris.
 
 3°) Une intervention dite de confort : on désigne par intervention « de confort » un acte médicotechnique non pris en charge par l’assurance maladie obligatoire, autre que la chirurgie esthétique. Le DP de ces séjours doit être codé Z41.80 Intervention de confort, à l’exclusion de tout autre code. [Règle T6]
 
@@ -414,7 +566,7 @@ Il ne s’impose pas au médecin responsable de l’information médicale ni au 
 
 ---
 
-## T7 — VI §1.2.2.1, cas particuliers 4°, p. 130-131
+## T7 — VI §1.2.2.1, cas particuliers 4°, p. 130-131 (1194 car.)
 
 4°) Dans la situation de prise en charge pour soins spécifiques de stomies, prothèses, autres appareils, le DP fait appel aux catégories Z43 à Z47 ainsi que Z49.0. [Règle T7]
 
@@ -434,7 +586,7 @@ Les sens et modalités d’emploi de ces codes sont exposés dans le point 2 (Em
 
 ---
 
-## T15 — VI §1.2.2.1, cas particuliers 5°, p. 131
+## T15 — VI §1.2.2.1, cas particuliers 5°, p. 131 (267 car.)
 
 5°) L’opération prophylactique [Règle T15]
 
@@ -444,7 +596,7 @@ Exemple : Patiente hospitalisée pour mastectomie (s) prophylactique DP : Z40.00
 
 ---
 
-## T14 — VI §1.2.2.1, cas particuliers 6°, p. 131-132
+## T14 — VI §1.2.2.1, cas particuliers 6°, p. 131-132 (1696 car.)
 
 6°) Traitement unique en deux temps [Règle T14]
 
@@ -460,7 +612,7 @@ La notion de traitement unique en deux temps s’applique ainsi à des actes don
 
 ---
 
-## T8 — VI §1.2.2.2, p. 132
+## T8 — VI §1.2.2.2, p. 132 (1304 car.)
 
 > **Note :** L'étiquette est écrite [REGLE T8] dans le guide. Le rappel de la règle T6 qui suit n'est pas repris.
 
@@ -480,7 +632,7 @@ Exemple : patient atteint d’un hépatocarcinome hospitalisé pour une seconde 
 
 ---
 
-## T9 — VI §1.2.2.3, p. 132-133
+## T9 — VI §1.2.2.3, p. 132-133 (1399 car.)
 
 1.2.2.3. Traitement Unique Médical
 
@@ -506,65 +658,27 @@ Exemples :
 
 ---
 
-## T10 — VI §1.2.2.3, cas particuliers, p. 133
+## T10 — VI §1.2.2.3, cas particuliers, p. 133 (263 car.)
 
-> **Note :** Les règles T10 et T11 partagent le même passage (exceptions au traitement unique médical) : il est donné en entier pour chacune. T10 porte deux étiquettes (curiethérapie et irradiation en dose unique ; injection de fer).
-
-Il existe des exceptions :
+> **Note :** Les deux étiquettes T10 ; le passage entier (exceptions, DR, exemples) est le passage commun T10-T11.
 
 o la curiethérapie et les irradiations en dose unique : le DP doit être codé Z51.01, comme dans les autres cas d’irradiation externe et interne ; [Règle T10]
 
 o l’injection de fer (pour carence martiale) en injection unique : le DP doit être codé Z51.2 [Règle T10]
 
-o les soins palliatifs : dès lors que leur définition est respectée le DP est codé Z51.5. [Règle T11]
-
-Au terme des séjours pour curiethérapie à bas débit de dose, irradiation en dose unique, pour soins palliatifs ou injection de fer (pour carence martiale), le diagnostic relié est l’affection qui a motivé la prise en charge.
-
-Exemples :
-
-– séjour pour curiethérapie à bas débit de dose pour cancer de la prostate : DP Z51.01, DR C61 ;
-
-– séjour de soins palliatifs pour cancer du corps utérin en phase terminale : DP Z51.5, DR C54.– ;
-
-– séjours de soins palliatifs pour SIDA avec cachexie : DP Z51.5, DR B22.2.
-
-– séjours pour injection de fer pour anémie par carence martiale : DP Z51.2, l’anémie D50.– en DAS ou en DR dans le respect de la définition du DR.
-
-Tous les séjours pour chimiothérapie, radiothérapie, transfusion sanguine, oxygénothérapie hyperbare et aphérèse sanguine, injection de fer (pour carence martiale) qu’il s’agisse d’hospitalisation complète ou de séances, doivent avoir en position de DP le code adéquat de la catégorie Z51 de la CIM–10. Lorsqu’un code Z51.0–, Z51.1, Z51.2, Z51.3–, Z51.5 ou Z51.8– est en position de DP, la maladie traitée est enregistrée comme DR chaque fois qu’elle respecte sa définition.
-
 ---
 
-## T11 — VI §1.2.2.3, cas particuliers, p. 133
+## T11 — VI §1.2.2.3, cas particuliers, p. 133 (101 car.)
 
-> **Note :** Même passage que T10 (voir sa note) ; la règle T11 est l'exception des soins palliatifs.
-
-Il existe des exceptions :
-
-o la curiethérapie et les irradiations en dose unique : le DP doit être codé Z51.01, comme dans les autres cas d’irradiation externe et interne ; [Règle T10]
-
-o l’injection de fer (pour carence martiale) en injection unique : le DP doit être codé Z51.2 [Règle T10]
+> **Note :** L'étiquette T11 ; le passage entier est le passage commun T10-T11.
 
 o les soins palliatifs : dès lors que leur définition est respectée le DP est codé Z51.5. [Règle T11]
 
-Au terme des séjours pour curiethérapie à bas débit de dose, irradiation en dose unique, pour soins palliatifs ou injection de fer (pour carence martiale), le diagnostic relié est l’affection qui a motivé la prise en charge.
-
-Exemples :
-
-– séjour pour curiethérapie à bas débit de dose pour cancer de la prostate : DP Z51.01, DR C61 ;
-
-– séjour de soins palliatifs pour cancer du corps utérin en phase terminale : DP Z51.5, DR C54.– ;
-
-– séjours de soins palliatifs pour SIDA avec cachexie : DP Z51.5, DR B22.2.
-
-– séjours pour injection de fer pour anémie par carence martiale : DP Z51.2, l’anémie D50.– en DAS ou en DR dans le respect de la définition du DR.
-
-Tous les séjours pour chimiothérapie, radiothérapie, transfusion sanguine, oxygénothérapie hyperbare et aphérèse sanguine, injection de fer (pour carence martiale) qu’il s’agisse d’hospitalisation complète ou de séances, doivent avoir en position de DP le code adéquat de la catégorie Z51 de la CIM–10. Lorsqu’un code Z51.0–, Z51.1, Z51.2, Z51.3–, Z51.5 ou Z51.8– est en position de DP, la maladie traitée est enregistrée comme DR chaque fois qu’elle respecte sa définition.
-
 ---
 
-## T9 — VI §1.2.3, 1°, p. 133
+## T9 — VI §1.2.3, 1°, p. 133 (442 car.)
 
-> **Note :** Sans étiquette dans le guide : situation équivalente au traitement unique (mise en route du traitement d'une maladie chronique), à rattacher à T9 (sous-règle T9-initiation-tt-chronic).
+> **Note :** Sans étiquette dans le guide : situation équivalente au traitement unique (mise en route du traitement d'une maladie chronique), sous-règle T9-initiation-tt-chronic.
 
 1.2.3. Situations équivalentes (au traitement unique)
 
@@ -574,9 +688,9 @@ On assimile à la situation de traitement unique les circonstances suivantes :
 
 ---
 
-## T9 — VI §1.2.3, 2°, p. 134
+## T9 — VI §1.2.3, 2°, p. 134 (1480 car.)
 
-> **Note :** Sans étiquette dans le guide : situation équivalente au traitement unique (changement de stratégie thérapeutique chez le diabétique), à rattacher à T9 (sous-règle T9-diabetes).
+> **Note :** Sans étiquette dans le guide : situation équivalente au traitement unique (changement de stratégie thérapeutique chez le diabétique), sous-règle T9-diabetes.
 
 2°) Chez les patients diabétiques non amélioré par une adaptation ambulatoire du traitement, la nécessité d’une rupture dans la prise en charge globale avec changement de la stratégie thérapeutique répondant au moins à l’un des critères suivants :
 
@@ -602,7 +716,7 @@ Il ne peut pas s’agir seulement, au cours du séjour, de modifications posolog
 
 ---
 
-## T12 — VI §1.2.3, 3°, p. 134
+## T12 — VI §1.2.3, 3°, p. 134 (252 car.)
 
 3°) L’accouchement normal
 
@@ -610,15 +724,15 @@ On désigne ainsi un accouchement en présentation du sommet sans complication c
 
 ---
 
-## T13 — VI §1.2.3, 4°, p. 134
+## T13 — VI §1.2.3, 4°, p. 134 (355 car.)
 
 4°) La naissance d’un enfant séjournant en maternité avec sa mère : le DP du séjour du nouveau-né est codé avec la catégorie Z38 Enfants nés vivants, selon le lieu de naissance [Règle T13] . Si un problème de santé est découvert à la naissance ou pendant le séjour en maternité, il est un diagnostic associé significatif du RUM du nouveau-né en maternité.
 
 ---
 
-## IVG — VI §1.2.3, 5°, p. 134
+## IVG — VI §1.2.3, 5°, p. 134 (324 car.)
 
-> **Note :** Sans étiquette dans le guide ; lettres espacées de l'extraction réparées (« interruption médicale volontaire de grossesse »). Rattachement à proposer à l'étape 3.
+> **Note :** Pas de règle officielle (sans étiquette dans le guide) ; ligne IVG du tableau. Lettres espacées de l'extraction réparées.
 
 5°) L’interruption volontaire de grossesse
 
@@ -626,9 +740,9 @@ Le DP du séjour d’IVG est codé avec la catégorie O04 de la CIM–10 interru
 
 ---
 
-## IMG — VI §1.2.3, 6°, p. 134
+## ITG — VI §1.2.3, 6°, p. 134 (325 car.)
 
-> **Note :** Sans étiquette dans le guide ; le paragraphe se termine sans point. Rattachement à proposer à l'étape 3 (ligne ITG du tableau).
+> **Note :** Pas de règle officielle (sans étiquette dans le guide) ; l'IMG correspond à la ligne ITG du tableau. Le paragraphe se termine sans point.
 
 6°) L’interruption médicale de grossesse
 
@@ -636,21 +750,9 @@ Avant vingt-deux semaines révolues d’aménorrhée : le DP du séjour d’IMG 
 
 ---
 
-## S1 — VI §1.3, 1.3.1, p. 135
+## S1 — VI §1.3.1, p. 135-136 (1240 car.)
 
-> **Note :** Limite de début incertaine : l'extrait commence par l'introduction du §1.3 (définition de la situation de surveillance), qui précède la règle S1. Les deux paragraphes du §1.3.1 qui suivent S3 (DR dans la surveillance négative, affection découverte sans rapport) sont dans l'extrait S3.
-
-1.3. HOSPITALISATION POUR SURVEILLANCE
-
-La situation est celle d’un patient atteint d'une affection connue, antérieurement diagnostiquée, éventuellement traitée (antérieurement traitée ou en cours de traitement), hospitalisé pour la surveillance de celle-ci.
-
-Par séjour de surveillance on entend tout séjour visant au suivi médical d’une affection, à faire le point sur son évolution ou sur l’adéquation de son traitement, affection diagnostiquée antérieurement au séjour et déjà traitée (précédemment opérée, par exemple) ou en cours de traitement. La situation de surveillance est rencontrée pour l’essentiel dans deux types de circonstances :
-
-• surveillance des maladies chroniques ou de longue durée : elle correspond en particulier à l’appellation courante de « bilan » ; elle concerne souvent — mais pas seulement — des prises en charge « à froid », programmées, de brève durée ; au cours ou au terme du séjour, des investigations ultérieures peuvent être programmées ou des décisions thérapeutiques prises : institution, poursuite ou modification d’un traitement, indication opératoire, etc. ;
-
-• la surveillance d’un patient transféré d’un autre établissement de santé après un traitement (surveillance postopératoire ou postinterventionnelle, ou après traitement médical).
-
-La situation clinique de surveillance comprend la surveillance négative et la surveillance positive.
+> **Note :** Se termine par la phrase qui précède S2 (consignes d'emploi des codes de surveillance négative).
 
 1.3.1. Surveillance négative
 
@@ -674,31 +776,23 @@ Le codage du DP dans les situations de surveillance négative utilise le plus so
 
 • les codes Z95.1 à Z95.8 pour les porteurs de pontage coronaire et de prothèse endoartérielle (stent)), de prothèse valvulaire cardiaque et « autres implants et greffes cardiaques et vasculaires ».
 
+Les consignes d’emploi des codes de surveillance négative sont indiquées dans le point 2 (Emploi des codes du chapitre XXI de la CIM–10) du chapitre V.
+
 ---
 
-## S2 — VI §1.3.1, p. 136
+## S2 — VI §1.3.1, p. 136 (281 car.)
 
 Les codes de la catégorie Z94 s’imposent en position de DP dans les situations de surveillance négative d’un patient transplanté, c'est-à-dire pour les séjours de surveillance après greffe d’organe ou de tissu au terme desquels il n’est pas diagnostiqué de complication. [Règle S2]
 
 ---
 
-## S3 — VI §1.3.1, p. 136
-
-> **Note :** Limite de fin incertaine : les paragraphes qui suivent l'étiquette S3 (affection surveillée en DR, affection sans rapport découverte incidemment, exemple) valent pour toute la surveillance négative (S1, S2, S3).
+## S3 — VI §1.3.1, p. 136 (217 car.)
 
 De même, les codes de la catégorie Z95 s’imposent en position de DP dans les situations de surveillance négative d’un patient porteur d’un implant ou d’une greffe cardiovasculaire compris dans la catégorie. [Règle S3]
 
-Dans une situation de surveillance négative l’affection surveillée doit être enregistrée comme DR lorsqu’elle respecte sa définition.
-
-Exemple : bilan de synthèse annuel de l'infection par le VIH ; absence d’affection nouvelle ; DP : code Z de surveillance, DR : l'infection par le VIH (maladie chronique, présente lors du séjour, objet de la surveillance).
-
-Si une affection sans rapport avec la maladie surveillée est découverte incidemment au cours du séjour, conformément à la définition du DP la situation est néanmoins de surveillance négative car l’affection découverte n’est pas « le problème de santé qui a motivé l’admission ». L’affection découverte est un diagnostic associé significatif (DAS).
-
-Exemple : hospitalisation pour surveillance après colectomie pour cancer ; « bilan » négatif ; découverte d’une diverticulose sigmoïdienne au cours de la coloscopie, ou de calculs biliaires ou de kystes rénaux lors de l’échographie abdominale. Le code du DP est Z08.0, le DR est le cancer colique (la situation est de surveillance négative à son égard) ; la diverticulose sigmoïdienne, les calculs biliaires ou les kystes rénaux sont un DAS.
-
 ---
 
-## SD1 — VI §1.3.2, p. 136-137
+## SD1 — VI §1.3.2, p. 136-137 (1756 car.)
 
 1.3.2. Surveillance positive
 
@@ -726,7 +820,7 @@ On rappelle qu’en revanche, si une affection sans rapport avec la maladie surv
 
 ---
 
-## S4 — VI §1.3.3, p. 137
+## S4 — VI §1.3.3, p. 137 (596 car.)
 
 1.3.3. Situations équivalentes
 
@@ -736,9 +830,7 @@ le DP du RUM de la mère est codé Z39.08 Soins et examens immédiatement après
 
 ---
 
-## SD2 — VI §1.3.3, p. 137
-
-> **Note :** Limite de fin incertaine : le dernier paragraphe (la modification du traitement ne transforme pas une surveillance en traitement) vaut pour toute la situation de surveillance.
+## SD2 — VI §1.3.3, p. 137 (453 car.)
 
 On assimile à la situation de surveillance positive les cas de séjours motivés par un antécédent de cancer, au cours desquels est découverte une récidive. La tumeur, récidivant est le DP [Règle SD2]. La notion de récidive est réservée aux cas de cancer :
 
@@ -748,47 +840,9 @@ On assimile à la situation de surveillance positive les cas de séjours motivé
 
 • considéré comme étant en rémission complète avant la découverte de la récidive.
 
-Il résulte de la définition de la situation de surveillance que la modification, l’adaptation, pendant ou au terme du séjour, du traitement d’une affection connue, antérieurement diagnostiquée, antérieurement traitée ou en cours de traitement, ne transforme pas une situation de surveillance négative en situation de traitement et n’autorise pas à coder l’affection comme DP. Les prescriptions (examens paracliniques, modification du traitement) conséquences des constatations ou investigations faites au cours d’un séjour pour surveillance font partie de la surveillance, à l’exception du cas particulier de la nécessité d’une rupture de la prise en charge globale avec changement thérapeutique chez les patients diabétiques (point 1.2.3 – 2° chapitre IV).
-
 ---
 
-## S1 — VI §1.3.4, p. 137-138
-
-> **Note :** Proposé en plus : la remarque sur le mot « bilan », qui vaut pour D9, S1, SD1 et SD2.
-
-1.3.4. Remarque à propos de la notion de « bilan »
-
-Le mot « bilan » est un faux ami aux sens multiples. Le langage médical courant l’emploie en effet dans des situations diverses. Par exemple :
-
-• « bilan de céphalées » aboutissant au diagnostic de tumeur cérébrale (ou à toute autre étiologie) ou à l'absence de diagnostic : sens de « bilan diagnostique » renvoyant à la situation de diagnostic (1.1) ;
-
-• « bilan de cirrhose » conduisant au diagnostic d'hépatocarcinome ou à l'absence de découverte nouvelle ; bilan d'un « alcoolotabagisme » ou d'antécédents familiaux de cancer : sens de « bilan de surveillance » renvoyant à la situation de surveillance (1.3).
-
-En conséquence, devant le mot bilan, il faut se garder d’en déduire par réflexe un codage « en Z » du DP. La mention de ce mot dans la description d'un séjour hospitalier ne constitue jamais une aide au choix du DP et l'analyse doit toujours être faite en termes de situation clinique. Il faut déterminer quel était le but du « bilan ». Il est parfois diagnostique, et son codage alors n’emploie pas un code Z : situation de diagnostic (1.1). Il est souvent de surveillance : en cas de surveillance positive (situation 1.3.2) son codage n’emploie pas un code Z, il ne le fait qu’en cas de surveillance négative (situation 1.3.1). Un « bilan » peut être aussi prétendu « de dépistage » et l’on relira ce qui est dit de cette notion dans le point 1.1.3.
-
-Le bilan d’un cancer : le but d'un bilan peut aussi être de déterminer l’extension d'une tumeur maligne. Le bilan d’un cancer peut être fait dans deux situations :
-
-• dans les suites du diagnostic positif : c’est la situation de bilan initial d’extension d’un cancer, dite de stadification préthérapeutique, traitée dans le point 1.1.4 (4°) ;
-
-• à distance du diagnostic positif et du bilan initial d’extension préthérapeutique : surveillance (habituellement programmée) au cours du traitement, à son terme ou ultérieurement en période de rémission ; il s’agit de la situation de surveillance décrite dans le point 1.3 ; les règles de choix du DP sont celles qui ont été énoncées.
-
-Exemples : surveillance d'un cancer du sein au cours ou au terme d’une chimiothérapie…
-
-– découverte d'une métastase osseuse ; situation de surveillance positive (1.3.2) : le DP est la métastase ;
-
-– pas d’affection nouvelle ; situation de surveillance négative (1.3.1) : DP : surveillance (ici code Z08.–) ; le cancer du sein est le DR.
-
-En conclusion, un séjour pour « bilan » d’un cancer renvoie à deux types de situation clinique qui dictent le choix du DP :
-
-• bilan initial de stadification préthérapeutique : situation équivalente à celle de diagnostic (1.3.1) ; quel que soit son résultat le DP est le cancer primitif (règle D9) ; il n’y a pas de DR ;
-
-• autres bilans : situations de surveillance négative ou positive (1.3) ; le DP est un code Z (règle S1), une complication du cancer (telle une métastase) ou une complication de son traitement (règle SD1). Il n’est jamais le cancer primitif ; celui-ci est enregistré en position de DR lorsque la surveillance est négative puisque dans cette situation le DP est un code Z. Le cancer primitif n’est le DP qu’en cas de récidive (règle SD2).
-
-Il n’appartient pas au médecin responsable de l’information médicale ni au codeur de trancher entre cancer et antécédent de cancer. Ce diagnostic est de la compétence du médecin qui dispense les soins.
-
----
-
-## M1 — VI §1.5, p. 140
+## M1 — VI §1.5, p. 140 (331 car.)
 
 1.5. QUE FAIRE SI L’ANALYSE EN TERMES DE SITUATION CLINIQUE PROPOSE PLUS D’UN DIAGNOSTIC PRINCIPAL
 
@@ -796,7 +850,7 @@ Le DP étant le problème de santé qui a motivé l’admission, une telle circo
 
 ---
 
-## M2 — VI §1.5, p. 140
+## M2 — VI §1.5, p. 140 (311 car.)
 
 Dans le cas où les deux problèmes auraient mobilisé des efforts d'importance comparable, c’est-à-dire dans le cas de prises en charge équivalentes, et dans ce cas seulement, le choix du DP parmi les ex æquo est laissé à l’établissement de santé. [Règle M2]
 
