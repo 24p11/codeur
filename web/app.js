@@ -657,8 +657,7 @@
   // qu'avec un codage et des passages surlignés non rattachés à un code (appel répété, SCHEMA.md §3.6).
   function majBoutons() {
     if (codageUI.appelEnCours) return;
-    $("bouton-codage").disabled = !dossier.passages.length && !travail.courant;
-    $("bouton-coder-nouveaux").hidden = !(travail.courant && passagesLibres().length);
+    $("bouton-codage").disabled = !dossier.passages.length;
   }
   // Sous le texte, le codage ou l'évaluation : l'un ou l'autre, jamais les deux ; le bouton actif est coloré.
   function montrerVue(vue) {
@@ -668,9 +667,9 @@
     $("bouton-codage").classList.toggle("actif", vue === "codage");
     $("bouton-evaluation").classList.toggle("actif", vue === "evaluation");
   }
-  $("bouton-codage").addEventListener("click", () => { montrerVue("codage"); if (!travail.courant) faireCodage(); });
-  $("bouton-evaluation").addEventListener("click", () => montrerVue("evaluation"));
-  $("bouton-coder-nouveaux").addEventListener("click", faireCodage);
+  // « Codage » ne sert qu'à appeler l'IA ; « Évaluation » fonctionne en bascule (un second clic ramène au codage).
+  $("bouton-codage").addEventListener("click", faireCodage);
+  $("bouton-evaluation").addEventListener("click", () => montrerVue(codageUI.vue === "evaluation" ? "codage" : "evaluation"));
 
   // ---- Mode passages (lot A1) ----
   function rendrePanneauPassages() {
@@ -994,7 +993,7 @@
     if (!dossier.passages.length) { message("message-dossier", "Surlignez au moins un passage avant de faire le codage.", true); return; }
     const bouton = $("bouton-codage");
     codageUI.appelEnCours = true;
-    bouton.disabled = true; $("bouton-coder-nouveaux").disabled = true;
+    bouton.disabled = true;
     montrerVue("codage");
     $("bloc-codage").hidden = false;
     $("codage-contenu").textContent = "";
@@ -1002,20 +1001,30 @@
     message("message-dossier", "");
     const reglages = etat.reglages;
     const fournisseur = fournisseurDe(reglages.adresse);
-    // Appel répété (SCHEMA.md §3.6) : seuls les passages surlignés non rattachés à un code sont envoyés ; un passage qui
-    // chevauche une preuve existante complète ce code sans être envoyé ; les codes retenus sont transmis en lecture seule.
-    const repete = !!(travail.courant && travail.courant.ensembles.length);
+    // Appel répété (SCHEMA.md §3.6, 23 octobre) : le codage existant est conservé et transmis en lecture seule ; seuls les
+    // passages rattachés à aucun code sont envoyés ; un passage qui chevauche une preuve existante complète ce code sans
+    // être envoyé ; les codes rejetés concernés sont signalés au modèle.
+    const repete = !!travail.courant;
     let passages = dossier.passages.slice();
     const avertissements = [];
+    let prep = null;
     if (repete) {
-      const prep = K.preparerAppelRepete(travail.courant, dossier.passages, (p) => P.verifier(dossier.doc.texte, p));
+      prep = K.preparerAppelRepete(travail.courant, dossier.passages, (p) => P.verifier(dossier.doc.texte, p));
       passages = prep.aEnvoyer;
-      if (prep.modifie) { travail.modifie = true; avertissements.push("Passage(s) ajouté(s) aux preuves d'un code existant (chevauchement) : " + prep.completes.join(", ") + "."); }
+      if (prep.modifie) {
+        travail.modifie = true;
+        for (const e of travail.courant.ensembles) if (prep.completes.includes(e.code || "code à choisir")) {
+          e.commentaires = (e.commentaires || []); if (!e.commentaires.some((k) => k.auteur === "outil" && /chevauch/.test(k.texte) && !k.etape)) e.commentaires.push({ auteur: "outil", etape: "revue_humain", texte: "Nouveau surlignage ajouté aux preuves de ce code (chevauchement d'une preuve existante), non envoyé à l'IA." });
+        }
+        avertissements.push("Passage(s) ajouté(s) aux preuves d'un code existant (chevauchement) : " + prep.completes.join(", ") + ".");
+      }
+      const nbCodes = travail.courant.ensembles.length;
       if (!passages.length) {
         rendreCodage(); if (prep.modifie) sauvegarderLocalCodage();
-        message("message-dossier", "Aucun nouveau passage à envoyer au modèle : tous vos surlignages sont déjà rattachés à un code." + (prep.modifie ? " " + avertissements[0] : ""), !prep.modifie);
+        message("message-dossier", "Aucun passage à envoyer à l'IA : tous vos surlignages sont déjà rattachés à un code ou déclarés non codés (" + nbCodes + " code" + (nbCodes > 1 ? "s" : "") + " conservé" + (nbCodes > 1 ? "s" : "") + ")." + (prep.modifie ? " " + avertissements[0] : ""), !prep.modifie);
         finAppel(); return;
       }
+      message("message-dossier", passages.length + " passage" + (passages.length > 1 ? "s" : "") + " envoyé" + (passages.length > 1 ? "s" : "") + " à l'IA, " + nbCodes + " code" + (nbCodes > 1 ? "s" : "") + " conservé" + (nbCodes > 1 ? "s" : "") + (prep.rejetes.length ? ", " + prep.rejetes.length + " code" + (prep.rejetes.length > 1 ? "s" : "") + " rejeté" + (prep.rejetes.length > 1 ? "s" : "") + " signalé" + (prep.rejetes.length > 1 ? "s" : "") + " au modèle" : "") + ".");
       // Vos modifications non enregistrées sont d'abord enregistrées (ligne revue_humain), pour ne pas être attribuées à l'IA.
       if (travail.modifie) {
         etatCodage("Enregistrement de vos modifications (revue) avant l'appel…");
@@ -1024,8 +1033,11 @@
       }
     }
     try {
-      const pc = await lirePrompt("codage_v1");
-      const contexte = repete ? { codesRetenus: travail.courant.ensembles.filter((e) => e.code).map((e) => ({ code: e.code, libelle: e.libelle, categorie: e.categorie })) } : null;
+      const pc = await lirePrompt("codage_v2");
+      const contexte = repete ? {
+        codesRetenus: travail.courant.ensembles.filter((e) => e.code).map((e) => ({ code: e.code, libelle: e.libelle, categorie: e.categorie, preuves: e.preuves.map((p) => p.texte) })),
+        rejetes: prep.rejetes,
+      } : null;
       const utilisateur = K.construireMessageUtilisateur(dossier.doc.id_source, dossier.doc.texte, passages, contexte);
       const messages = [{ role: "system", content: pc.texte }, { role: "user", content: utilisateur }];
       const appelInitial = uuid();
@@ -1084,6 +1096,7 @@
         codage = ass.codage;
         if (ass.ecartes.length) avertissements.push("Proposition(s) sans nouveau passage écartée(s) : " + ass.ecartes.join(", ") + ".");
         if (ass.completes.length) avertissements.push("L'IA a ajouté des passages aux preuves de codes déjà retenus : " + ass.completes.join(", ") + " (vous pouvez les retirer).");
+        if (ass.reproposes.length) avertissements.push("Code(s) déjà rejeté(s) par vous, reproposé(s) par l'IA : " + ass.reproposes.join(", ") + " (signalés, à vous de décider).");
       }
       codage.affichage = varianteAffichage();
       const compteurs = K.compteurs(precedent ? precedent.codage : null, codage);
@@ -1101,6 +1114,7 @@
       if (an.ensemblesSansPassage) avertissements.push(an.ensemblesSansPassage + " ensemble(s) sans passage valide écarté(s).");
       if (an.pathologiesPrincipalesMultiples.length) avertissements.push("Plusieurs pathologies principales proposées : " + an.pathologiesPrincipalesMultiples[0] + " gardée, les autres passées en diagnostic associé.");
       if (an.passagesMultiEnsembles.length) avertissements.push("Passage(s) rattaché(s) à plusieurs codes : " + an.passagesMultiEnsembles.map((k) => "n° " + k).join(", ") + ".");
+      if (an.passagesTropCites.length) avertissements.push("Passage(s) cité(s) par plus de deux codes (signalés sur les codes concernés) : " + an.passagesTropCites.map((t) => "n° " + t.passage + " par " + t.nb + " codes").join(", ") + ".");
       if (an.nonCodesRedondants.length) avertissements.push("Passage(s) déclaré(s) non codé(s) alors qu'ils appuient un code : déclaration écartée (" + an.nonCodesRedondants.map((k) => "n° " + k).join(", ") + ").");
       $("codage-etat").textContent = "Codage proposé par l'IA enregistré (" + new Date().toLocaleTimeString("fr-FR") + ")." + (avertissements.length ? " À noter : " + avertissements.join(" ") : "");
       rendreCodage();
@@ -1125,7 +1139,7 @@
     if (erreur) throw new Error("appel au modèle en échec : " + erreur);
     return res;
   }
-  function finAppel() { codageUI.appelEnCours = false; $("bouton-coder-nouveaux").disabled = false; majBoutons(); }
+  function finAppel() { codageUI.appelEnCours = false; majBoutons(); }
   function afficherEchec(texte) {
     $("codage-etat").textContent = "";
     message("message-dossier", texte, true);
@@ -1228,6 +1242,7 @@
     if (travail.courant) {
       travail.courant.passages_non_codes = travail.courant.passages_non_codes || [];
       for (const e of travail.courant.ensembles) { e.preuves = e.preuves || []; e.commentaires = e.commentaires || []; }
+      travail.courant.codes_rejetes = travail.courant.codes_rejetes || [];
     }
     $("bloc-codage").hidden = !travail.courant;
     majBoutons();
@@ -1297,13 +1312,18 @@
     if (!e.preuves.length) ico("◌", "Sans preuve : aucun passage du texte n'appuie ce code. Gardez-le ou supprimez-le.", null, "alerte");
     const ajoutIA = commentaires.find((k) => k.auteur === "outil" && /ajouté aux preuves par l'IA/.test(k.texte));
     if (ajoutIA) ico("⚑", "Preuve ajoutée par l'IA — " + ajoutIA.texte + " Retirez-la avec ✕ si elle ne convient pas.", null, "info");
+    const rejete = commentaires.find((k) => k.auteur === "outil" && /déjà rejeté par vous/.test(k.texte));
+    if (rejete) ico("↺", "Code déjà rejeté par vous — " + rejete.texte, null, "alerte");
+    const tropCite = commentaires.filter((k) => k.auteur === "outil" && /cité par \d+ codes/.test(k.texte));
+    if (tropCite.length) ico("≡", tropCite.map((k) => k.texte).join(" "), null, "alerte");
     if (e.explication || e.confiance != null) ico("ⓘ", "Explication de l'IA : " + (e.explication || "") + (e.confiance != null ? " (confiance " + e.confiance + ")" : ""), null, "info");
     div.appendChild(fonctions);
     const ul = document.createElement("ul"); ul.className = "preuves";
     e.preuves.forEach((p, k) => {
       const li = document.createElement("li"); li.className = "preuve"; li.draggable = true;
       li.textContent = p.texte.length > 140 ? p.texte.slice(0, 137) + "…" : p.texte;
-      li.title = "Positions " + p.debut + "–" + p.fin + " — glisser vers un autre code pour déplacer";
+      if (p.nature === "directe") li.classList.add("directe"); // preuve directe en gras ; indirecte ou sans nature en texte normal
+      li.title = "Positions " + p.debut + "–" + p.fin + (p.nature ? " — preuve " + p.nature : "") + " — glisser vers un autre code pour déplacer";
       li.addEventListener("dragstart", (ev) => { ev.dataTransfer.setData("text/plain", JSON.stringify({ de: i, k })); ev.dataTransfer.effectAllowed = "move"; });
       li.addEventListener("mouseenter", () => ressortirCode(i, false));
       const outils = document.createElement("span"); outils.className = "outils";
@@ -1455,6 +1475,11 @@
   }
   function supprimerCode(i) {
     const e = travail.courant.ensembles.splice(i, 1)[0];
+    // Un code proposé par l'IA (confiance ou explication présentes) est noté comme rejeté, avec ses passages (SCHEMA.md §3.4).
+    if (e.code && (e.confiance != null || e.explication)) {
+      travail.courant.codes_rejetes = travail.courant.codes_rejetes || [];
+      travail.courant.codes_rejetes.push({ code: e.code, libelle: e.libelle, categorie: e.categorie, preuves: e.preuves.map((p) => ({ debut: p.debut, fin: p.fin, texte: p.texte })), etape: "revue_humain" });
+    }
     for (const p of e.preuves) if (!dossier.passages.some((x) => x.debut === p.debut && x.fin === p.fin)) dossier.passages.push({ debut: p.debut, fin: p.fin, texte: p.texte });
     dossier.passages = trierPassages(dossier.passages); sauvegarderLocal();
     marquerModifie();

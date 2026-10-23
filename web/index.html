@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>codeur</title>
-  <link rel="stylesheet" href="style.css?v=A2-0.20">
+  <link rel="stylesheet" href="style.css?v=A2-0.21">
 </head>
 <body>
   <header class="entete">
@@ -178,8 +178,8 @@
           <div class="sous-texte">
             <span id="compte-passages" class="discret"></span>
             <div class="boutons-ligne">
-              <button id="bouton-codage" class="bascule actif" title="Faire le codage des passages surlignés, ou afficher le codage">Codage</button>
-              <button id="bouton-evaluation" class="bascule" title="Noter la qualité du compte rendu">Évaluation</button>
+              <button id="bouton-codage" class="bascule actif" title="Envoyer à l'IA les passages surlignés qui ne sont rattachés à aucun code ; le codage existant est conservé">Codage</button>
+              <button id="bouton-evaluation" class="bascule" title="Noter la qualité du compte rendu (un second clic ramène au codage)">Évaluation</button>
               <button id="bouton-tout-effacer" class="secondaire">Tout effacer</button>
             </div>
           </div>
@@ -199,7 +199,6 @@
             <div class="codage-tete">
               <h2>Codage</h2>
               <span id="codage-etat" class="discret"></span>
-              <button id="bouton-coder-nouveaux" class="secondaire petit" hidden title="Envoyer au modèle les passages surlignés qui ne sont rattachés à aucun code">Coder les nouveaux passages</button>
             </div>
             <p id="codage-reprise" class="message" hidden><span id="codage-reprise-texte"></span> <button id="bouton-reprendre-local" class="secondaire">Reprendre mes modifications</button> <button id="bouton-oublier-local" class="secondaire">Les abandonner</button></p>
             <div id="codage-contenu"></div>
@@ -245,10 +244,10 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@18.0.14/lib/marked.umd.js"></script>
-  <script src="positions.js?v=A2-0.20"></script>
-  <script src="markdown.js?v=A2-0.20"></script>
-  <script src="codage.js?v=A2-0.20"></script>
-  <script src="config.js?v=A2-0.20"></script>
-  <script src="app.js?v=A2-0.20"></script>
+  <script src="positions.js?v=A2-0.21"></script>
+  <script src="markdown.js?v=A2-0.21"></script>
+  <script src="codage.js?v=A2-0.21"></script>
+  <script src="config.js?v=A2-0.21"></script>
+  <script src="app.js?v=A2-0.21"></script>
 </body>
 </html>

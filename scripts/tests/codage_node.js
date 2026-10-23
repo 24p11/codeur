@@ -35,7 +35,23 @@ process.stdin.on("end", () => {
     }
   }
   if (cas.repete) sortie.repete = C.assemblerAppelRepete(cas.repete.retenu, cas.repete.nouveau, "ia_humain");
-  if (cas.preparer) { const courant = JSON.parse(JSON.stringify(cas.preparer.courant)); const r = C.preparerAppelRepete(courant, cas.preparer.passages, null); sortie.preparer = { ...r, courant }; }
+  if (cas.preparer) {
+    const courant = JSON.parse(JSON.stringify(cas.preparer.courant));
+    const r = C.preparerAppelRepete(courant, cas.preparer.passages, null);
+    sortie.preparer = { ...r, courant };
+    // enchaînement complet d'un appel répété : message, analyse de la réponse, construction, assemblage
+    if (cas.preparer.reponse !== undefined) {
+      const contexte = { codesRetenus: courant.ensembles.filter((e) => e.code).map((e) => ({ code: e.code, libelle: e.libelle, categorie: e.categorie, preuves: e.preuves.map((p) => p.texte) })), rejetes: r.rejetes };
+      sortie.preparer.message = C.construireMessageUtilisateur("DOC", "texte", r.aEnvoyer, contexte);
+      const an = C.analyserReponse(cas.preparer.reponse, r.aEnvoyer);
+      sortie.preparer.analyse = an;
+      if (an.ok) {
+        C.verifierCodes(an.ensembles, index, descendants);
+        const nouveau = C.construireCodage(an, r.aEnvoyer, "ia_humain", courant);
+        sortie.preparer.assemblage = C.assemblerAppelRepete(courant, nouveau, "ia_humain");
+      }
+    }
+  }
   if (cas.compteursSeuls) sortie.compteurs = C.compteurs(cas.compteursSeuls.avant, cas.compteursSeuls.apres);
   if (cas.message) sortie.message = C.construireMessageUtilisateur("DOC", cas.message.texte, cas.passages, cas.message.contexte);
   process.stdout.write(JSON.stringify(sortie));

@@ -16,8 +16,17 @@
     const lignes = ["TEXTE DU DOSSIER (" + idSource + ") :", texte, "", "PASSAGES SURLIGNÉS :"];
     passages.forEach((p, i) => lignes.push((i + 1) + ". « " + p.texte + " »"));
     if (contexte && contexte.codesRetenus && contexte.codesRetenus.length) {
-      lignes.push("", "CODES DÉJÀ RETENUS PAR LE CODEUR (ne pas les modifier, ne pas les reproposer ; rattacher les nouveaux passages à de nouveaux codes, ou les déclarer non codés) :");
-      contexte.codesRetenus.forEach((c) => lignes.push("- " + c.code + " — " + c.libelle + (c.categorie === "pathologie_principale" ? " (pathologie principale, déjà désignée)" : "")));
+      lignes.push("", "CODAGE EXISTANT, EN LECTURE SEULE (ne pas le modifier, ne pas reproposer ces codes pour les mêmes passages ; "
+        + "ton travail porte seulement sur les passages surlignés ci-dessus, à coder par de nouveaux codes, à rattacher à un code existant en le reproposant à l'identique, ou à déclarer non codés) :");
+      contexte.codesRetenus.forEach((c) => {
+        lignes.push("- " + c.code + " — " + c.libelle + (c.categorie === "pathologie_principale" ? " (pathologie principale, déjà désignée)" : " (diagnostic associé)"));
+        for (const t of (c.preuves || [])) lignes.push("    preuve : « " + t + " »");
+      });
+    }
+    if (contexte && contexte.rejetes && contexte.rejetes.length) {
+      lignes.push("", "CODES REJETÉS PAR LE CODEUR :");
+      contexte.rejetes.forEach((r) => lignes.push("- le codeur a rejeté le code " + r.code + (r.libelle ? " (" + r.libelle + ")" : "") + " pour le" + (r.passages.length > 1 ? "s passages n° " : " passage n° ")
+        + r.passages.join(", ") + " : ne le repropose pas pour ces passages."));
     }
     return lignes.join("\n");
   }
@@ -40,16 +49,19 @@
       return { ok: false, erreur: "la réponse du modèle n'a pas la forme attendue (liste « ensembles » absente)" };
     }
     const n = passages.length;
-    const anomalies = { passagesInconnus: [], passagesManquants: [], ensemblesSansPassage: 0, pathologiesPrincipalesMultiples: [], passagesMultiEnsembles: [], nonCodesRedondants: [] };
+    const anomalies = { passagesInconnus: [], passagesManquants: [], ensemblesSansPassage: 0, pathologiesPrincipalesMultiples: [], passagesMultiEnsembles: [], passagesTropCites: [], nonCodesRedondants: [] };
     const vus = new Map(); // n° de passage -> nombre d'ensembles
     const ensembles = [];
     for (const e of obj.ensembles) {
       if (!e || typeof e !== "object") continue;
-      const nums = [];
+      const nums = [], natures = {};
       for (const x of (Array.isArray(e.passages) ? e.passages : [])) {
-        const k = Number(x);
-        if (!Number.isInteger(k) || k < 1 || k > n) { anomalies.passagesInconnus.push(x); continue; }
+        // v1 : un numéro ; v2 : { numero, preuve: "directe" | "indirecte" }
+        const objet = x && typeof x === "object";
+        const k = Number(objet ? x.numero : x);
+        if (!Number.isInteger(k) || k < 1 || k > n) { anomalies.passagesInconnus.push(objet ? x.numero : x); continue; }
         if (!nums.includes(k)) nums.push(k);
+        if (objet && (x.preuve === "directe" || x.preuve === "indirecte")) natures[k] = x.preuve;
       }
       if (!nums.length) { anomalies.ensemblesSansPassage += 1; continue; }
       for (const k of nums) vus.set(k, (vus.get(k) || 0) + 1);
@@ -57,7 +69,7 @@
       ensembles.push({
         codeBrut: String(e.code || ""), code: normaliserCode(e.code), libelleModele: typeof e.libelle === "string" ? e.libelle : "",
         categorie: e.categorie === "pathologie_principale" ? "pathologie_principale" : "diagnostic_associe",
-        passages: nums.sort((a, b) => a - b), confiance, explication: typeof e.explication === "string" ? e.explication : "",
+        passages: nums.sort((a, b) => a - b), natures, confiance, explication: typeof e.explication === "string" ? e.explication : "",
       });
     }
     const nonCodes = [];
@@ -70,7 +82,7 @@
     for (let k = 1; k <= n; k++) {
       if (!vus.has(k) && !nonCodes.some((y) => y.passage === k)) anomalies.passagesManquants.push(k);
     }
-    for (const [k, c] of vus) if (c > 1) anomalies.passagesMultiEnsembles.push(k);
+    for (const [k, c] of vus) { if (c > 1) anomalies.passagesMultiEnsembles.push(k); if (c > 2) anomalies.passagesTropCites.push({ passage: k, nb: c }); }
     // Au plus une pathologie principale : on garde celle de plus forte confiance (la première à égalité).
     const pp = ensembles.filter((e) => e.categorie === "pathologie_principale");
     if (pp.length > 1) {
@@ -164,11 +176,17 @@
         commentaires.push({ auteur: "outil", etape, texte: "Code corrigé après boucle de correction : " + e.codeInitialNonCodable + " → " + e.code + "." });
       }
       if (e.affinable) commentaires.push({ auteur: "outil", etape, texte: "Code plus précis possible : " + e.descendants.map((d) => d.code).join(", ") + "." });
+      for (const t of resultat.anomalies.passagesTropCites || []) {
+        if (e.passages.includes(t.passage)) {
+          const autres = resultat.ensembles.filter((x) => x !== e && x.passages.includes(t.passage)).map((x) => x.code || "?");
+          commentaires.push({ auteur: "outil", etape, texte: "Passage n° " + t.passage + " (« " + passages[t.passage - 1].texte.slice(0, 40) + (passages[t.passage - 1].texte.length > 40 ? "…" : "") + " ») cité par " + t.nb + " codes dans la réponse de l'IA : avec " + autres.join(", ") + "." });
+        }
+      }
       return {
         code: e.statut === "codable" ? e.code : null,
         libelle: e.statut === "codable" ? e.libelle : null,
         categorie: e.categorie,
-        preuves: e.passages.map((k) => ({ debut: passages[k - 1].debut, fin: passages[k - 1].fin, texte: passages[k - 1].texte })),
+        preuves: e.passages.map((k) => ({ debut: passages[k - 1].debut, fin: passages[k - 1].fin, texte: passages[k - 1].texte, ...(e.natures && e.natures[k] ? { nature: e.natures[k] } : {}) })),
         confiance: e.confiance, explication: e.explication || null, commentaires,
         ...(e.statut !== "codable" ? { code_propose_non_codable: e.code, libelle_propose: e.libelleModele || null } : {}),
       };
@@ -183,6 +201,7 @@
       commentaires: [],
       ensembles,
       passages_non_codes: nonCodes,
+      codes_rejetes: [],
     };
   }
 
@@ -236,12 +255,17 @@
 
   // Préparation d'un appel répété : parmi les passages surlignés, ceux qui chevauchent une preuve existante complètent
   // ce code (modification du codeur, non envoyée) ; les autres sont envoyés. Retourne { aEnvoyer, completes, modifie }.
+  // SCHEMA.md §3.6 (23 octobre) : seuls les passages rattachés à aucun code partent (nouveaux surlignages, passages d'un code
+  // supprimé) ; un passage déjà déclaré non codé n'est pas renvoyé. Retourne aussi, pour chaque code rejeté dont des preuves
+  // sont renvoyées, les numéros (1 à n) de ces passages, pour la consigne « ne le repropose pas ».
   function preparerAppelRepete(courant, passagesSurlignes, verifier) {
     const aEnvoyer = [], completes = [];
     let modifie = false;
+    const nonCodes = courant.passages_non_codes || [];
     for (const p of passagesSurlignes) {
+      if (nonCodes.some((x) => x.debut === p.debut && x.fin === p.fin)) continue;
       const i = courant.ensembles.findIndex((e) => e.preuves.some((q) => q.debut < p.fin && p.debut < q.fin));
-      if (i < 0) { aEnvoyer.push(p); continue; }
+      if (i < 0) { if (!aEnvoyer.some((q) => q.debut === p.debut && q.fin === p.fin)) aEnvoyer.push(p); continue; }
       if (verifier && !verifier(p)) continue;
       const e = courant.ensembles[i];
       if (!e.preuves.some((q) => q.debut === p.debut && q.fin === p.fin)) {
@@ -249,7 +273,14 @@
       }
       completes.push(e.code || "code à choisir");
     }
-    return { aEnvoyer, completes, modifie };
+    aEnvoyer.sort((a, b) => a.debut - b.debut);
+    const rejetes = [];
+    for (const r of courant.codes_rejetes || []) {
+      const nums = [];
+      aEnvoyer.forEach((p, k) => { if ((r.preuves || []).some((q) => q.debut < p.fin && p.debut < q.fin)) nums.push(k + 1); });
+      if (nums.length) rejetes.push({ code: r.code, libelle: r.libelle || null, passages: nums });
+    }
+    return { aEnvoyer, completes, modifie, rejetes };
   }
 
   // Appel répété (SCHEMA.md §3.6) : assemble le nouveau codage = codes déjà retenus inchangés + propositions qui
@@ -259,8 +290,15 @@
   function assemblerAppelRepete(codageRetenu, nouveau, etape) {
     const resultat = JSON.parse(JSON.stringify(codageRetenu));
     resultat.passages_non_codes = resultat.passages_non_codes || [];
-    const ecartes = [], completes = [];
+    resultat.codes_rejetes = resultat.codes_rejetes || [];
+    const ecartes = [], completes = [], reproposes = [];
     for (const e of nouveau.ensembles) {
+      // un code rejeté par le codeur, reproposé par l'IA pour les mêmes passages : gardé mais signalé, jamais imposé
+      const rejet = resultat.codes_rejetes.find((r) => e.code && r.code === e.code && (r.preuves || []).some((q) => e.preuves.some((p) => q.debut < p.fin && p.debut < q.fin)));
+      if (rejet) {
+        e.commentaires = (e.commentaires || []).concat([{ auteur: "outil", etape, texte: "Code déjà rejeté par vous (" + rejet.code + ", retiré à l'étape " + (rejet.etape || "précédente") + ") : reproposé par l'IA pour ces passages." }]);
+        reproposes.push(e.code);
+      }
       const existant = resultat.ensembles.find((r) => r.code && e.code && r.code === e.code);
       if (existant) {
         for (const p of e.preuves) if (!existant.preuves.some((q) => q.debut === p.debut && q.fin === p.fin)) existant.preuves.push(p);
@@ -278,7 +316,7 @@
       resultat.ensembles.push(e);
     }
     for (const x of nouveau.passages_non_codes) resultat.passages_non_codes.push(x);
-    return { codage: resultat, ecartes, completes };
+    return { codage: resultat, ecartes, completes, reproposes };
   }
 
   const api = { preparerAppelRepete, assemblerAppelRepete, normaliserCode, construireMessageUtilisateur, analyserReponse, verifierCodes, construireMessageCorrection,

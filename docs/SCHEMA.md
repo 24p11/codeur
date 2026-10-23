@@ -1,6 +1,8 @@
 # Schéma de la base de données
 
-*Version 1.4 — 22 octobre 2026 : fonction `valeurs_filtres()` et plafond de 1 000 lignes (§6, §10 point 28) ; champs `affichage` et `libelle_propose` (§3.4), table `recherches` (§5.4), colonnes MCO de `fiches`, table `descendants_codables` et fonctions de recherche (§6), fin du lot A2-A3 (commit `1811f57`).*
+*Version 1.5 — 23 octobre 2026 : appels répétés révisés : un seul bouton « Codage », codage existant conservé, codes rejetés, température nulle (§3.6) ; nature directe ou indirecte des preuves (§3.4).*
+
+*Version 1.4 — 22 octobre 2026 : clés des notes et `version_grille` (§5.3) ; fonction `valeurs_filtres()` et plafond de 1 000 lignes (§6, §10 point 28) ; champs `affichage` et `libelle_propose` (§3.4), table `recherches` (§5.4), colonnes MCO de `fiches`, table `descendants_codables` et fonctions de recherche (§6), fin du lot A2-A3 (commit `1811f57`).*
 
 *Version 1.3 — 22 octobre 2026 : ordre d'appariement (§3.7), auteur `outil`, code à choisir, tours de correction (§3.4, §3.10, §5.2, §10 points 25 à 27).*
 
@@ -161,10 +163,11 @@ Les lignes de cette table ne sont **jamais modifiées ni supprimées** ; seules 
 | `libelle_propose` | Facultatif : le libellé donné par l'IA pour ce code non codable ; sert à la recherche du codeur |
 | `libelle` | Le libellé officiel, au moment du codage |
 | `categorie` | `pathologie_principale` (une seule par codage) ou `diagnostic_associe` |
-| `preuves` | Les éléments de preuve : position de début et de fin dans le texte, et texte cité. Un champ facultatif `introuvable: true` signale une citation qui n'a pas pu être retrouvée dans le texte |
+| `preuves` | Les éléments de preuve : position de début et de fin dans le texte, et texte cité. Un champ facultatif `introuvable: true` signale une citation qui n'a pas pu être retrouvée dans le texte. Un champ facultatif `nature` (`directe` ou `indirecte`) indique si la preuve nomme l'affection ou l'étaye seulement (résultat d'examen, traitement…) ; rempli par l'IA à partir du prompt `codage_v2`, vide sinon |
 | `confiance`, `explication` | Remplis par l'IA quand elle propose un code ; vides sinon |
 | `commentaires` | Commentaires sur ce code |
 | `passages_non_codes` | Les passages surlignés que l'IA (ou l'utilisateur) a déclarés **non codés** : position, texte cité, `raison` et `auteur` (`ia` ou `humain`). Liste vide si aucun. Absente des codages `scenario` |
+| `codes_rejetes` | Les codes **proposés par l'IA** que l'utilisateur a supprimés : `code`, `libelle`, `categorie`, `preuves`, `etape` (celle où le rejet a été enregistré). Transmise d'une ligne à la suivante ; sert à demander au modèle de ne pas les reproposer lors d'un appel répété (§3.6). Un code ajouté par l'utilisateur puis supprimé n'y entre pas |
 | `affichage` | La variante d'affichage utilisée par le codeur (`A` liste simple sans encadré, `B` encadrés aux couleurs d'origine, `C` encadrés avec une couleur par code, reprise dans le surlignage du texte), dans les lignes écrites par la page ; permet de comparer les affichages |
 
 **Les commentaires** portent toujours leur auteur (`ia`, `humain`, `generateur` pour les remarques issues du chargement des CRH synthétiques, ou `outil` pour les remarques de la page : correction d'un code « M142 → M1427 », « code à choisir », « code plus précis possible », passage non traité par l'IA) et l'étape où ils ont été écrits. Ils passent d'une version à la suivante, sauf si le code auquel ils sont attachés est retiré. Les commentaires d'auteur `outil` qui portent sur le choix du code (« code à choisir », « code plus précis possible ») disparaissent quand le codeur change le code ; la trace d'une correction (« M142 → M1427 ») est conservée.
@@ -196,16 +199,22 @@ Un code dont on a retiré toutes les preuves est conservé, signalé « sans pre
 
 ### 3.6 Les appels répétés à l'IA
 
-L'utilisateur peut surligner de nouveaux passages après une première revue et cliquer de nouveau sur « Faire le codage ». Pour **garantir** que ses choix sont conservés, la garantie repose sur l'outil et non sur le modèle :
+*Révisé le 23 octobre 2026, après les premiers essais : un seul bouton « Codage », qu'on peut utiliser autant de fois qu'on veut. Le cas courant d'un nouvel appel est l'ajout d'éléments de preuve : on attend du modèle qu'il **complète** le codage, pas qu'il le refasse.*
 
-1. l'outil n'envoie au modèle **que les passages surlignés qui ne sont rattachés à aucun code** ;
-2. les codes déjà retenus sont transmis **en lecture seule**, comme contexte (par exemple pour que le modèle sache qu'une pathologie principale est déjà choisie) ;
-3. **c'est l'outil qui assemble** le nouveau codage : codes déjà retenus inchangés, plus les nouvelles propositions ;
-4. l'outil écarte toute proposition qui ne porte pas sur un des nouveaux passages, et tout code invalide.
+Le bouton « Codage » reste **toujours disponible** dès qu'au moins un passage est surligné. La garantie que le codage existant est conservé repose sur l'outil, et non sur le modèle :
 
-Un passage surligné qui chevauche un ensemble déjà codé complète les preuves de cet ensemble : il n'est pas envoyé au modèle.
+1. **Tous les codes déjà présents sont conservés**, qu'ils viennent de l'IA ou de l'utilisateur, modifiés ou non. Les passages déjà déclarés non codés le restent aussi.
+2. **Ce qui est envoyé au modèle** : seulement les passages surlignés **rattachés à aucun code** et absents des passages non codés, c'est-à-dire les nouveaux surlignages et les passages d'un code que l'utilisateur a supprimé.
+3. **Le codage existant** est transmis **en lecture seule**, comme contexte : chaque code avec son libellé, sa catégorie et le texte de ses preuves (par exemple pour que le modèle sache qu'une pathologie principale est déjà choisie, ou qu'il rattache un nouveau passage à un code existant).
+4. **Codes rejetés** : un code de l'IA que l'utilisateur supprime est noté comme rejeté, avec ses passages (liste `codes_rejetes` du JSON, §3.4). Si ses passages sont renvoyés, le modèle reçoit la consigne de ne pas le reproposer ; s'il le repropose, la page le signale sans l'imposer.
+5. **C'est l'outil qui assemble** le nouveau codage : codage existant inchangé, plus les nouvelles propositions. Une proposition identique à un code existant ajoute ses passages aux preuves de ce code, de façon visible. Une proposition de pathologie principale alors qu'il y en a déjà une passe en diagnostic associé, avec un commentaire d'auteur `outil`. L'outil écarte toute proposition qui ne porte pas sur un passage envoyé, et tout code invalide (la vérification des codes codables et sa boucle de correction, §3.10, s'appliquent comme au premier appel).
+6. Avant l'appel, la page indique ce qui va se passer (« 2 passages envoyés à l'IA, 5 codes conservés ») ; s'il n'y a aucun passage à envoyer, elle le dit et n'appelle pas le modèle. S'il existe des modifications non enregistrées, elle enregistre d'abord une ligne `revue_humain`.
 
-Chaque appel crée une nouvelle ligne `ia_humain` contenant le codage assemblé.
+Un nouveau passage surligné qui chevauche une preuve d'un code existant complète les preuves de ce code, de façon visible ; il n'est pas envoyé au modèle.
+
+**Stabilité** : l'appel de codage se fait à **température nulle**, pour que le modèle réponde de la même façon aux mêmes passages. La température est enregistrée avec chaque appel.
+
+*Pour plus tard* : le modèle pourrait **suggérer** de préciser un code existant à la lumière d'un nouveau passage (par exemple une fraction d'éjection qui précise une insuffisance cardiaque), sous forme de suggestion que l'utilisateur accepte ou refuse, jamais appliquée d'office. Le « deuxième avis » complet de l'IA sur tout le codage relève de la revue par l'IA (étape `revue_ia`, lot A4).
 
 ### 3.7 Comparer deux versions : les compteurs
 
@@ -341,8 +350,8 @@ Une seule table pour les deux évaluations de la qualité d'un document : celle 
 | `auteur` | `ia` ou `humain` |
 | `appel_llm` | Pour une évaluation de l'IA |
 | `mesures` | JSON : copie des mesures fixes du document (`documents.mesures`) transmises au LLM lors de cette évaluation (évaluation de l'IA uniquement) |
-| `notes` | JSON : une note de 1 à 5 pour chacune des cinq dimensions (organisation, langage, cohérence médicale, synthèse, qualité générale) |
-| `version_grille` | *(à ajouter par migration)* La version du fichier de la grille de qualité (`web/grille_qualite.md`) utilisée, avec ses repères par niveau ; la même grille sert au testeur et, plus tard, à l'évaluation par le LLM |
+| `notes` | JSON : une note de 1 à 5 pour chacune des cinq dimensions, clés `organisation`, `langage`, `coherence_medicale`, `synthese`, `qualite_generale` ; une dimension non notée vaut `null` (notation incomplète acceptée, refusée seulement si rien n'est noté et le commentaire vide) |
+| `version_grille` | (migration 20) La version du fichier de la grille de qualité (`web/grille_qualite.md`) utilisée, avec ses repères par niveau ; la même grille sert au testeur et, plus tard, à l'évaluation par le LLM |
 | `verdict` | Pour l'IA : `exploitable`, `douteux`, `non_exploitable` |
 | `commentaire` | La raison du verdict (IA) ou le commentaire libre (testeur) |
 | `poursuite` | Pour l'IA : le testeur a-t-il choisi de coder le document après l'avertissement ? |

@@ -226,3 +226,6 @@ button.bascule.actif { background: var(--accent); color: #fff; }
 .marge .saisie textarea { width: 100%; max-width: none; font-size: .92rem; resize: vertical; min-height: 3.2rem; }
 .marge .saisie .rappel { font-size: .78rem; color: #8b949e; margin: .15rem 0 0; display: flex; justify-content: space-between; align-items: center; }
 .marge .saisie .rappel button { margin: 0; padding: .1rem .5rem; font-size: .8rem; }
+
+/* Nature des preuves (codage_v2) : les preuves directes en gras, les indirectes ou sans nature en texte normal */
+.bloc-codage .code li.preuve.directe { font-weight: 600; }

@@ -2,7 +2,9 @@
 
 Cas : passage manquant ; numéro inconnu ; passage dans deux ensembles ; deux pathologies principales ; code sans
 extension (Z992, codable mais affinable) ; code arrondi (M142, non codable → correction) ; code avec point (I10.0) ;
-code père interdit (C50 → correction) ; JSON invalide ; compteurs entre deux versions ; message utilisateur.
+code père interdit (C50 → correction) ; JSON invalide ; compteurs entre deux versions ; message utilisateur ;
+appels répétés révisés (§3.6, 23 octobre 2026) : nouveau surlignage, rien à envoyer, chevauchement, code rejeté puis
+reproposé, réponse v2 avec nature, réponse v1, passage cité par plus de deux codes.
 
 Usage : uv run python -I scripts/tests/tester_codage.py   (Node requis)
 """
@@ -207,6 +209,58 @@ def main() -> None:
     prep = node({**base, "preparer": {"courant": retenu, "passages": [{"debut": 45, "fin": 70, "texte": "inguinale droite depuis"}, PASSAGES[3]]}})["preparer"]
     controle("préparation d'un appel répété : le passage chevauchant complète K409 (modification du codeur, non envoyée), l'autre est envoyé",
              [p["debut"] for p in prep["aEnvoyer"]] == [PASSAGES[3]["debut"]] and prep["completes"] == ["K409"] and prep["modifie"] is True and len(prep["courant"]["ensembles"][0]["preuves"]) == 2)
+
+    # 13. Appels répétés révisés (SCHEMA.md §3.6, 23 octobre 2026) et prompt v2
+    E1198 = {"codable": True, "libelle": "Diabète sucré de type 2, sans complication", "statut": "codable"}
+    index2 = {**INDEX, "E1198": E1198}
+    existant = {"regle_hierarchisation": None, "mode_prise_en_charge": None, "commentaires": [], "passages_non_codes": [], "codes_rejetes": [], "ensembles": [
+        {"code": "K409", "libelle": "Hernie", "categorie": "pathologie_principale", "preuves": [PASSAGES[1]], "confiance": 0.9, "explication": "x", "commentaires": []},
+        {"code": "I10", "libelle": "HTA", "categorie": "diagnostic_associe", "preuves": [PASSAGES[0]], "confiance": 0.9, "explication": "x", "commentaires": []}]}
+    nouveau_passage = {"debut": 300, "fin": 320, "texte": "diabète de type 2"}
+    # a. relance après un nouveau surlignage : seul le nouveau passage part, tous les codes restent (le défaut constaté)
+    rep_v2 = reponse([{"code": "E1198", "categorie": "diagnostic_associe", "passages": [{"numero": 1, "preuve": "directe"}], "confiance": 0.8}])
+    r = node({"passages": PASSAGES, "index": index2, "descendants": DESC, "preparer": {"courant": existant, "passages": [PASSAGES[0], PASSAGES[1], nouveau_passage], "reponse": rep_v2}})["preparer"]
+    codes = [e["code"] for e in r["assemblage"]["codage"]["ensembles"]]
+    controle("relance après un nouveau surlignage : un seul passage envoyé, les deux codes conservés, le nouveau code ajouté",
+             [p["debut"] for p in r["aEnvoyer"]] == [300] and codes == ["K409", "I10", "E1198"] and r["modifie"] is False, str(codes))
+    controle("message de l'appel répété : codage existant en lecture seule avec le texte des preuves", "CODAGE EXISTANT" in r["message"] and "preuve : « HTA traitée »" in r["message"] and "K409 — Hernie (pathologie principale" in r["message"])
+    # b. relance sans nouveau passage : rien à envoyer, pas d'appel
+    r = node({"passages": PASSAGES, "index": index2, "descendants": DESC, "preparer": {"courant": existant, "passages": [PASSAGES[0], PASSAGES[1]]}})["preparer"]
+    controle("relance sans nouveau passage : aucun passage à envoyer (la page n'appelle pas le modèle)", r["aEnvoyer"] == [] and r["modifie"] is False)
+    # c. nouveau surlignage qui chevauche une preuve : rattaché au code, signalé, non envoyé
+    r = node({"passages": PASSAGES, "index": index2, "descendants": DESC, "preparer": {"courant": existant, "passages": [{"debut": 45, "fin": 70, "texte": "inguinale droite depuis"}]}})["preparer"]
+    controle("surlignage chevauchant une preuve : ajouté aux preuves de K409 (signalé), rien n'est envoyé",
+             r["aEnvoyer"] == [] and r["completes"] == ["K409"] and r["modifie"] is True and len(r["courant"]["ensembles"][0]["preuves"]) == 2)
+    # d. code supprimé puis relance : ses passages renvoyés avec la consigne ; code reproposé signalé
+    rejete = {**existant, "ensembles": existant["ensembles"][:1], "codes_rejetes": [{"code": "I10", "libelle": "HTA", "categorie": "diagnostic_associe", "preuves": [PASSAGES[0]], "etape": "revue_humain"}]}
+    rep_i10 = reponse([{"code": "I10", "categorie": "diagnostic_associe", "passages": [{"numero": 1, "preuve": "directe"}], "confiance": 0.9}])
+    r = node({"passages": PASSAGES, "index": index2, "descendants": DESC, "preparer": {"courant": rejete, "passages": [PASSAGES[0], PASSAGES[1]], "reponse": rep_i10}})["preparer"]
+    controle("code supprimé puis relance : son passage est renvoyé et le modèle reçoit la consigne « ne le repropose pas »",
+             [p["debut"] for p in r["aEnvoyer"]] == [10] and r["rejetes"] == [{"code": "I10", "libelle": "HTA", "passages": [1]}] and "le codeur a rejeté le code I10 (HTA) pour le passage n° 1 : ne le repropose pas" in r["message"])
+    i10 = r["assemblage"]["codage"]["ensembles"][-1]
+    controle("code rejeté reproposé par l'IA : gardé mais signalé (commentaire outil « déjà rejeté par vous »), liste des rejets conservée",
+             i10["code"] == "I10" and any("déjà rejeté par vous" in k["texte"] for k in i10["commentaires"]) and r["assemblage"]["reproposes"] == ["I10"] and len(r["assemblage"]["codage"]["codes_rejetes"]) == 1)
+    r = node({"passages": PASSAGES, "index": index2, "descendants": DESC, "preparer": {"courant": rejete, "passages": [PASSAGES[1]]}})["preparer"]
+    controle("code supprimé et surlignage retiré : rien n'est renvoyé, aucune consigne", r["aEnvoyer"] == [] and r["rejetes"] == [])
+    # e. réponse v2 avec nature des preuves ; f. réponse au format v1
+    r = node({**base, "index": index2, "reponse": reponse([{"code": "I10", "categorie": "diagnostic_associe", "passages": [{"numero": 1, "preuve": "directe"}, {"numero": 4, "preuve": "indirecte"}], "confiance": 0.9}], [{"passage": 2}, {"passage": 3}, {"passage": 5}])})
+    natures = [p.get("nature") for p in r["codage"]["ensembles"][0]["preuves"]]
+    controle("réponse v2 : nature recopiée sur chaque preuve (directe, indirecte)", natures == ["directe", "indirecte"], str(natures))
+    r = node({**base, "reponse": reponse([{"code": "I10", "categorie": "diagnostic_associe", "passages": [1, 4], "confiance": 0.9}], [{"passage": 2}, {"passage": 3}, {"passage": 5}])})
+    controle("réponse au format v1 (numéros) : acceptée, preuves sans nature", r["analyse"]["ok"] is True and all("nature" not in p for p in r["codage"]["ensembles"][0]["preuves"]))
+    r = node({**base, "reponse": reponse([{"code": "I10", "categorie": "diagnostic_associe", "passages": [{"numero": 1, "preuve": "peut-être"}, {"numero": 9}], "confiance": 0.9}], [{"passage": 2}, {"passage": 3}, {"passage": 4}, {"passage": 5}])})
+    controle("nature inconnue ignorée, numéro inconnu dans un objet signalé", "nature" not in r["codage"]["ensembles"][0]["preuves"][0] and r["analyse"]["anomalies"]["passagesInconnus"] == [9])
+    # g. passage cité par plus de deux codes : signalé sur chaque code concerné, rien refusé
+    r = node({**base, "index": index2, "reponse": reponse([
+        {"code": "I10", "categorie": "diagnostic_associe", "passages": [{"numero": 1, "preuve": "directe"}], "confiance": 0.9},
+        {"code": "K409", "categorie": "pathologie_principale", "passages": [{"numero": 1, "preuve": "indirecte"}, {"numero": 2, "preuve": "directe"}], "confiance": 0.9},
+        {"code": "E1198", "categorie": "diagnostic_associe", "passages": [{"numero": 1, "preuve": "indirecte"}], "confiance": 0.6}], [{"passage": 3}, {"passage": 4}, {"passage": 5}])})
+    ens = r["codage"]["ensembles"]
+    controle("passage cité par trois codes : anomalie relevée, commentaire outil sur les trois codes, aucun code refusé",
+             r["analyse"]["anomalies"]["passagesTropCites"] == [{"passage": 1, "nb": 3}] and len(ens) == 3
+             and all(any("cité par 3 codes" in k["texte"] and k["auteur"] == "outil" for k in e["commentaires"]) for e in ens))
+    r = node({**base, "reponse": reponse([{"code": "I10", "categorie": "diagnostic_associe", "passages": [1], "confiance": 0.9}, {"code": "K409", "categorie": "pathologie_principale", "passages": [1, 2], "confiance": 0.9}], [{"passage": 3}, {"passage": 4}, {"passage": 5}])})
+    controle("passage cité par deux codes seulement : pas de garde-fou", r["analyse"]["anomalies"]["passagesTropCites"] == [] and not any("cité par" in k["texte"] for e in r["codage"]["ensembles"] for k in e["commentaires"]))
 
     # 12. Message utilisateur
     r = node({"passages": PASSAGES[:2], "index": INDEX, "descendants": DESC, "message": {"texte": "Texte du CRH.", "contexte": {"codesRetenus": [{"code": "I10", "libelle": "Hypertension essentielle (primitive)", "categorie": "pathologie_principale"}]}}})
