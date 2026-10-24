@@ -211,7 +211,7 @@ def main() -> None:
         com = c1.table("commentaires").insert({"document": doc_id, "utilisateur": u1, "objet": "code", "code": "I10", "auteur": "humain", "type": "remarque", "texte": "test"}).select("id").single().execute().data
         essai("ajouter un commentaire à son travail (humain, sur un code)", "succès", lambda: [com])
         essai("ajouter un commentaire de l'IA sur son travail avec l'appel (explication)", "succès",
-              lambda: rows(c1.table("commentaires").insert({"document": doc_id, "utilisateur": u1, "objet": "mode_prise_en_charge", "code": "DP", "auteur": "ia", "type": "explication", "appel_llm": appel_id, "texte": "x"}, returning="minimal").execute()))
+              lambda: rows(c1.table("commentaires").insert({"document": doc_id, "utilisateur": u1, "objet": "mode_prise_en_charge", "code": "DP", "auteur": "ia", "type": "explication", "appel_llm": appel_id, "texte": "x"}).select("id").execute()))
         essai("explication de l'IA sans appel_llm (interdit par la contrainte)", "refus",
               lambda: rows(c1.table("commentaires").insert({"document": doc_id, "utilisateur": u1, "objet": "code", "code": "I10", "auteur": "ia", "type": "explication", "texte": "x"}, returning="minimal").execute()))
         essai("commentaire sur le séjour avec un code (interdit par la contrainte)", "refus",
