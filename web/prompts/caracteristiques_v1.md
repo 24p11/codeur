@@ -88,6 +88,7 @@ Réponds **uniquement** par un objet JSON, sans texte autour, de la forme :
   "circonstance": "traitement_unique",
   "regle": "T3",
   "mode_prise_en_charge": "DP",
+  "libelle_mode": "Cure chirurgicale programmée d'une hernie inguinale",
   "dr_conforme": null,
   "confiance": 0.85,
   "explication": "Hospitalisation programmée pour cure de hernie inguinale droite, posée en consultation : traitement unique chirurgical ; la hernie opérée est la pathologie principale."
@@ -98,6 +99,7 @@ Réponds **uniquement** par un objet JSON, sans texte autour, de la forme :
 - `circonstance` : la circonstance de l'hospitalisation, parmi : `diagnostic_decouverte` (y compris symptomatologie sans cause trouvée, poussée aiguë, complication ou affection intercurrente d'une maladie connue), `diagnostic_bilan_extension`, `diagnostic_exploration_programmee`, `diagnostic_antecedent_facteur_risque`, `traitement_unique`, `traitement_repetitif`, `traitement_adaptation_diabete`, `traitement_assimile`, `surveillance_negative`, `surveillance_positive`. Elle doit appartenir à la `situation`.
 - `regle` : le code d'une règle candidate, tel qu'il est écrit dans la liste (`T3`, `S1-Chronic`, `D3-1`…).
 - `mode_prise_en_charge` : `DP`, ou un code Z de la liste de la règle choisie, écrit sans point (`Z511`, `Z4921`).
+- `libelle_mode` : **seulement quand le mode est `DP`** : un texte court (dix mots au plus) qui décrit la prise en charge du séjour (par exemple « Cure chirurgicale programmée d'une hernie inguinale ») ; absent ou `null` quand le mode est un code Z (son libellé officiel est connu de l'outil).
 - `dr_conforme` : `null` si le mode est `DP` ; sinon `true` si la pathologie principale respecte la définition du DR, `false` sinon.
 - `confiance` : un nombre de 0 à 1.
 - `explication` : une ou deux phrases courtes, en français, qui citent le texte.

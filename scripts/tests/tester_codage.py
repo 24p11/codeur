@@ -107,7 +107,7 @@ def main() -> None:
     # 6. Code sans extension : codable mais affinable (option B)
     r = node({**base, "reponse": reponse([{"code": "Z992", "categorie": "diagnostic_associe", "passages": [4], "confiance": 0.8}], [{"passage": 1}, {"passage": 2}, {"passage": 3}, {"passage": 5}])})
     e = r["codage"]["ensembles"][0]
-    controle("Z992 : enregistré tel quel, signalé « code plus précis possible »", e["code"] == "Z992" and r["statuts"][0][2] is True and any("plus précis" in x["texte"] for x in e["commentaires"]), str(e["commentaires"]))
+    controle("Z992 : enregistré tel quel, signalé « code plus précis possible »", e["code"] == "Z992" and r["statuts"][0][2] is True and any("plus précis" in x["texte"] and x["code"] == "Z992" and x["auteur"] == "outil" for x in r["codage"]["_commentaires"]), str(r["codage"]["_commentaires"]))
 
     # 7. Code arrondi M142 (père interdit) : boucle de correction, puis code corrigé
     cas = {**base, "reponse": reponse([{"code": "M142", "categorie": "diagnostic_associe", "passages": [5], "confiance": 0.7}], [{"passage": 1}, {"passage": 2}, {"passage": 3}, {"passage": 4}]),
@@ -115,7 +115,7 @@ def main() -> None:
     r = node(cas)
     controle("M142 : message de correction contient ses descendants codables", "M1427" in r["messageCorrection"] and "M1426" in r["messageCorrection"])
     controle("M142 → M1427 après correction, commentaire de traçabilité", r["correction"]["restants"] == [] and r["codage"]["ensembles"][0]["code"] == "M1427"
-             and any("M142 → M1427" in x["texte"] for x in r["codage"]["ensembles"][0]["commentaires"]))
+             and any("M142 → M1427" in x["texte"] and x["code"] == "M1427" for x in r["codage"]["_commentaires"]))
     r = node({**cas, "reponseCorrection": json.dumps({"corrections": {"M142": "M1499"}})})
     controle("correction hors liste ignorée : code toujours à corriger, enregistré à null", r["correction"]["ignores"] == [{"code": "M142", "choisi": "M1499"}]
              and r["codage"]["ensembles"][0]["code"] is None and r["codage"]["ensembles"][0]["code_propose_non_codable"] == "M142")
@@ -203,8 +203,8 @@ def main() -> None:
     controle("appel répété : codes retenus inchangés, nouveau code ajouté en associé (PP déjà prise), preuve ajoutée à I10, proposition sans preuve écartée",
              codes == [("K409", "pathologie_principale", 1), ("I10", "diagnostic_associe", 2), ("Z992+0", "diagnostic_associe", 1)] and r["ecartes"] == ["E1198"] and len(r["codage"]["passages_non_codes"]) == 1, str(codes))
     i10 = r["codage"]["ensembles"][1]
-    controle("preuve ajoutée par l'IA à un code retenu : commentaire outil visible et code signalé",
-             any("ajouté aux preuves par l'IA lors d'un appel répété" in k["texte"] and k["auteur"] == "outil" for k in i10["commentaires"]) and r["completes"] == ["I10"])
+    controle("preuve ajoutée par l'IA à un code retenu : alerte de l'outil (table commentaires, objet code I10) et code signalé",
+             any("ajouté aux preuves par l'IA lors d'un appel répété" in k["texte"] and k["auteur"] == "outil" and k["objet"] == "code" and k["code"] == "I10" for k in r["codage"]["_commentaires"]) and r["completes"] == ["I10"])
     # Préparation : chevauchement -> complète le code sans envoi ; sinon envoyé
     prep = node({**base, "preparer": {"courant": retenu, "passages": [{"debut": 45, "fin": 70, "texte": "inguinale droite depuis"}, PASSAGES[3]]}})["preparer"]
     controle("préparation d'un appel répété : le passage chevauchant complète K409 (modification du codeur, non envoyée), l'autre est envoyé",
@@ -238,8 +238,8 @@ def main() -> None:
     controle("code supprimé puis relance : son passage est renvoyé et le modèle reçoit la consigne « ne le repropose pas »",
              [p["debut"] for p in r["aEnvoyer"]] == [10] and r["rejetes"] == [{"code": "I10", "libelle": "HTA", "passages": [1]}] and "le codeur a rejeté le code I10 (HTA) pour le passage n° 1 : ne le repropose pas" in r["message"])
     i10 = r["assemblage"]["codage"]["ensembles"][-1]
-    controle("code rejeté reproposé par l'IA : gardé mais signalé (commentaire outil « déjà rejeté par vous »), liste des rejets conservée",
-             i10["code"] == "I10" and any("déjà rejeté par vous" in k["texte"] for k in i10["commentaires"]) and r["assemblage"]["reproposes"] == ["I10"] and len(r["assemblage"]["codage"]["codes_rejetes"]) == 1)
+    controle("code rejeté reproposé par l'IA : gardé mais signalé (alerte de l'outil sur I10), liste des rejets conservée",
+             i10["code"] == "I10" and any("déjà rejeté par vous" in k["texte"] and k["code"] == "I10" for k in r["assemblage"]["codage"]["_commentaires"]) and r["assemblage"]["reproposes"] == ["I10"] and len(r["assemblage"]["codage"]["codes_rejetes"]) == 1)
     r = node({"passages": PASSAGES, "index": index2, "descendants": DESC, "preparer": {"courant": rejete, "passages": [PASSAGES[1]]}})["preparer"]
     controle("code supprimé et surlignage retiré : rien n'est renvoyé, aucune consigne", r["aEnvoyer"] == [] and r["rejetes"] == [])
     # e. réponse v2 avec nature des preuves ; f. réponse au format v1
@@ -256,11 +256,12 @@ def main() -> None:
         {"code": "K409", "categorie": "pathologie_principale", "passages": [{"numero": 1, "preuve": "indirecte"}, {"numero": 2, "preuve": "directe"}], "confiance": 0.9},
         {"code": "E1198", "categorie": "diagnostic_associe", "passages": [{"numero": 1, "preuve": "indirecte"}], "confiance": 0.6}], [{"passage": 3}, {"passage": 4}, {"passage": 5}])})
     ens = r["codage"]["ensembles"]
-    controle("passage cité par trois codes : anomalie relevée, commentaire outil sur les trois codes, aucun code refusé",
+    alertes = r["codage"]["_commentaires"]
+    controle("passage cité par trois codes : anomalie relevée, alerte de l'outil sur chacun des trois codes, aucun code refusé, explications de l'IA absentes du JSON",
              r["analyse"]["anomalies"]["passagesTropCites"] == [{"passage": 1, "nb": 3}] and len(ens) == 3
-             and all(any("cité par 3 codes" in k["texte"] and k["auteur"] == "outil" for k in e["commentaires"]) for e in ens))
+             and all(any("cité par 3 codes" in k["texte"] and k["auteur"] == "outil" and k["code"] == e["code"] for k in alertes) for e in ens) and all("explication" not in e and "commentaires" not in e for e in ens))
     r = node({**base, "reponse": reponse([{"code": "I10", "categorie": "diagnostic_associe", "passages": [1], "confiance": 0.9}, {"code": "K409", "categorie": "pathologie_principale", "passages": [1, 2], "confiance": 0.9}], [{"passage": 3}, {"passage": 4}, {"passage": 5}])})
-    controle("passage cité par deux codes seulement : pas de garde-fou", r["analyse"]["anomalies"]["passagesTropCites"] == [] and not any("cité par" in k["texte"] for e in r["codage"]["ensembles"] for k in e["commentaires"]))
+    controle("passage cité par deux codes seulement : pas de garde-fou", r["analyse"]["anomalies"]["passagesTropCites"] == [] and not any("cité par" in k["texte"] for k in r["codage"]["_commentaires"]))
 
     # 14. Second appel : règle de hiérarchisation et mode de prise en charge (brief 8, SCHEMA.md §3.4 et §3.6)
     def regle(code, type_, spec, dp, codes, officielle=None, patho="chapitres I à XVII, XIX et XXII"):
@@ -282,9 +283,21 @@ def main() -> None:
     rep_ok = json.dumps({"situation": "traitement", "circonstance": "traitement_unique", "regle": "T3", "mode_prise_en_charge": "DP", "dr_conforme": None, "confiance": 0.9, "explication": "Cure de hernie programmée."})
     base_k = {"passages": PASSAGES, "index": INDEX, "descendants": DESC, "caracteristiques": {"codage": codage_k409, "regles": regles, "extraits": extraits, "reponse": rep_ok}}
     r = node(base_k)["caracteristiques"]
-    controle("second appel : réponse conforme → règle T3, mode DP, caracteristiques (calculee_sur K409, appel, confiance, explication), aucune anomalie",
+    controle("second appel : réponse conforme → règle T3, mode DP, caracteristiques (calculee_sur K409, appel, confiance, règle et mode proposés, sans explication), explication rendue à part, aucune anomalie",
              r["codage"]["regle_hierarchisation"] == "T3" and r["codage"]["mode_prise_en_charge"] == "DP" and r["codage"]["caracteristiques"]["calculee_sur"] == "K409"
-             and r["codage"]["caracteristiques"]["appel_llm"] == "appel-test" and r["codage"]["caracteristiques"]["confiance"] == 0.9 and r["analyse"]["anomalies"] == [] and r["aRevoir"] is False, str(r["analyse"]["anomalies"]))
+             and r["codage"]["caracteristiques"]["appel_llm"] == "appel-test" and r["codage"]["caracteristiques"]["confiance"] == 0.9 and r["codage"]["caracteristiques"]["regle"] == "T3"
+             and "explication" not in r["codage"]["caracteristiques"] and r["explication"] == "Cure de hernie programmée." and r["analyse"]["anomalies"] == [] and r["aRevoir"] is False, str(r["analyse"]["anomalies"]))
+    controle("libellé du mode : DP sans libelle_mode → texte fixe", r["codage"]["libelle_mode_prise_en_charge"] == "La pathologie principale motive elle-même le séjour")
+    rep_lib = json.dumps({"situation": "traitement", "circonstance": "traitement_unique", "regle": "T3", "mode_prise_en_charge": "DP", "libelle_mode": "Cure chirurgicale programmée d'une hernie inguinale", "dr_conforme": None, "confiance": 0.9, "explication": "x"})
+    r2 = node({**base_k, "caracteristiques": {**base_k["caracteristiques"], "reponse": rep_lib}})["caracteristiques"]
+    controle("libellé du mode : DP avec libelle_mode court → texte du modèle", r2["codage"]["libelle_mode_prise_en_charge"] == "Cure chirurgicale programmée d'une hernie inguinale")
+    rep_long = json.dumps({"situation": "traitement", "circonstance": "traitement_unique", "regle": "T3", "mode_prise_en_charge": "DP", "libelle_mode": "un deux trois quatre cinq six sept huit neuf dix onze", "dr_conforme": None, "confiance": 0.9, "explication": "x"})
+    r2 = node({**base_k, "caracteristiques": {**base_k["caracteristiques"], "reponse": rep_long}})["caracteristiques"]
+    controle("libellé du mode : libelle_mode de plus de dix mots → texte fixe", r2["codage"]["libelle_mode_prise_en_charge"] == "La pathologie principale motive elle-même le séjour")
+    rep_zok = json.dumps({"situation": "traitement", "circonstance": "traitement_repetitif", "regle": "T1", "mode_prise_en_charge": "Z511", "libelle_mode": "ignoré pour un code Z", "dr_conforme": True, "confiance": 0.8, "explication": "x"})
+    r2 = node({**base_k, "caracteristiques": {**base_k["caracteristiques"], "reponse": rep_zok}})["caracteristiques"]
+    controle("libellé du mode : code Z → libellé officiel de la liste de la règle, jamais celui du modèle", r2["codage"]["libelle_mode_prise_en_charge"] == "Séance de chimiothérapie pour tumeur")
+    controle("JSON enregistré : sans _commentaires, _brouillons, commentaires ni explication", all(k not in r2["enregistre"] for k in ("_commentaires", "_brouillons", "commentaires")) and all("explication" not in e and "commentaires" not in e for e in r2["enregistre"]["ensembles"]))
     m = r["message"]
     controle("message du second appel : texte, codage avec preuves, préambule, règles candidates avec extraits propres et modes, passages communs une fois, extrait d'une seule ligne non envoyé",
              "Pathologie principale : K409" in m and "« hernie inguinale droite »" in m and "PRÉAMBULE OFFICIEL" in m and "--- Règle T3" in m and "la maladie opérée" in m
@@ -321,7 +334,7 @@ def main() -> None:
     controle("recalcul avec commentaire : le commentaire du codeur termine le message", r["message"].rstrip().endswith("COMMENTAIRE DU CODEUR :\nséjour programmé pour la seconde cure"))
     # réponse illisible
     r = node({**base_k, "caracteristiques": {**base_k["caracteristiques"], "reponse": "La règle est T3."}})["caracteristiques"]
-    controle("réponse illisible : règle et mode vides, caracteristiques sans explication, à recalculer", r["analyse"]["ok"] is False and r["codage"]["regle_hierarchisation"] is None and r["codage"]["caracteristiques"]["explication"] is None)
+    controle("réponse illisible : règle et mode vides, pas d'explication, à recalculer", r["analyse"]["ok"] is False and r["codage"]["regle_hierarchisation"] is None and r["explication"] is None and r["codage"]["libelle_mode_prise_en_charge"] is None)
     # contrôles de cohérence signalés sans refus
     rep_inc = json.dumps({"situation": "diagnostic", "circonstance": "traitement_unique", "regle": "T3", "mode_prise_en_charge": "DP", "dr_conforme": True, "confiance": 0.9, "explication": "x"})
     r = node({**base_k, "caracteristiques": {**base_k["caracteristiques"], "reponse": rep_inc}})["caracteristiques"]

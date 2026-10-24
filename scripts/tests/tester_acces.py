@@ -207,6 +207,27 @@ def main() -> None:
         essai("recherche par morceaux « hernie ing » (fonction, connecté)", "succès",
               lambda: [x for x in rows(c1.rpc("rechercher_codes_morceaux", {"recherche": "hernie ing", "limite": 10}).execute()) if x["code"] == "K409"])
         essai("non connecté : recherche par morceaux (interdit)", "refus", lambda: rows(anon.rpc("rechercher_codes_morceaux", {"recherche": "hta"}).execute()))
+        print("\n--- commentaires (table) ---")
+        com = c1.table("commentaires").insert({"document": doc_id, "utilisateur": u1, "objet": "code", "code": "I10", "auteur": "humain", "type": "remarque", "texte": "test"}).select("id").single().execute().data
+        essai("ajouter un commentaire à son travail (humain, sur un code)", "succès", lambda: [com])
+        essai("ajouter un commentaire de l'IA sur son travail avec l'appel (explication)", "succès",
+              lambda: rows(c1.table("commentaires").insert({"document": doc_id, "utilisateur": u1, "objet": "mode_prise_en_charge", "code": "DP", "auteur": "ia", "type": "explication", "appel_llm": appel_id, "texte": "x"}, returning="minimal").execute()))
+        essai("explication de l'IA sans appel_llm (interdit par la contrainte)", "refus",
+              lambda: rows(c1.table("commentaires").insert({"document": doc_id, "utilisateur": u1, "objet": "code", "code": "I10", "auteur": "ia", "type": "explication", "texte": "x"}, returning="minimal").execute()))
+        essai("commentaire sur le séjour avec un code (interdit par la contrainte)", "refus",
+              lambda: rows(c1.table("commentaires").insert({"document": doc_id, "utilisateur": u1, "objet": "sejour", "code": "I10", "auteur": "humain", "type": "remarque", "texte": "x"}, returning="minimal").execute()))
+        essai("relire ses commentaires", "succès", lambda: rows(c1.table("commentaires").select("id").eq("document", doc_id).execute()))
+        essai("ne pas voir les commentaires d'un autre testeur", "vide", lambda: rows(c2.table("commentaires").select("id").eq("document", doc_id).execute()))
+        essai("ajouter un commentaire au travail d'un autre (interdit)", "refus",
+              lambda: rows(c2.table("commentaires").insert({"document": doc_id, "utilisateur": u1, "objet": "sejour", "auteur": "humain", "type": "remarque", "texte": "x"}, returning="minimal").execute()))
+        essai("modifier un commentaire (interdit)", "refus", lambda: rows(c1.table("commentaires").update({"texte": "y"}).eq("id", com["id"]).select("id").execute()))
+        essai("supprimer un commentaire (interdit)", "refus", lambda: rows(c1.table("commentaires").delete().eq("id", com["id"]).select("id").execute()))
+        essai("retirer son propre commentaire (ligne de type retrait)", "succès",
+              lambda: rows(c1.table("commentaires").insert({"document": doc_id, "utilisateur": u1, "objet": "code", "code": "I10", "auteur": "humain", "type": "retrait", "reponse_a": com["id"], "texte": "retiré"}).select("id").execute()))
+        ia = c1.table("commentaires").select("id").eq("document", doc_id).eq("auteur", "ia").limit(1).execute().data
+        essai("retirer un commentaire de l'IA (interdit)", "refus",
+              lambda: rows(c1.table("commentaires").insert({"document": doc_id, "utilisateur": u1, "objet": "mode_prise_en_charge", "code": "DP", "auteur": "humain", "type": "retrait", "reponse_a": ia[0]["id"], "texte": "retiré"}, returning="minimal").execute()))
+        essai("non connecté : lire les commentaires (interdit)", "refus", lambda: rows(anon.table("commentaires").select("id").limit(1).execute()))
         essai("écrire dans une table de référence (interdit)", "refus",
               lambda: rows(c1.table("lots").insert({"id": "x", "source": "x", "version": "x"}, returning="minimal").execute()))
         essai("lire les chapitres de la CIM (connecté)", "succès", lambda: rows(c1.table("chapitres").select("numero").eq("numero", "II").execute()))
@@ -249,7 +270,7 @@ def main() -> None:
         try:
             if doc_id is not None:
                 ids_docs = [d for d in (doc2_id, doc_id) if d is not None]
-                for table in ("rum", "evaluations", "codages", "appels_llm", "recherches"):
+                for table in ("commentaires", "rum", "evaluations", "codages", "appels_llm", "recherches"):
                     admin.table(table).delete().in_("document", ids_docs).execute()
                 for d in ids_docs:
                     admin.table("documents").delete().eq("id", d).execute()

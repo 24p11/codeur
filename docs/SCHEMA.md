@@ -156,7 +156,7 @@ Les lignes de cette table ne sont **jamais modifiées ni supprimées** ; seules 
 |---|---|
 | `regle_hierarchisation` | Le code de la règle du guide des situations cliniques (`D1`, `T3`, `S1-Chronic`…), ou vide |
 | `mode_prise_en_charge` | Le code Z de prise en charge, ou `DP` quand le diagnostic principal motive lui-même le séjour, ou vide |
-| `commentaires` | Commentaires sur l'ensemble du codage |
+| `commentaires` | *(ancien format, lignes antérieures au 24 octobre 2026)* Commentaires sur l'ensemble du codage. **Depuis le 24 octobre 2026, les commentaires sont dans la table `commentaires` (§5.5) et ne figurent plus dans le JSON des lignes nouvelles** ; les codages `scenario` déjà chargés gardent leurs commentaires d'auteur `generateur`, et la page continue de lire les anciennes lignes |
 | `ensembles` | La liste des codes, chacun avec ses éléments de preuve |
 | `code` | Sans point, extension PMSI collée. Peut être `null` dans une ligne `ia_humain` quand le code proposé par l'IA est resté non codable après la boucle de correction (« code à choisir », §3.10) ; le codeur choisit alors le code |
 | `code_propose_non_codable` | Facultatif : le code non codable proposé par l'IA, conservé quand `code` est `null` |
@@ -164,11 +164,12 @@ Les lignes de cette table ne sont **jamais modifiées ni supprimées** ; seules 
 | `libelle` | Le libellé officiel, au moment du codage |
 | `categorie` | `pathologie_principale` (une seule par codage) ou `diagnostic_associe` |
 | `preuves` | Les éléments de preuve : position de début et de fin dans le texte, et texte cité. Un champ facultatif `introuvable: true` signale une citation qui n'a pas pu être retrouvée dans le texte. Un champ facultatif `nature` (`directe` ou `indirecte`) indique si la preuve nomme l'affection ou l'étaye seulement (résultat d'examen, traitement…) ; rempli par l'IA à partir du prompt `codage_v2`, vide sinon |
-| `confiance`, `explication` | Remplis par l'IA quand elle propose un code ; vides sinon |
-| `commentaires` | Commentaires sur ce code |
+| `confiance` | Remplie par l'IA quand elle propose un code ; vide sinon. *(24 octobre 2026)* `explication` n'est plus un champ : l'explication de l'IA est un commentaire (§5.5, objet `code`, type `explication`), lu dans le JSON seulement pour les anciennes lignes |
+| `commentaires` | *(ancien format)* Commentaires sur ce code ; dans la table `commentaires` depuis le 24 octobre 2026 |
 | `passages_non_codes` | Les passages surlignés que l'IA (ou l'utilisateur) a déclarés **non codés** : position, texte cité, `raison` et `auteur` (`ia` ou `humain`). Liste vide si aucun. Absente des codages `scenario` |
 | `codes_rejetes` | Les codes **proposés par l'IA** que l'utilisateur a supprimés : `code`, `libelle`, `categorie`, `preuves`, `etape` (celle où le rejet a été enregistré). Transmise d'une ligne à la suivante ; sert à demander au modèle de ne pas les reproposer lors d'un appel répété (§3.6). Un code ajouté par l'utilisateur puis supprimé n'y entre pas |
-| `caracteristiques` | *(brief 8, à relire)* La dernière proposition de l'IA pour la règle et le mode de prise en charge (second appel, §3.6) : `calculee_sur` (le code de la pathologie principale sur lequel la règle a été calculée, `null` si aucune ; s'il diffère de la pathologie principale courante, la page affiche « règle à revoir »), `appel_llm` (l'identifiant de l'appel, qui permet aux scripts d'analyse de retrouver la requête et la réponse complètes : situation, circonstance, `dr_conforme`, règles candidates, version du prompt, anomalies), `confiance`, `explication`, et la règle et le mode proposés (`regle`, `mode_prise_en_charge`, pour afficher « Proposition de l'IA : … » quand le codeur a changé l'un ou l'autre). Recopié tel quel d'une ligne à la suivante, jamais modifié par le codeur, remplacé seulement par un nouveau calcul. `regle_hierarchisation` et `mode_prise_en_charge` restent le codage retenu |
+| `libelle_mode_prise_en_charge` | *(24 octobre 2026, à relire)* Le libellé du mode de prise en charge, comme pour un diagnostic : pour un code Z, le libellé officiel de l'index (jamais celui du modèle) ; pour `DP`, un texte court (dix mots au plus) écrit par le modèle, qui décrit la prise en charge (`libelle_mode` de la réponse du second appel) ; après un échec de l'appel ou un changement du mode par le codeur, le texte fixe « La pathologie principale motive elle-même le séjour » |
+| `caracteristiques` | *(brief 8, à relire)* La dernière proposition de l'IA pour la règle et le mode de prise en charge (second appel, §3.6) : `calculee_sur` (le code de la pathologie principale sur lequel la règle a été calculée, `null` si aucune ; s'il diffère de la pathologie principale courante, la page affiche « règle à revoir »), `appel_llm` (l'identifiant de l'appel, qui permet aux scripts d'analyse de retrouver la requête et la réponse complètes : situation, circonstance, `dr_conforme`, règles candidates, version du prompt, anomalies), `confiance`, et la règle et le mode proposés (`regle`, `mode_prise_en_charge`, pour afficher « Proposition de l'IA : … » quand le codeur a changé l'un ou l'autre). L'explication du modèle est un commentaire (§5.5), pas un champ. Recopié tel quel d'une ligne à la suivante, jamais modifié par le codeur, remplacé seulement par un nouveau calcul. `regle_hierarchisation` et `mode_prise_en_charge` restent le codage retenu |
 | `affichage` | La variante d'affichage utilisée par le codeur (`A` liste simple sans encadré, `B` encadrés aux couleurs d'origine, `C` encadrés avec une couleur par code, reprise dans le surlignage du texte), dans les lignes écrites par la page ; permet de comparer les affichages |
 
 **Les commentaires** portent toujours leur auteur (`ia`, `humain`, `generateur` pour les remarques issues du chargement des CRH synthétiques, ou `outil` pour les remarques de la page : correction d'un code « M142 → M1427 », « code à choisir », « code plus précis possible », passage non traité par l'IA) et l'étape où ils ont été écrits. Ils passent d'une version à la suivante, sauf si le code auquel ils sont attachés est retiré. Les commentaires d'auteur `outil` qui portent sur le choix du code (« code à choisir », « code plus précis possible ») disparaissent quand le codeur change le code ; la trace d'une correction (« M142 → M1427 ») est conservée.
@@ -210,6 +211,8 @@ Le bouton « Codage » reste **toujours disponible** dès qu'au moins un passage
 4. **Codes rejetés** : un code de l'IA que l'utilisateur supprime est noté comme rejeté, avec ses passages (liste `codes_rejetes` du JSON, §3.4). Si ses passages sont renvoyés, le modèle reçoit la consigne de ne pas le reproposer ; s'il le repropose, la page le signale sans l'imposer.
 5. **C'est l'outil qui assemble** le nouveau codage : codage existant inchangé, plus les nouvelles propositions. Une proposition identique à un code existant ajoute ses passages aux preuves de ce code, de façon visible. Une proposition de pathologie principale alors qu'il y en a déjà une passe en diagnostic associé, avec un commentaire d'auteur `outil`. L'outil écarte toute proposition qui ne porte pas sur un passage envoyé, et tout code invalide (la vérification des codes codables et sa boucle de correction, §3.10, s'appliquent comme au premier appel).
 6. Avant l'appel, la page indique ce qui va se passer (« 2 passages envoyés à l'IA, 5 codes conservés ») ; s'il n'y a aucun passage à envoyer, elle le dit et n'appelle pas le modèle. S'il existe des modifications non enregistrées, elle enregistre d'abord une ligne `revue_humain`.
+
+**Le second appel** *(brief 8, à relire)* : au premier clic sur « Codage », après le premier appel et dès que les codes sont affichés, la page appelle le modèle une seconde fois (prompt `caracteristiques_v1`, tâche `caracteristiques_sejour`) avec le texte, le codage, les préambules officiels et les règles du guide des situations cliniques compatibles avec la pathologie principale (`regles_compatibles`, §6), leurs extraits officiels et les passages communs ; il choisit la règle de hiérarchisation et le mode de prise en charge (et, pour `DP`, le libellé court du mode). La ligne `ia_humain` est enregistrée une seule fois, après les deux appels ; si le second échoue, avec une règle vide. Les appels suivants sur « Codage » ne recalculent pas la règle. « Recalculer » (commentaire facultatif du codeur, enregistré comme commentaire d'objet `regle`, auteur `humain`) relance le second appel seul et crée une nouvelle ligne `ia_humain`. Contrôles : règle parmi les candidates et mode dans la liste de la règle (sinon un tour de correction, puis « à choisir ») ; cohérence situation / famille de la règle, circonstance / situation, `dr_conforme` nul si et seulement si le mode est `DP`, signalées sans rien refuser. `dr_conforme` est un contrôle qualité affiché au moment du calcul, non enregistré dans le codage ; il deviendra un contrôle enregistré dans `rum.controles` quand le RUM partiel sera construit (lot A4). Température 0.
 
 Un nouveau passage surligné qui chevauche une preuve d'un code existant complète les preuves de ce code, de façon visible ; il n'est pas envoyé au modèle.
 
@@ -375,6 +378,26 @@ Le testeur ajoute ses propres lignes, sans pouvoir les relire.
 
 ---
 
+### 5.5 `commentaires`
+
+*(24 octobre 2026, à relire)* Les commentaires d'un travail de codage, hors du JSON du codage (qui les recopiait à chaque ligne) : un commentaire est rattaché au **document** et, s'il porte sur un code, au **code lui-même** (pas d'identifiant nouveau pour les codes) ; des fils de discussion sont possibles (`reponse_a`), pour les échanges avec l'IA au lot A4.
+
+| Colonne | Contenu |
+|---|---|
+| `id`, `cree_le` | |
+| `document` | La version du document |
+| `utilisateur` | Le testeur dont c'est le travail, y compris pour les commentaires de l'IA et de l'outil écrits pendant son travail (la page les écrit avec la session du testeur, comme les lignes `ia_humain` : même limite, acceptée pour le prototype) |
+| `objet` | `sejour` (le dossier entier), `code` (un code CIM du codage), `mode_prise_en_charge`, `regle` |
+| `code` | Le code CIM concerné (forme `codeur`) ; pour le mode de prise en charge, `DP` ou le code Z ; pour la règle, son code ; vide pour le séjour. Pour un code « à choisir », le code proposé par l'IA (`code_propose_non_codable`), ou le séjour s'il n'y en a pas. **Un commentaire reste attaché au code sur lequel il a été écrit** : si le codeur change le code, il n'est plus affiché sous le nouveau code mais reste dans la base |
+| `auteur` | `humain`, `ia`, `outil` |
+| `type` | `explication` (de l'IA : chaque code proposé, le mode de prise en charge), `remarque` (du testeur), `discussion` (réponse dans un fil), `alerte` (de l'outil : code à choisir, code corrigé, plus précis possible, preuve ajoutée par l'IA, code déjà rejeté, passage cité par plus de deux codes, chevauchement), `retrait` |
+| `codage` | La ligne de codage au moment de laquelle le commentaire est écrit |
+| `appel_llm` | Pour un commentaire de l'IA, l'appel dont il vient ; **obligatoire pour une explication de l'IA** (contrainte), pour la confronter à l'appel réel |
+| `reponse_a` | Le commentaire auquel celui-ci répond, ou celui qu'il retire |
+| `texte` | |
+
+**Règles** : insertion seulement, ni modification ni suppression. **Retirer un commentaire** = ajouter une ligne de type `retrait` dont `reponse_a` le désigne ; la règle d'accès n'autorise un retrait que sur un commentaire d'auteur `humain` du testeur lui-même (fonction `commentaire_retirable`, migration 25) ; la page masque le commentaire retiré et le retrait. Les remarques du testeur sont écrites avec « Enregistrer mon codage » (brouillons modifiables jusque-là) ; les explications de l'IA et les alertes de l'outil, juste après la ligne de codage qu'elles accompagnent. Accès : un testeur lit et ajoute les commentaires de son travail (les siens, ceux de l'IA et de l'outil) ; rien pour les visiteurs (§7).
+
 ## 6. Les tables de référence
 
 | Table | Contenu |
@@ -404,6 +427,7 @@ Ces règles sont appliquées **par la base elle-même**, et non seulement par l'
 | `rum` | lire et ajouter ses propres lignes |
 | `appels_llm` | ajouter ses propres lignes, sans pouvoir les relire |
 | `evaluations` | ajouter ses propres lignes ; relire uniquement celles dont il est l'auteur humain, jamais celles de l'IA |
+| `commentaires` | *(à relire)* lire et ajouter les commentaires de son travail (`utilisateur` = lui, y compris ceux de l'IA et de l'outil) ; aucune modification ni suppression ; un retrait seulement sur ses propres commentaires humains |
 | `profils` | créer (à l'inscription), lire son propre profil, et en modifier seulement `nom`, `prenom`, `statut` et `etablissement` ; l'accord se renouvelle par la fonction `accepter_mention` |
 
 Le chargement des données de référence et du codage initial se fait par les scripts Python, avec la clé secrète, sur l'ordinateur du responsable du projet.

@@ -166,30 +166,39 @@
   // Construction du JSON du codage (SCHEMA.md §3.4). Les preuves sont recopiées des passages envoyés.
   // Un ensemble dont le code n'est pas codable est enregistré avec code null et un commentaire (règle 8 : aucun code
   // non codable n'entre dans un codage) ; les passages manquants vont dans passages_non_codes avec l'auteur « outil ».
+  // Les commentaires ne sont plus dans le JSON du codage (24 octobre 2026, table commentaires) : les alertes de l'outil et les
+  // explications de l'IA sont rendues dans `codage._commentaires` (liste transitoire : objet, code, auteur, type, texte), que la
+  // page enregistre dans la table après la ligne de codage, et retire du JSON (nettoyerPourEnregistrement).
+  function commentaireCode(e, auteur, type, texte) {
+    const code = e.code || e.code_propose_non_codable || null;
+    return code ? { objet: "code", code, auteur, type, texte } : { objet: "sejour", code: null, auteur, type, texte };
+  }
   function construireCodage(resultat, passages, etape, precedent) {
     const prec = precedent || {};
+    const commentaires = [];
     const ensembles = resultat.ensembles.map((e) => {
-      const commentaires = [];
-      if (e.statut !== "codable") {
-        commentaires.push({ auteur: "outil", etape, texte: "Code proposé par l'IA non codable (" + e.code + (e.codeInitialNonCodable ? ", initialement " + e.codeInitialNonCodable : "") + ") : code à choisir par le codeur." });
-      } else if (e.codeInitialNonCodable) {
-        commentaires.push({ auteur: "outil", etape, texte: "Code corrigé après boucle de correction : " + e.codeInitialNonCodable + " → " + e.code + "." });
-      }
-      if (e.affinable) commentaires.push({ auteur: "outil", etape, texte: "Code plus précis possible : " + e.descendants.map((d) => d.code).join(", ") + "." });
-      for (const t of resultat.anomalies.passagesTropCites || []) {
-        if (e.passages.includes(t.passage)) {
-          const autres = resultat.ensembles.filter((x) => x !== e && x.passages.includes(t.passage)).map((x) => x.code || "?");
-          commentaires.push({ auteur: "outil", etape, texte: "Passage n° " + t.passage + " (« " + passages[t.passage - 1].texte.slice(0, 40) + (passages[t.passage - 1].texte.length > 40 ? "…" : "") + " ») cité par " + t.nb + " codes dans la réponse de l'IA : avec " + autres.join(", ") + "." });
-        }
-      }
-      return {
+      const ens = {
         code: e.statut === "codable" ? e.code : null,
         libelle: e.statut === "codable" ? e.libelle : null,
         categorie: e.categorie,
         preuves: e.passages.map((k) => ({ debut: passages[k - 1].debut, fin: passages[k - 1].fin, texte: passages[k - 1].texte, ...(e.natures && e.natures[k] ? { nature: e.natures[k] } : {}) })),
-        confiance: e.confiance, explication: e.explication || null, commentaires,
+        confiance: e.confiance,
         ...(e.statut !== "codable" ? { code_propose_non_codable: e.code, libelle_propose: e.libelleModele || null } : {}),
       };
+      if (e.explication) commentaires.push(commentaireCode(ens, "ia", "explication", e.explication));
+      if (e.statut !== "codable") {
+        commentaires.push(commentaireCode(ens, "outil", "alerte", "Code proposé par l'IA non codable (" + e.code + (e.codeInitialNonCodable ? ", initialement " + e.codeInitialNonCodable : "") + ") : code à choisir par le codeur."));
+      } else if (e.codeInitialNonCodable) {
+        commentaires.push(commentaireCode(ens, "outil", "alerte", "Code corrigé après boucle de correction : " + e.codeInitialNonCodable + " → " + e.code + "."));
+      }
+      if (e.affinable) commentaires.push(commentaireCode(ens, "outil", "alerte", "Code plus précis possible : " + e.descendants.map((d) => d.code).join(", ") + "."));
+      for (const t of resultat.anomalies.passagesTropCites || []) {
+        if (e.passages.includes(t.passage)) {
+          const autres = resultat.ensembles.filter((x) => x !== e && x.passages.includes(t.passage)).map((x) => x.code || "?");
+          commentaires.push(commentaireCode(ens, "outil", "alerte", "Passage n° " + t.passage + " (« " + passages[t.passage - 1].texte.slice(0, 40) + (passages[t.passage - 1].texte.length > 40 ? "…" : "") + " ») cité par " + t.nb + " codes dans la réponse de l'IA : avec " + autres.join(", ") + "."));
+        }
+      }
+      return ens;
     });
     const nonCodes = resultat.nonCodes.map((x) => ({ debut: passages[x.passage - 1].debut, fin: passages[x.passage - 1].fin, texte: passages[x.passage - 1].texte, raison: x.raison || "", auteur: "ia" }));
     for (const k of resultat.anomalies.passagesManquants) {
@@ -198,11 +207,21 @@
     return {
       regle_hierarchisation: prec.regle_hierarchisation ?? null,
       mode_prise_en_charge: prec.mode_prise_en_charge ?? null,
-      commentaires: [],
+      libelle_mode_prise_en_charge: prec.libelle_mode_prise_en_charge ?? null,
       ensembles,
       passages_non_codes: nonCodes,
       codes_rejetes: [],
+      _commentaires: commentaires,
     };
+  }
+  // Le JSON tel qu'il est enregistré : sans les listes transitoires ni les champs de l'ancien format (commentaires,
+  // explications), qui restent lisibles dans les anciennes lignes mais ne sont plus recopiés.
+  function nettoyerPourEnregistrement(codage) {
+    const c = JSON.parse(JSON.stringify(codage));
+    delete c._commentaires; delete c._brouillons; delete c.commentaires;
+    for (const e of c.ensembles || []) { delete e.commentaires; delete e.explication; }
+    if (c.caracteristiques) delete c.caracteristiques.explication;
+    return c;
   }
 
   // Compteurs (SCHEMA.md §3.7) : appariement des ensembles par chevauchement de leurs preuves.
@@ -291,27 +310,27 @@
     const resultat = JSON.parse(JSON.stringify(codageRetenu));
     resultat.passages_non_codes = resultat.passages_non_codes || [];
     resultat.codes_rejetes = resultat.codes_rejetes || [];
+    resultat._commentaires = (nouveau._commentaires || []).slice();
     const ecartes = [], completes = [], reproposes = [];
     for (const e of nouveau.ensembles) {
       // un code rejeté par le codeur, reproposé par l'IA pour les mêmes passages : gardé mais signalé, jamais imposé
       const rejet = resultat.codes_rejetes.find((r) => e.code && r.code === e.code && (r.preuves || []).some((q) => e.preuves.some((p) => q.debut < p.fin && p.debut < q.fin)));
       if (rejet) {
-        e.commentaires = (e.commentaires || []).concat([{ auteur: "outil", etape, texte: "Code déjà rejeté par vous (" + rejet.code + ", retiré à l'étape " + (rejet.etape || "précédente") + ") : reproposé par l'IA pour ces passages." }]);
+        resultat._commentaires.push(commentaireCode(e, "outil", "alerte", "Code déjà rejeté par vous (" + rejet.code + ", retiré à l'étape " + (rejet.etape || "précédente") + ") : reproposé par l'IA pour ces passages."));
         reproposes.push(e.code);
       }
       const existant = resultat.ensembles.find((r) => r.code && e.code && r.code === e.code);
       if (existant) {
         for (const p of e.preuves) if (!existant.preuves.some((q) => q.debut === p.debut && q.fin === p.fin)) existant.preuves.push(p);
         existant.preuves.sort((a, b) => a.debut - b.debut);
-        existant.commentaires = existant.commentaires || [];
-        existant.commentaires.push({ auteur: "outil", etape, texte: "Passage ajouté aux preuves par l'IA lors d'un appel répété : " + e.preuves.map((p) => "« " + p.texte.slice(0, 40) + (p.texte.length > 40 ? "…" : "") + " »").join(", ") + "." });
+        resultat._commentaires.push(commentaireCode(existant, "outil", "alerte", "Passage ajouté aux preuves par l'IA lors d'un appel répété : " + e.preuves.map((p) => "« " + p.texte.slice(0, 40) + (p.texte.length > 40 ? "…" : "") + " »").join(", ") + "."));
         completes.push(existant.code);
         continue;
       }
       if (!e.preuves.length) { ecartes.push(e.code || e.code_propose_non_codable); continue; }
       if (e.categorie === "pathologie_principale" && resultat.ensembles.some((r) => r.categorie === "pathologie_principale")) {
         e.categorie = "diagnostic_associe";
-        e.commentaires = (e.commentaires || []).concat([{ auteur: "outil", etape, texte: "Proposé en pathologie principale par l'IA, passé en diagnostic associé : une pathologie principale était déjà retenue." }]);
+        resultat._commentaires.push(commentaireCode(e, "outil", "alerte", "Proposé en pathologie principale par l'IA, passé en diagnostic associé : une pathologie principale était déjà retenue."));
       }
       resultat.ensembles.push(e);
     }
@@ -387,6 +406,7 @@
     const r = { ok: true, situation: SITUATIONS.includes(obj.situation) ? obj.situation : null, circonstance: typeof obj.circonstance === "string" ? obj.circonstance : null,
                 regle: typeof obj.regle === "string" ? obj.regle.trim() : null, mode: obj.mode_prise_en_charge === "DP" ? "DP" : (typeof obj.mode_prise_en_charge === "string" ? normaliserCode(obj.mode_prise_en_charge) : null),
                 dr_conforme: obj.dr_conforme === null || obj.dr_conforme === undefined ? null : !!obj.dr_conforme,
+                libelle_mode: typeof obj.libelle_mode === "string" && obj.libelle_mode.trim() ? obj.libelle_mode.trim() : null,
                 confiance: typeof obj.confiance === "number" && obj.confiance >= 0 && obj.confiance <= 1 ? obj.confiance : null,
                 explication: typeof obj.explication === "string" ? obj.explication : "", anomalies: [], aCorriger: false };
     const regle = regles.find((x) => x.regle === r.regle);
@@ -421,17 +441,33 @@
     analyse.regle = regle.regle; analyse.mode = mode; analyse.aCorriger = false; analyse.anomalies = analyse.anomalies.filter((a) => !/hors/.test(a)); analyse.corrige = true;
     return { ok: true };
   }
-  // Applique la proposition au codage : règle et mode retenus (null, « à choisir », si la correction a échoué), et l'objet
-  // `caracteristiques` (SCHEMA.md §3.4 : calculee_sur, appel_llm, confiance, explication ; plus la règle et le mode proposés,
-  // pour afficher « Proposition de l'IA » après réouverture quand le codeur a changé l'un ou l'autre).
-  function appliquerCaracteristiques(codage, analyse, infos) {
+  const LIBELLE_DP = "La pathologie principale motive elle-même le séjour";
+  // Le libellé du mode de prise en charge : pour un code Z, le libellé officiel (liste de la règle, ou index) ; pour DP, le texte
+  // court du modèle (dix mots au plus), sinon le texte fixe.
+  function libelleMode(mode, regle, libelleModele, index) {
+    if (!mode) return null;
+    if (mode === "DP") {
+      const t = (libelleModele || "").trim();
+      return t && t.split(/\s+/).length <= 10 ? t : LIBELLE_DP;
+    }
+    const m = regle ? modesDe(regle).codes.find((c) => c.code === mode) : null;
+    if (m) return m.libelle;
+    const f = index ? index(mode) : null;
+    return f ? f.libelle : null;
+  }
+  // Applique la proposition au codage : règle, mode et libellé du mode retenus (null, « à choisir », si la correction a échoué),
+  // et l'objet `caracteristiques` (SCHEMA.md §3.4 : calculee_sur, appel_llm, confiance, règle et mode proposés). L'explication
+  // du modèle est rendue à part : la page l'enregistre comme commentaire (objet mode_prise_en_charge, auteur ia).
+  function appliquerCaracteristiques(codage, analyse, infos, regles) {
     const aChoisir = !analyse.ok || analyse.aCorriger;
+    const regle = aChoisir ? null : (regles || []).find((r) => r.regle === analyse.regle) || null;
     codage.regle_hierarchisation = aChoisir ? null : analyse.regle;
     codage.mode_prise_en_charge = aChoisir ? null : analyse.mode;
+    codage.libelle_mode_prise_en_charge = aChoisir ? null : libelleMode(analyse.mode, regle, analyse.libelle_mode, null);
     codage.caracteristiques = { calculee_sur: pathologiePrincipale(codage), appel_llm: infos.appel_llm || null,
                                 regle: aChoisir ? null : analyse.regle, mode_prise_en_charge: aChoisir ? null : analyse.mode,
-                                confiance: analyse.ok ? analyse.confiance : null, explication: analyse.ok ? analyse.explication : null };
-    return codage;
+                                confiance: analyse.ok ? analyse.confiance : null };
+    return { codage, explication: analyse.ok && analyse.explication ? analyse.explication : null };
   }
   // « Règle à revoir » : la pathologie principale courante diffère de celle sur laquelle la règle a été calculée.
   function regleARevoir(codage) {
@@ -443,7 +479,8 @@
   const api = { preparerAppelRepete, assemblerAppelRepete, normaliserCode, construireMessageUtilisateur, analyserReponse, verifierCodes, construireMessageCorrection,
                 appliquerCorrection, construireCodage, compteurs, LIMITE_CANDIDATS,
                 MODE_PROMPT_CARACTERISTIQUES, construireMessageCaracteristiques, analyserCaracteristiques, construireMessageCorrectionCaracteristiques,
-                appliquerCorrectionCaracteristiques, appliquerCaracteristiques, regleARevoir, pathologiePrincipale, modesDe, CIRCONSTANCES };
+                appliquerCorrectionCaracteristiques, appliquerCaracteristiques, regleARevoir, pathologiePrincipale, modesDe, CIRCONSTANCES,
+                nettoyerPourEnregistrement, commentaireCode, libelleMode, LIBELLE_DP };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else racine.CodeurCodage = api;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -497,8 +497,11 @@
     $("texte-dossier").classList.toggle("mode-simple", !MODE_PANNEAU);
     montrer("ecran-dossier");
     codageUI.commentairesOuverts = new Set(); codageUI.commentaireDossierOuvert = false; codageUI.couleurs = new Map();
-    codageUI.alerteDR = null; codageUI.etatRegle = ""; codageUI.caracteristiquesEnCours = false; $("regle-recalcul").hidden = true; $("regle-commentaire").value = "";
+    codageUI.alerteDR = null; codageUI.etatRegle = ""; codageUI.caracteristiquesEnCours = false; codageUI.modeChangerOuvert = false; codageUI.commentairesModeOuverts = false;
+    $("regle-recalcul").hidden = true; $("regle-commentaire").value = "";
     try { await lireToutesRegles(); } catch (e) { message("message-dossier", e.message, true); }
+    commentairesDoc.lignes = []; commentairesDoc.retires = new Set();
+    await lireCommentaires();
     montrerVue("codage");
     rendre(); cacherBarre();
     await chargerCodageExistant();
@@ -1009,14 +1012,14 @@
     const repete = !!travail.courant;
     let passages = dossier.passages.slice();
     const avertissements = [];
-    let prep = null;
+    let prep = null, caract = null;
     if (repete) {
       prep = K.preparerAppelRepete(travail.courant, dossier.passages, (p) => P.verifier(dossier.doc.texte, p));
       passages = prep.aEnvoyer;
       if (prep.modifie) {
         travail.modifie = true;
         for (const e of travail.courant.ensembles) if (prep.completes.includes(e.code || "code à choisir")) {
-          e.commentaires = (e.commentaires || []); if (!e.commentaires.some((k) => k.auteur === "outil" && /chevauch/.test(k.texte) && !k.etape)) e.commentaires.push({ auteur: "outil", etape: "revue_humain", texte: "Nouveau surlignage ajouté aux preuves de ce code (chevauchement d'une preuve existante), non envoyé à l'IA." });
+          brouillons().push({ objet: "code", code: e.code || e.code_propose_non_codable || null, auteur: "outil", type: "alerte", texte: "Nouveau surlignage ajouté aux preuves de ce code (chevauchement d'une preuve existante), non envoyé à l'IA." });
         }
         avertissements.push("Passage(s) ajouté(s) aux preuves d'un code existant (chevauchement) : " + prep.completes.join(", ") + ".");
       }
@@ -1035,7 +1038,7 @@
       }
     }
     try {
-      const pc = await lirePrompt("codage_v2");
+      const pc = await lirePrompt("codage_v3");
       const contexte = repete ? {
         codesRetenus: travail.courant.ensembles.filter((e) => e.code).map((e) => ({ code: e.code, libelle: e.libelle, categorie: e.categorie, preuves: e.preuves.map((p) => p.texte) })),
         rejetes: prep.rejetes,
@@ -1104,20 +1107,24 @@
         // Second appel (SCHEMA.md §3.6, brief 8) : les codes s'affichent dès maintenant, le bloc de la règle indique
         // « calcul en cours… » ; la ligne ia_humain n'est enregistrée qu'une fois, après les deux appels.
         travail.courant = codage; codageUI.caracteristiquesEnCours = true; rendreCodage();
-        const car = await calculerCaracteristiques(codage, null, reglages, fournisseur);
+        caract = await calculerCaracteristiques(codage, null, reglages, fournisseur);
         codageUI.caracteristiquesEnCours = false;
-        avertissements.push(...car.avertissements);
+        avertissements.push(...caract.avertissements);
       }
       codage.affichage = varianteAffichage();
-      const compteurs = K.compteurs(precedent ? precedent.codage : null, codage);
+      const enregistre = K.nettoyerPourEnregistrement(codage);
+      const compteurs = K.compteurs(precedent ? precedent.codage : null, enregistre);
       etatCodage("Enregistrement du codage…");
       const ins = await base.from("codages").insert({
         document: dossier.doc.id, etape: "ia_humain", utilisateur: etat.utilisateur.id, codage_precedent: precedent ? precedent.id : null,
-        appel_llm: appelCourant, valide: false, compteurs, codage,
+        appel_llm: appelCourant, valide: false, compteurs, codage: enregistre,
       }).select("id, cree_le").single();
       if (ins.error) throw new Error("le codage n'a pas pu être enregistré : " + ins.error.message);
       effacerLocalCodage();
-      installerCodage({ id: ins.data.id, etape: "ia_humain", codage, cree_le: ins.data.cree_le }, null);
+      // les commentaires de ce codage : explications de l'IA (codes et mode de prise en charge), alertes de l'outil
+      try { await ecrireCommentaires(commentairesDuCodage(codage, appelCourant, caract ? caract.explication : null, caract ? caract.appel_llm : null), ins.data.id); }
+      catch (e) { avertissements.push(e.message); }
+      installerCodage({ id: ins.data.id, etape: "ia_humain", codage: enregistre, cree_le: ins.data.cree_le }, null);
       const an = analyse.anomalies;
       if (an.passagesManquants.length) avertissements.push("Passage(s) non traité(s) par l'IA : " + an.passagesManquants.map((k) => "n° " + k).join(", ") + ".");
       if (an.passagesInconnus.length) avertissements.push("Numéro(s) de passage inconnu(s) dans la réponse, ignoré(s) : " + an.passagesInconnus.join(", ") + ".");
@@ -1134,6 +1141,42 @@
       finAppel();
     }
   }
+  // ---- Table commentaires (SCHEMA.md §5.5) : les commentaires du travail du testeur sur ce document ---------------------
+  // Lus à l'ouverture du dossier et après chaque écriture ; les brouillons (non enregistrés) vivent dans travail.courant._brouillons
+  // (objet, code, texte) et partent dans la table avec « Enregistrer mon codage ». Un retrait est une ligne de type retrait.
+  const commentairesDoc = { lignes: [], retires: new Set() };
+  async function lireCommentaires() {
+    if (!dossier.doc) return;
+    const r = await base.from("commentaires").select("id, cree_le, objet, code, auteur, type, codage, appel_llm, reponse_a, texte").eq("document", dossier.doc.id).eq("utilisateur", etat.utilisateur.id).order("cree_le");
+    if (r.error) { message("message-dossier", "Les commentaires n'ont pas pu être lus : " + r.error.message, true); return; }
+    commentairesDoc.lignes = r.data;
+    commentairesDoc.retires = new Set(r.data.filter((c) => c.type === "retrait").map((c) => c.reponse_a));
+  }
+  function commentairesVisibles(objet, code) {
+    return commentairesDoc.lignes.filter((c) => c.type !== "retrait" && !commentairesDoc.retires.has(c.id) && c.objet === objet && (code === undefined || c.code === code));
+  }
+  function brouillons() { if (!travail.courant) return []; travail.courant._brouillons = travail.courant._brouillons || []; return travail.courant._brouillons; }
+  // Écrit des commentaires dans la table (liste de { objet, code, auteur, type, texte, appel_llm? }) rattachés à une ligne de codage.
+  async function ecrireCommentaires(liste, codageId) {
+    const lignes = liste.filter((c) => c && c.texte).map((c) => ({ document: dossier.doc.id, utilisateur: etat.utilisateur.id, objet: c.code ? c.objet : "sejour", code: c.code || null,
+      auteur: c.auteur || "humain", type: c.type || "remarque", codage: codageId || null, appel_llm: c.appel_llm || null, reponse_a: c.reponse_a || null, texte: c.texte }));
+    if (!lignes.length) return;
+    const r = await base.from("commentaires").insert(lignes, { returning: "minimal" });
+    if (r.error) throw new Error("les commentaires n'ont pas pu être enregistrés : " + r.error.message);
+    await lireCommentaires();
+  }
+  async function retirerCommentaire(c) {
+    try { await ecrireCommentaires([{ objet: c.objet, code: c.code, auteur: "humain", type: "retrait", texte: "retiré", reponse_a: c.id }], travail.base ? travail.base.id : null); rendreCodage(); }
+    catch (e) { message("message-dossier", e.message, true); }
+  }
+  // Les explications de l'IA et les alertes de l'outil d'un codage qui vient d'être construit (codage._commentaires), avec
+  // l'identifiant de l'appel pour les explications de l'IA (obligatoire), puis l'explication du mode de prise en charge.
+  function commentairesDuCodage(codage, appelCodage, explicationMode, appelMode) {
+    const liste = (codage._commentaires || []).map((c) => ({ ...c, appel_llm: c.auteur === "ia" ? appelCodage : null }));
+    if (explicationMode && appelMode) liste.push({ objet: codage.mode_prise_en_charge ? "mode_prise_en_charge" : "sejour", code: codage.mode_prise_en_charge || null, auteur: "ia", type: "explication", texte: explicationMode, appel_llm: appelMode });
+    return liste;
+  }
+
   // ---- Second appel : la règle de hiérarchisation et le mode de prise en charge (brief 8, SCHEMA.md §3.4 et §3.6) ----
   let extraitsGuide = null, toutesRegles = null;
   const compatibles = new Map(); // pathologie principale (ou "") -> lignes compatibles (regles_compatibles)
@@ -1180,18 +1223,18 @@
         res = await appelerEtEnregistrer(reglages, fournisseur, messages, { id: appelId, appel_initial: id, version_prompt: pc.version, tache: "caracteristiques_sejour", passages: [], tour: 1 });
         if (!K.appliquerCorrectionCaracteristiques(an, res.contenu, regles).ok) avertissements.push("Règle ou mode de prise en charge hors liste après correction : à choisir.");
       }
-      K.appliquerCaracteristiques(codage, an, { appel_llm: appelId });
+      const app = K.appliquerCaracteristiques(codage, an, { appel_llm: appelId }, regles);
       if (!an.ok) avertissements.push("Réponse du modèle illisible pour la règle (" + an.erreur + ") : règle à choisir, ou « Recalculer ».");
       else if (an.anomalies.length) avertissements.push("Règle : " + an.anomalies.join(" ; ") + ".");
       // dr_conforme est un contrôle qualité affiché au moment du calcul, non enregistré dans le codage (rum.controles au lot A4)
       codageUI.alerteDR = an.ok && an.dr_conforme === false ? (an.explication || "le modèle estime que la pathologie principale ne respecte pas la définition du DR") : null;
       codageUI.etatRegle = "";
-      return { avertissements, appel_llm: appelId };
+      return { avertissements, appel_llm: appelId, explication: app.explication };
     } catch (e) {
-      K.appliquerCaracteristiques(codage, { ok: false, erreur: e.message }, {});
+      K.appliquerCaracteristiques(codage, { ok: false, erreur: e.message }, {}, []);
       codageUI.etatRegle = ""; codageUI.alerteDR = null;
       avertissements.push("Le calcul de la règle a échoué (" + e.message + ") : règle vide, vous pouvez « Recalculer ».");
-      return { avertissements, appel_llm: null };
+      return { avertissements, appel_llm: null, explication: null };
     }
   }
   // « Recalculer » : second appel seul, avec un commentaire facultatif (ajouté aux commentaires du codage, auteur humain) ;
@@ -1204,19 +1247,22 @@
     codageUI.appelEnCours = true; $("bouton-codage").disabled = true; $("bouton-recalculer").disabled = true;
     message("message-dossier", "");
     try {
-      if (commentaire) { travail.courant.commentaires = travail.courant.commentaires || []; travail.courant.commentaires.push({ auteur: "humain", etape: null, texte: commentaire, _nouveau: true }); travail.modifie = true; }
       if (travail.modifie) { etatRegle("enregistrement de vos modifications (revue) avant le recalcul…"); await enregistrerRevue(); }
       const codage = copier(travail.courant);
       codageUI.caracteristiquesEnCours = true; rendreCodage();
       const car = await calculerCaracteristiques(codage, commentaire, etat.reglages, fournisseurDe(etat.reglages.adresse));
       codageUI.caracteristiquesEnCours = false;
       codage.affichage = varianteAffichage();
-      const compteurs = K.compteurs(travail.base ? travail.base.codage : null, codage);
+      const enregistre = K.nettoyerPourEnregistrement(codage);
+      const compteurs = K.compteurs(travail.base ? travail.base.codage : null, enregistre);
       const ins = await base.from("codages").insert({ document: dossier.doc.id, etape: "ia_humain", utilisateur: etat.utilisateur.id, codage_precedent: travail.base ? travail.base.id : null,
-        appel_llm: car.appel_llm, valide: false, compteurs, codage }).select("id, cree_le").single();
+        appel_llm: car.appel_llm, valide: false, compteurs, codage: enregistre }).select("id, cree_le").single();
       if (ins.error) throw new Error("le recalcul n'a pas pu être enregistré : " + ins.error.message);
       effacerLocalCodage();
-      installerCodage({ id: ins.data.id, etape: "ia_humain", codage, cree_le: ins.data.cree_le }, null);
+      const liste = commentairesDuCodage({ _commentaires: [], mode_prise_en_charge: enregistre.mode_prise_en_charge }, null, car.explication, car.appel_llm);
+      if (commentaire) liste.unshift({ objet: enregistre.regle_hierarchisation ? "regle" : "sejour", code: enregistre.regle_hierarchisation || null, auteur: "humain", type: "remarque", texte: commentaire });
+      try { await ecrireCommentaires(liste, ins.data.id); } catch (e) { car.avertissements.push(e.message); }
+      installerCodage({ id: ins.data.id, etape: "ia_humain", codage: enregistre, cree_le: ins.data.cree_le }, null);
       $("regle-commentaire").value = "";
       $("codage-etat").textContent = "Règle recalculée par l'IA (" + new Date().toLocaleTimeString("fr-FR") + ")." + (car.avertissements.length ? " À noter : " + car.avertissements.join(" ") : "");
       rendreCodage();
@@ -1227,64 +1273,86 @@
     }
   }
   $("bouton-recalculer").addEventListener("click", recalculer);
-  // Le bloc de la règle, en tête du pavé : règle et mode retenus, explication de l'IA, alertes, listes déroulantes.
+  // Le mode de prise en charge, en tête du pavé, au format des autres codes (fond neutre) : « Mode de prise en charge : [code] –
+  // [libellé] » ; ligne des fonctions (changer, recalculer, 💬, alertes) ; la règle comme un élément de preuve.
   function rendreRegle() {
     const zone = $("bloc-regle"); zone.textContent = "";
     const c = travail.courant; if (!c) return;
     const ligne = (code) => (toutesRegles || []).find((r) => r.code === code) || null;
-    const p = document.createElement("p"); p.className = "regle-ligne";
+    const div = document.createElement("div"); div.className = "code mode-pec";
     if (codageUI.caracteristiquesEnCours || codageUI.etatRegle) {
-      p.innerHTML = "<span class='attente'></span>Règle de hiérarchisation : " + (codageUI.etatRegle || "calcul en cours…"); zone.appendChild(p); return;
+      const t = document.createElement("div"); t.className = "tete"; t.innerHTML = "<strong><span class='attente'></span>Mode de prise en charge : " + (codageUI.etatRegle || "calcul en cours…") + "</strong>";
+      div.appendChild(t); zone.appendChild(div); return;
     }
     const car = c.caracteristiques || null;
     const regle = c.regle_hierarchisation, mode = c.mode_prise_en_charge;
     const lr = regle ? ligne(regle) : null;
+    const libelle = c.libelle_mode_prise_en_charge || (mode ? K.libelleMode(mode, lr, null, null) : null);
+    const tete = document.createElement("div"); tete.className = "tete";
     const strong = document.createElement("strong");
-    strong.textContent = regle ? "Règle " + regle + (lr && (lr.specificite || lr.libelle) ? " – " + (lr.specificite || lr.libelle) : "") : "Règle de hiérarchisation : à choisir";
-    p.appendChild(strong);
-    const libZ = (code, r) => { const m = r ? K.modesDe(r).codes.find((x) => x.code === code) : null; return m ? m.libelle : ""; };
-    const modeTexte = !mode ? "à choisir" : mode === "DP" ? "DP" : mode + (libZ(mode, lr) ? " – " + libZ(mode, lr) : "");
-    const span = document.createElement("span"); span.className = "regle-mode"; span.textContent = " · Mode de prise en charge : " + modeTexte; p.appendChild(span);
-    zone.appendChild(p);
-    // explication de l'IA : telle quelle si la règle et le mode sont ceux de sa proposition, sinon « Proposition de l'IA : … »
-    if (car) {
-      const memeChoix = car.regle === regle && car.mode_prise_en_charge === mode;
-      const ex = document.createElement("p"); ex.className = "discret regle-explication";
-      if (memeChoix && (mode === "DP" || !mode)) ex.textContent = car.explication ? "Explication de l'IA : " + car.explication + (car.confiance != null ? " (confiance " + car.confiance + ")" : "") : "L'IA n'a pas donné d'explication.";
-      else if (memeChoix) { ex.textContent = car.explication ? "Explication de l'IA : " + car.explication : ""; ex.title = ""; }
-      else ex.textContent = "Proposition de l'IA : " + (car.regle || "règle à choisir") + ", " + (car.mode_prise_en_charge || "mode à choisir") + (car.explication ? " – " + car.explication : "");
-      if (ex.textContent) zone.appendChild(ex);
+    strong.textContent = "Mode de prise en charge : " + (mode ? mode + (libelle ? " – " + libelle : "") : "à choisir");
+    tete.appendChild(strong); div.appendChild(tete);
+    // ligne des fonctions
+    const fonctions = document.createElement("div"); fonctions.className = "fonctions";
+    const ico = (texte, titre, action, classe) => { const b = document.createElement("button"); b.type = "button"; b.className = "ico" + (classe ? " " + classe : ""); b.textContent = texte; b.title = titre; if (action) b.addEventListener("click", action); fonctions.appendChild(b); return b; };
+    ico("Changer", "Changer la règle ou le mode de prise en charge", () => { codageUI.modeChangerOuvert = !codageUI.modeChangerOuvert; rendreRegle(); }, codageUI.modeChangerOuvert ? "ouvert" : "");
+    ico("Recalculer", "Demander à l'IA de recalculer la règle et le mode, avec un commentaire facultatif", () => { const z = $("regle-recalcul"); z.hidden = !z.hidden; if (!z.hidden) $("regle-commentaire").focus(); });
+    const memeChoix = !car || (car.regle === regle && car.mode_prise_en_charge === mode);
+    const items = commentairesVisibles("mode_prise_en_charge").concat(commentairesVisibles("regle")).map((x) => ({ ...x, source: "table" }))
+      .concat(brouillons().filter((b) => b.objet === "mode_prise_en_charge" || b.objet === "regle").map((b) => ({ ...b, source: "brouillon" })));
+    if (car && car.explication) items.push({ auteur: "ia", type: "explication", texte: car.explication, source: "ancien" });
+    for (const x of items) if (x.auteur === "ia" && x.type === "explication" && !memeChoix) x.texte = "Proposition de l'IA : " + (car.regle || "règle à choisir") + ", " + (car.mode_prise_en_charge || "mode à choisir") + " – " + x.texte;
+    const bulle = ico("💬", items.length ? "Commentaires (" + items.length + ")" : "Commentaires", () => { codageUI.commentairesModeOuverts = !codageUI.commentairesModeOuverts; rendreRegle(); }, "bulle" + (codageUI.commentairesModeOuverts ? " ouvert" : ""));
+    if (items.length) { const n = document.createElement("span"); n.className = "n"; n.textContent = items.length; bulle.appendChild(n); }
+    if (car && car.confiance != null) ico("ⓘ", "Confiance de l'IA : " + car.confiance + (car.calculee_sur ? " — règle calculée sur " + car.calculee_sur : " — calculée sans pathologie principale"), null, "info");
+    if (K.regleARevoir(c)) ico("⚠", "Règle à revoir : la pathologie principale a changé depuis le calcul (règle calculée sur " + (car.calculee_sur || "aucune pathologie principale") + ").", null, "alerte");
+    if (codageUI.alerteDR) ico("⚠", "Pathologie principale à revoir : ne peut pas être DR — " + codageUI.alerteDR, null, "alerte");
+    div.appendChild(fonctions);
+    // la règle, au format des éléments de preuve
+    const ul = document.createElement("ul"); ul.className = "preuves";
+    const li = document.createElement("li"); li.className = "preuve regle";
+    li.textContent = regle ? "Règle " + regle + (lr && (lr.specificite || lr.libelle) ? " – " + (lr.specificite || lr.libelle) : "") : "Règle de hiérarchisation à choisir";
+    if (lr && lr.famille) li.title = lr.famille + (lr.regle_officielle ? " · règle officielle " + lr.regle_officielle : "");
+    ul.appendChild(li); div.appendChild(ul);
+    // listes déroulantes (« Changer »)
+    if (codageUI.modeChangerOuvert) {
+      const pp = K.pathologiePrincipale(c);
+      const comp = compatibles.get(pp || "");
+      if (!comp) { lireReglesCompatibles(pp).then(() => rendreRegle()).catch(() => {}); }
+      const choix = document.createElement("div"); choix.className = "regle-choix";
+      const selR = document.createElement("select"); selR.title = "Changer la règle de hiérarchisation";
+      const optVide = document.createElement("option"); optVide.value = ""; optVide.textContent = "— règle à choisir —"; selR.appendChild(optVide);
+      const gC = document.createElement("optgroup"); gC.label = "Règles compatibles avec la pathologie principale";
+      for (const r of (comp || [])) { const o = document.createElement("option"); o.value = r.regle; o.textContent = r.regle + " – " + (r.specificite || r.libelle); gC.appendChild(o); }
+      selR.appendChild(gC);
+      const gT = document.createElement("optgroup"); gT.label = "Toutes les règles";
+      for (const r of (toutesRegles || [])) if (!(comp || []).some((x) => x.regle === r.code)) { const o = document.createElement("option"); o.value = r.code; o.textContent = r.code + " – " + (r.specificite || r.libelle) + (r.evaluable ? "" : " (non évaluable)"); gT.appendChild(o); }
+      selR.appendChild(gT);
+      selR.value = regle || "";
+      selR.addEventListener("change", () => {
+        c.regle_hierarchisation = selR.value || null;
+        const nl = ligne(selR.value); const m = K.modesDe(nl || {});
+        c.mode_prise_en_charge = m.dp ? "DP" : (m.codes.length === 1 ? m.codes[0].code : null);
+        c.libelle_mode_prise_en_charge = c.mode_prise_en_charge ? K.libelleMode(c.mode_prise_en_charge, nl, null, null) : null;
+        marquerModifie();
+      });
+      const selM = document.createElement("select"); selM.title = "Changer le mode de prise en charge (liste de la règle choisie)";
+      const o0 = document.createElement("option"); o0.value = ""; o0.textContent = "— mode à choisir —"; selM.appendChild(o0);
+      const modes = K.modesDe(lr || {});
+      if (modes.dp) { const o = document.createElement("option"); o.value = "DP"; o.textContent = "DP – " + K.LIBELLE_DP; selM.appendChild(o); }
+      for (const x of modes.codes) { const o = document.createElement("option"); o.value = x.code; o.textContent = x.code + " – " + x.libelle; selM.appendChild(o); }
+      if (mode && ![...selM.options].some((o) => o.value === mode)) { const o = document.createElement("option"); o.value = mode; o.textContent = mode + " (hors de la liste de la règle)"; selM.appendChild(o); }
+      selM.value = mode || ""; selM.disabled = !lr;
+      selM.addEventListener("change", () => { c.mode_prise_en_charge = selM.value || null; c.libelle_mode_prise_en_charge = c.mode_prise_en_charge ? K.libelleMode(c.mode_prise_en_charge, lr, null, null) : null; marquerModifie(); });
+      const l1 = document.createElement("label"); l1.textContent = "Règle "; l1.appendChild(selR);
+      const l2 = document.createElement("label"); l2.textContent = "Mode "; l2.appendChild(selM);
+      choix.append(l1, l2); div.appendChild(choix);
     }
-    // alertes
-    if (K.regleARevoir(c)) { const a = document.createElement("p"); a.className = "message alerte"; a.textContent = "Règle à revoir : la pathologie principale a changé depuis le calcul (règle calculée sur " + (car.calculee_sur || "aucune pathologie principale") + ")."; zone.appendChild(a); }
-    if (codageUI.alerteDR) { const a = document.createElement("p"); a.className = "message alerte"; a.textContent = "Pathologie principale à revoir : ne peut pas être DR — " + codageUI.alerteDR; zone.appendChild(a); }
-    // listes déroulantes : règles compatibles avec la pathologie principale courante, puis toutes les règles ; modes de la règle choisie
-    const pp = K.pathologiePrincipale(c);
-    const comp = compatibles.get(pp || "");
-    if (!comp) { lireReglesCompatibles(pp).then(() => rendreRegle()).catch(() => {}); }
-    const choix = document.createElement("div"); choix.className = "regle-choix";
-    const selR = document.createElement("select"); selR.title = "Changer la règle de hiérarchisation";
-    const optVide = document.createElement("option"); optVide.value = ""; optVide.textContent = "— règle à choisir —"; selR.appendChild(optVide);
-    const gC = document.createElement("optgroup"); gC.label = "Règles compatibles avec la pathologie principale";
-    for (const r of (comp || [])) { const o = document.createElement("option"); o.value = r.regle; o.textContent = r.regle + " – " + (r.specificite || r.libelle); gC.appendChild(o); }
-    selR.appendChild(gC);
-    const gT = document.createElement("optgroup"); gT.label = "Toutes les règles";
-    for (const r of (toutesRegles || [])) if (!(comp || []).some((x) => x.regle === r.code)) { const o = document.createElement("option"); o.value = r.code; o.textContent = r.code + " – " + (r.specificite || r.libelle) + (r.evaluable ? "" : " (non évaluable)"); gT.appendChild(o); }
-    selR.appendChild(gT);
-    selR.value = regle || "";
-    selR.addEventListener("change", () => { c.regle_hierarchisation = selR.value || null; const m = K.modesDe(ligne(selR.value) || {}); c.mode_prise_en_charge = m.dp ? "DP" : (m.codes.length === 1 ? m.codes[0].code : null); marquerModifie(); });
-    const selM = document.createElement("select"); selM.title = "Changer le mode de prise en charge (liste de la règle choisie)";
-    const o0 = document.createElement("option"); o0.value = ""; o0.textContent = "— mode à choisir —"; selM.appendChild(o0);
-    const modes = K.modesDe(lr || {});
-    if (modes.dp) { const o = document.createElement("option"); o.value = "DP"; o.textContent = "DP – la pathologie principale motive le séjour"; selM.appendChild(o); }
-    for (const x of modes.codes) { const o = document.createElement("option"); o.value = x.code; o.textContent = x.code + " – " + x.libelle; selM.appendChild(o); }
-    if (mode && ![...selM.options].some((o) => o.value === mode)) { const o = document.createElement("option"); o.value = mode; o.textContent = mode + " (hors de la liste de la règle)"; selM.appendChild(o); }
-    selM.value = mode || ""; selM.disabled = !lr;
-    selM.addEventListener("change", () => { c.mode_prise_en_charge = selM.value || null; marquerModifie(); });
-    const l1 = document.createElement("label"); l1.textContent = "Règle "; l1.appendChild(selR);
-    const l2 = document.createElement("label"); l2.textContent = "Mode "; l2.appendChild(selM);
-    choix.append(l1, l2); zone.appendChild(choix);
-    $("regle-recalcul").hidden = false;
+    // la marge des commentaires du mode et de la règle
+    const marge = construireMarge("Commentaires · mode de prise en charge", items, () => { codageUI.commentairesModeOuverts = false; rendreRegle(); }, { objet: "mode_prise_en_charge", code: mode || null }, LIMITE_COMMENTAIRE_CODE);
+    marge.hidden = !codageUI.commentairesModeOuverts;
+    div.appendChild(marge);
+    zone.appendChild(div);
   }
 
   // Un appel : envoi, enregistrement dans appels_llm (réussi ou échoué), retour du résultat.
@@ -1406,6 +1474,7 @@
       travail.courant.passages_non_codes = travail.courant.passages_non_codes || [];
       for (const e of travail.courant.ensembles) { e.preuves = e.preuves || []; e.commentaires = e.commentaires || []; }
       travail.courant.codes_rejetes = travail.courant.codes_rejetes || [];
+      if (travail.courant.mode_prise_en_charge === "DP" && !travail.courant.libelle_mode_prise_en_charge) travail.courant.libelle_mode_prise_en_charge = K.LIBELLE_DP;
     }
     $("bloc-codage").hidden = !travail.courant;
     majBoutons();
@@ -1465,22 +1534,23 @@
     fonctions.appendChild(cat);
     ico("Supprimer", "Supprimer ce code (ses passages redeviennent de simples surlignages)", () => supprimerCode(i));
     ico("🔍", "Changer le code (recherche)", () => ouvrirRecherche(div, i));
-    const commentaires = e.commentaires || [];
+    const commentaires = commentairesDeCode(e);
     const bulle = ico("💬", commentaires.length ? "Commentaires (" + commentaires.length + ")" : "Commentaires", () => basculerCommentaires(i),
       "bulle" + (codageUI.commentairesOuverts.has(i) ? " ouvert" : ""));
     if (commentaires.length) { const n = document.createElement("span"); n.className = "n"; n.textContent = commentaires.length; bulle.appendChild(n); }
-    // Les avertissements sont des icônes, leur explication au survol.
+    // Les avertissements sont des icônes, leur explication au survol (alertes de l'outil lues dans la table ou l'ancien format).
     if (!e.code && e.code_propose_non_codable) ico("⚠", "Code proposé par l'IA : " + e.code_propose_non_codable + ", non codable ; choisissez un code avec 🔍.", null, "alerte");
-    const plusPrecis = commentaires.find((k) => k.auteur === "outil" && /plus précis possible/.test(k.texte));
+    const alertes = commentaires.filter((k) => k.auteur === "outil");
+    const plusPrecis = alertes.find((k) => /plus précis possible/.test(k.texte));
     if (e.code && plusPrecis) ico("◎", "Code plus précis possible — " + plusPrecis.texte, null, "info");
     if (!e.preuves.length) ico("◌", "Sans preuve : aucun passage du texte n'appuie ce code. Gardez-le ou supprimez-le.", null, "alerte");
-    const ajoutIA = commentaires.find((k) => k.auteur === "outil" && /ajouté aux preuves par l'IA/.test(k.texte));
+    const ajoutIA = alertes.find((k) => /ajouté aux preuves par l'IA/.test(k.texte));
     if (ajoutIA) ico("⚑", "Preuve ajoutée par l'IA — " + ajoutIA.texte + " Retirez-la avec ✕ si elle ne convient pas.", null, "info");
-    const rejete = commentaires.find((k) => k.auteur === "outil" && /déjà rejeté par vous/.test(k.texte));
+    const rejete = alertes.find((k) => /déjà rejeté par vous/.test(k.texte));
     if (rejete) ico("↺", "Code déjà rejeté par vous — " + rejete.texte, null, "alerte");
-    const tropCite = commentaires.filter((k) => k.auteur === "outil" && /cité par \d+ codes/.test(k.texte));
+    const tropCite = alertes.filter((k) => /cité par \d+ codes/.test(k.texte));
     if (tropCite.length) ico("≡", tropCite.map((k) => k.texte).join(" "), null, "alerte");
-    if (e.explication || e.confiance != null) ico("ⓘ", "Explication de l'IA : " + (e.explication || "") + (e.confiance != null ? " (confiance " + e.confiance + ")" : ""), null, "info");
+    if (e.confiance != null) ico("ⓘ", "Confiance de l'IA : " + e.confiance + (commentaires.some((k) => k.auteur === "ia" && k.type === "explication") ? " — son explication est dans les commentaires (💬)" : ""), null, "info");
     div.appendChild(fonctions);
     const ul = document.createElement("ul"); ul.className = "preuves";
     e.preuves.forEach((p, k) => {
@@ -1500,7 +1570,7 @@
     if (!e.preuves.length) { const li = document.createElement("li"); li.className = "vide"; li.textContent = "aucun passage cité"; ul.appendChild(li); }
     div.appendChild(ul);
     // Les commentaires du code, dans la marge à droite du pavé, masqués par défaut (💬 les ouvre).
-    const marge = construireMarge("Commentaires · " + (e.code || "code à choisir"), commentaires, () => basculerCommentaires(i), i, LIMITE_COMMENTAIRE_CODE);
+    const marge = construireMarge("Commentaires · " + (e.code || "code à choisir"), commentaires, () => basculerCommentaires(i), { objet: "code", code: e.code || e.code_propose_non_codable || null }, LIMITE_COMMENTAIRE_CODE);
     marge.hidden = !codageUI.commentairesOuverts.has(i);
     div.appendChild(marge);
     return div;
@@ -1514,8 +1584,18 @@
   // pas enregistré : le testeur peut le modifier ou le supprimer ; à l'enregistrement, la marque disparaît et l'étape
   // de la ligne lui est donnée. Les commentaires suivent la sauvegarde locale comme le reste du codage.
   const LIMITE_COMMENTAIRE_CODE = 500, LIMITE_COMMENTAIRE_DOSSIER = 1000;
-  function listeCommentaires(i) { return i === null ? travail.courant.commentaires : travail.courant.ensembles[i].commentaires; }
-  function construireMarge(titreTexte, commentaires, fermerAction, i, limite) {
+  // Les commentaires affichés pour un code : lignes de la table (sur ce code, hors retirés), brouillons, et, pour les anciennes
+  // lignes de codage, les commentaires et l'explication encore dans le JSON (lecture seule).
+  function commentairesDeCode(e) {
+    const code = e.code || e.code_propose_non_codable || null;
+    const items = [];
+    if (code) for (const c of commentairesVisibles("code", code)) items.push({ ...c, source: "table" });
+    for (const b of brouillons()) if (b.objet === "code" && b.code === code) items.push({ ...b, source: "brouillon" });
+    for (const c of (e.commentaires || [])) if (!c._nouveau) items.push({ ...c, source: "ancien" });
+    if (e.explication) items.push({ auteur: "ia", type: "explication", texte: e.explication, source: "ancien" });
+    return items;
+  }
+  function construireMarge(titreTexte, items, fermerAction, cible, limite) {
     const marge = document.createElement("div"); marge.className = "marge";
     const titre = document.createElement("div"); titre.className = "titre";
     const tt = document.createElement("span"); tt.textContent = titreTexte;
@@ -1523,60 +1603,61 @@
     fermer.addEventListener("click", fermerAction);
     titre.append(tt, fermer); marge.appendChild(titre);
     const saisie = document.createElement("div"); saisie.className = "saisie";
-    const zone = document.createElement("textarea"); zone.maxLength = limite; zone.placeholder = i === null ? "Remarque générale sur ce codage ou ce dossier…" : "Votre commentaire sur ce code…";
+    const zone = document.createElement("textarea"); zone.maxLength = limite; zone.placeholder = cible.objet === "sejour" ? "Remarque générale sur ce codage ou ce dossier…" : "Votre commentaire…";
     const rappel = document.createElement("div"); rappel.className = "rappel";
     const r1 = document.createElement("span"); r1.textContent = "Aucune donnée concernant un patient réel.";
     const compte = document.createElement("span"); compte.textContent = "0 / " + nombre(limite);
     const ajouter = document.createElement("button"); ajouter.type = "button"; ajouter.textContent = "Ajouter"; ajouter.disabled = true;
-    let enCours = null; // le commentaire en cours de modification
+    let enCours = null; // le brouillon en cours de modification
     zone.addEventListener("input", () => { compte.textContent = nombre(zone.value.length) + " / " + nombre(limite); ajouter.disabled = !zone.value.trim(); });
     ajouter.addEventListener("click", () => {
       const t = zone.value.trim(); if (!t) return;
-      const liste = listeCommentaires(i);
-      if (enCours) { enCours.texte = t; } else liste.push({ auteur: "humain", etape: null, texte: t, _nouveau: true });
+      if (enCours) enCours.texte = t; else brouillons().push({ objet: cible.code ? cible.objet : "sejour", code: cible.code || null, auteur: "humain", type: "remarque", texte: t });
       marquerModifie();
     });
     rappel.append(r1, compte, ajouter); saisie.append(zone, rappel);
-    for (const c of commentaires) {
+    for (const c of items) {
       const l = document.createElement("div"); l.className = "ligne";
       const a = document.createElement("span"); a.className = "auteur"; a.textContent = { humain: "vous", ia: "IA", outil: "outil", generateur: "source" }[c.auteur] || c.auteur;
       const t = document.createElement("span"); t.className = c.auteur === "outil" ? "outil" : ""; t.textContent = c.texte;
+      if (c.cree_le) t.title = new Date(c.cree_le).toLocaleString("fr-FR") + (c.type ? " · " + c.type : "");
       l.append(a, t);
-      if (c._nouveau) {
+      if (c.source === "brouillon") {
         const nv = document.createElement("span"); nv.className = "nouveau"; nv.textContent = "non enregistré"; l.appendChild(nv);
         const outils = document.createElement("span"); outils.className = "outils";
         const mod = document.createElement("button"); mod.type = "button"; mod.className = "secondaire"; mod.textContent = "✎"; mod.title = "Modifier";
         mod.addEventListener("click", () => { enCours = c; zone.value = c.texte; zone.dispatchEvent(new Event("input")); ajouter.textContent = "Modifier"; zone.focus(); });
-        const sup = document.createElement("button"); sup.type = "button"; sup.className = "secondaire"; sup.textContent = "✕"; sup.title = "Supprimer";
-        sup.addEventListener("click", () => { const liste = listeCommentaires(i); liste.splice(liste.indexOf(c), 1); marquerModifie(); });
+        const sup = document.createElement("button"); sup.type = "button"; sup.className = "secondaire"; sup.textContent = "✕"; sup.title = "Supprimer ce brouillon";
+        sup.addEventListener("click", () => { const liste = brouillons(); liste.splice(liste.indexOf(c), 1); marquerModifie(); });
         outils.append(mod, sup); l.appendChild(outils);
+      } else if (c.source === "table" && c.auteur === "humain") {
+        const outils = document.createElement("span"); outils.className = "outils";
+        const ret = document.createElement("button"); ret.type = "button"; ret.className = "secondaire"; ret.textContent = "retirer"; ret.title = "Retirer ce commentaire (il reste dans la base, marqué retiré)";
+        ret.addEventListener("click", () => retirerCommentaire(c));
+        outils.appendChild(ret); l.appendChild(outils);
       }
       marge.appendChild(l);
     }
-    if (!commentaires.length) { const pv = document.createElement("p"); pv.className = "discret"; pv.textContent = "Aucun commentaire."; marge.appendChild(pv); }
+    if (!items.length) { const pv = document.createElement("p"); pv.className = "discret"; pv.textContent = "Aucun commentaire."; marge.appendChild(pv); }
     marge.appendChild(saisie);
     return marge;
   }
   function rendreCommentaireDossier() {
     const zone = $("commentaire-dossier"); zone.textContent = "";
     if (!travail.courant) return;
-    travail.courant.commentaires = travail.courant.commentaires || [];
-    const n = travail.courant.commentaires.length;
+    const items = commentairesVisibles("sejour").map((c) => ({ ...c, source: "table" }))
+      .concat(brouillons().filter((b) => b.objet === "sejour").map((b) => ({ ...b, source: "brouillon" })))
+      .concat((travail.courant.commentaires || []).filter((c) => !c._nouveau).map((c) => ({ ...c, source: "ancien" })));
+    const n = items.length;
     const ligne = document.createElement("span"); ligne.textContent = "Commentaire sur le dossier ";
     const bulle = document.createElement("button"); bulle.type = "button"; bulle.className = "ico" + (codageUI.commentaireDossierOuvert ? " ouvert" : "");
     bulle.textContent = "💬"; bulle.title = n ? "Commentaires sur le dossier (" + n + ")" : "Commenter le dossier";
     if (n) { const nn = document.createElement("span"); nn.className = "n"; nn.textContent = n; bulle.appendChild(nn); }
     bulle.addEventListener("click", () => { codageUI.commentaireDossierOuvert = !codageUI.commentaireDossierOuvert; rendreCodage(); });
     ligne.appendChild(bulle); zone.appendChild(ligne);
-    const marge = construireMarge("Commentaire sur le dossier", travail.courant.commentaires, () => { codageUI.commentaireDossierOuvert = false; rendreCodage(); }, null, LIMITE_COMMENTAIRE_DOSSIER);
+    const marge = construireMarge("Commentaire sur le dossier", items, () => { codageUI.commentaireDossierOuvert = false; rendreCodage(); }, { objet: "sejour", code: null }, LIMITE_COMMENTAIRE_DOSSIER);
     marge.hidden = !codageUI.commentaireDossierOuvert;
     zone.appendChild(marge);
-  }
-  // À l'enregistrement, les commentaires saisis perdent leur marque et reçoivent l'étape de la ligne.
-  function figerCommentaires(codage, etape) {
-    const figer = (liste) => { for (const c of liste || []) if (c._nouveau) { delete c._nouveau; c.etape = etape; } };
-    figer(codage.commentaires); for (const e of codage.ensembles) figer(e.commentaires);
-    return codage;
   }
   function rendreNonCodes() {
     const c = travail.courant; const zone = $("codage-non-codes"); zone.textContent = "";
@@ -1799,13 +1880,15 @@
 
   // ---- Enregistrer mon codage : ligne revue_humain (bouton, et enregistrement automatique avant un appel répété)
   async function enregistrerRevue() {
-    const codage = figerCommentaires(copier(travail.courant), "revue_humain");
+    const brouillonsAEcrire = brouillons().slice();
+    const codage = K.nettoyerPourEnregistrement(travail.courant);
     codage.affichage = varianteAffichage();
     const compteurs = K.compteurs(travail.base ? travail.base.codage : null, codage);
     const ins = await base.from("codages").insert({ document: dossier.doc.id, etape: "revue_humain", utilisateur: etat.utilisateur.id,
       codage_precedent: travail.base ? travail.base.id : null, appel_llm: null, valide: false, compteurs, codage }).select("id, cree_le").single();
     if (ins.error) throw new Error(ins.error.message);
     effacerLocalCodage();
+    await ecrireCommentaires(brouillonsAEcrire, ins.data.id); // vos remarques et les alertes de l'outil en attente
     installerCodage({ id: ins.data.id, etape: "revue_humain", codage, cree_le: ins.data.cree_le }, null);
     return { id: ins.data.id, compteurs };
   }

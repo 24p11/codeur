@@ -231,7 +231,11 @@ button.bascule.actif { background: var(--accent); color: #fff; }
 .bloc-codage .code li.preuve.directe { font-weight: 600; }
 
 /* Bloc de la règle de hiérarchisation et du mode de prise en charge, en tête du pavé (brief 8) */
-.bloc-regle { margin: .25rem 0 .5rem; padding: .5rem .75rem; border-left: 3px solid var(--accent); background: var(--fond); }
+.bloc-regle { margin: .25rem 0 .5rem; }
+.bloc-regle .code.mode-pec { background: var(--fond-doux); border: 1px solid var(--bord); border-radius: 8px; padding: .5rem .75rem; }
+.bloc-codage.B .code.mode-pec, .bloc-codage.C .code.mode-pec { border-color: var(--bord); background: var(--fond-doux); }
+.bloc-regle .code.mode-pec li.preuve.regle::before, .bloc-regle .code.mode-pec li.preuve.regle::after { content: ""; }
+.bloc-regle .code.mode-pec li.preuve.regle { cursor: default; }
 .bloc-regle .regle-ligne { margin: 0; }
 .bloc-regle .regle-mode { color: var(--encre); }
 .bloc-regle .regle-explication { margin: .25rem 0 0; }

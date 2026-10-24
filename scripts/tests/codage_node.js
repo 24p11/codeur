@@ -63,8 +63,9 @@ process.stdin.on("end", () => {
       r.messageCorrection = C.construireMessageCorrectionCaracteristiques(an, k.regles);
       r.correction = C.appliquerCorrectionCaracteristiques(an, k.reponseCorrection, k.regles);
     }
-    C.appliquerCaracteristiques(codage, an, { appel_llm: "appel-test" });
-    r.codage = codage; r.aRevoir = C.regleARevoir(codage);
+    const app = C.appliquerCaracteristiques(codage, an, { appel_llm: "appel-test" }, k.regles);
+    r.codage = codage; r.explication = app.explication; r.aRevoir = C.regleARevoir(codage);
+    r.enregistre = C.nettoyerPourEnregistrement(codage);
     if (k.nouvellePP !== undefined) { codage.ensembles.find((e) => e.categorie === "pathologie_principale").code = k.nouvellePP; r.aRevoirApres = C.regleARevoir(codage); }
     sortie.caracteristiques = r;
   }
