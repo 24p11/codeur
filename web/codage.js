@@ -319,8 +319,131 @@
     return { codage: resultat, ecartes, completes, reproposes };
   }
 
+  // ================================================================================================================
+  // Second appel (brief 8) : la règle de hiérarchisation et le mode de prise en charge (SCHEMA.md §3.4, §3.6 ; prompt
+  // web/prompts/caracteristiques_v1.md). Logique pure : message, analyse et contrôles de la réponse, correction, application.
+  // MODE_PROMPT_CARACTERISTIQUES : « complet » envoie le préambule, les extraits officiels des règles candidates et les passages
+  // communs (option a du 24 octobre 2026) ; « table » (à venir, option c) n'enverrait que le tableau des règles.
+  const MODE_PROMPT_CARACTERISTIQUES = "complet";
+  const SITUATIONS = ["diagnostic", "traitement", "surveillance"];
+  const CIRCONSTANCES = { diagnostic: ["diagnostic_decouverte", "diagnostic_bilan_extension", "diagnostic_exploration_programmee", "diagnostic_antecedent_facteur_risque"],
+                          traitement: ["traitement_unique", "traitement_repetitif", "traitement_adaptation_diabete", "traitement_assimile"],
+                          surveillance: ["surveillance_negative", "surveillance_positive"] };
+  // famille (type) d'une ligne du guide -> situation attendue ; les situations assimilées au traitement unique sont « traitement »
+  const SITUATION_DE_TYPE = { diagnostic: "diagnostic", traitement: "traitement", surveillance: "surveillance", accouchement: "traitement", nouveau_ne: "traitement", ivg: "traitement", itg: "traitement" };
+
+  function pathologiePrincipale(codage) {
+    const e = (codage.ensembles || []).find((x) => x.categorie === "pathologie_principale");
+    return e && e.code ? e.code : null;
+  }
+  function modesDe(regle) {
+    const m = (regle.details && regle.details.mode_prise_en_charge) || { dp: false, codes: [] };
+    return { dp: !!m.dp, codes: m.codes || [] };
+  }
+  // Le message utilisateur du second appel. `regles` : les lignes compatibles (regles_compatibles) ; `extraits` : la liste de
+  // web/situations/extraits_guide.json ; `commentaire` : le commentaire du codeur pour un recalcul (ou null).
+  function construireMessageCaracteristiques(idSource, texte, codage, regles, extraits, commentaire, mode) {
+    mode = mode || MODE_PROMPT_CARACTERISTIQUES;
+    const L = ["TEXTE DU DOSSIER (" + idSource + ") :", texte, "", "CODAGE PROPOSÉ :"];
+    const pp = (codage.ensembles || []).find((e) => e.categorie === "pathologie_principale");
+    const cite = (e) => (e.preuves || []).filter((p) => !p.introuvable).map((p) => "« " + p.texte + " »").join(", ") || "(sans passage cité)";
+    L.push(pp && pp.code ? "Pathologie principale : " + pp.code + " — " + pp.libelle + " ; passages : " + cite(pp) : "Pathologie principale : aucune (non renseignée)");
+    const das = (codage.ensembles || []).filter((e) => e.categorie !== "pathologie_principale" && e.code);
+    L.push(das.length ? "Pathologies associées :" : "Pathologies associées : aucune");
+    for (const e of das) L.push("- " + e.code + " — " + e.libelle + " ; passages : " + cite(e));
+    L.push("", "PRÉAMBULE OFFICIEL (guide méthodologique MCO 2026) :");
+    for (const x of extraits.filter((x) => x.type === "preambule")) L.push("[" + x.section + ", p. " + x.page + "]", x.extrait, "");
+    const codesRegles = new Set(regles.map((r) => r.regle)), officielles = new Set(regles.map((r) => r.regle_officielle));
+    L.push("RÈGLES CANDIDATES (" + regles.length + ", les seules compatibles avec la pathologie principale) :");
+    for (const r of regles) {
+      const m = modesDe(r);
+      const modes = (m.dp ? ["DP"] : []).concat(m.codes.map((c) => c.code + " (" + c.libelle + ")"));
+      L.push("", "--- Règle " + r.regle + " — " + r.famille + (r.specificite ? " — " + r.specificite : "") + (r.libelle && r.libelle !== r.specificite ? " — " + r.libelle : ""));
+      L.push("Pathologies visées : " + (r.pathologie || "(vide dans le guide)") + " ; compatibilité : " + (r.motif || ""));
+      L.push("Modes de prise en charge possibles : " + (modes.join(", ") || "(aucun)"));
+      if (mode === "complet") {
+        for (const x of extraits.filter((x) => x.type === "regle" && x.regle_officielle === r.regle_officielle && (!x.lignes || x.lignes.split(" ").includes(r.regle)))) {
+          L.push("Extrait officiel [" + x.section + ", p. " + x.page + "] :", x.extrait);
+        }
+      }
+    }
+    if (mode === "complet") {
+      const communs = extraits.filter((x) => x.type === "commun" && (x.lignes ? x.lignes.split(" ").some((l) => codesRegles.has(l)) : x.regle_officielle.split(" ").some((o) => officielles.has(o))));
+      if (communs.length) L.push("", "PASSAGES OFFICIELS COMMUNS À PLUSIEURS RÈGLES CANDIDATES :");
+      for (const x of communs) L.push("", "[" + x.section + ", p. " + x.page + " ; règles " + (x.lignes || x.regle_officielle).split(" ").filter((k) => codesRegles.has(k) || officielles.has(k)).join(", ") + "]", x.extrait);
+    }
+    if (commentaire) L.push("", "COMMENTAIRE DU CODEUR :", commentaire);
+    return L.join("\n");
+  }
+  // Analyse et contrôles de la réponse. Retourne { ok, erreur } ou { ok: true, situation, circonstance, regle, mode, dr_conforme,
+  // confiance, explication, anomalies: [...], aCorriger: bool } ; rien n'est refusé, tout est signalé.
+  function analyserCaracteristiques(texteReponse, regles) {
+    let obj;
+    try {
+      let t = String(texteReponse).trim(); const fence = t.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i); if (fence) t = fence[1];
+      obj = JSON.parse(t);
+    } catch (e) { return { ok: false, erreur: "la réponse du modèle n'est pas un JSON lisible" }; }
+    if (!obj || typeof obj !== "object") return { ok: false, erreur: "la réponse du modèle n'a pas la forme attendue" };
+    const r = { ok: true, situation: SITUATIONS.includes(obj.situation) ? obj.situation : null, circonstance: typeof obj.circonstance === "string" ? obj.circonstance : null,
+                regle: typeof obj.regle === "string" ? obj.regle.trim() : null, mode: obj.mode_prise_en_charge === "DP" ? "DP" : (typeof obj.mode_prise_en_charge === "string" ? normaliserCode(obj.mode_prise_en_charge) : null),
+                dr_conforme: obj.dr_conforme === null || obj.dr_conforme === undefined ? null : !!obj.dr_conforme,
+                confiance: typeof obj.confiance === "number" && obj.confiance >= 0 && obj.confiance <= 1 ? obj.confiance : null,
+                explication: typeof obj.explication === "string" ? obj.explication : "", anomalies: [], aCorriger: false };
+    const regle = regles.find((x) => x.regle === r.regle);
+    if (!regle) { r.anomalies.push("règle hors des candidates (" + (r.regle || "vide") + ")"); r.aCorriger = true; }
+    else {
+      const m = modesDe(regle);
+      if (r.mode === "DP" ? !m.dp : !m.codes.some((c) => c.code === r.mode)) { r.anomalies.push("mode de prise en charge hors de la liste de la règle " + regle.regle + " (" + (r.mode || "vide") + ")"); r.aCorriger = true; }
+      const attendue = SITUATION_DE_TYPE[regle.type];
+      if (r.situation && attendue && r.situation !== attendue) r.anomalies.push("situation « " + r.situation + " » incohérente avec la famille de la règle " + regle.regle + " (" + attendue + ")");
+    }
+    if (!r.situation) r.anomalies.push("situation absente ou inconnue (" + (obj.situation || "vide") + ")");
+    if (r.circonstance && !(CIRCONSTANCES[r.situation] || []).includes(r.circonstance)) r.anomalies.push("circonstance « " + r.circonstance + "» hors de la situation « " + (r.situation || "?") + " »");
+    if (!r.circonstance) r.anomalies.push("circonstance absente");
+    if ((r.mode === "DP") !== (r.dr_conforme === null)) r.anomalies.push("dr_conforme doit être null si et seulement si le mode est DP (mode " + (r.mode || "vide") + ", dr_conforme " + r.dr_conforme + ")");
+    return r;
+  }
+  // Tour de correction : la règle et les modes possibles, pour une réponse hors liste.
+  function construireMessageCorrectionCaracteristiques(analyse, regles) {
+    const L = ["Ta réponse n'est pas recevable : " + analyse.anomalies.filter((a) => /hors/.test(a)).join(" ; ") + ".",
+               "Choisis la règle UNIQUEMENT parmi les règles candidates ci-dessous, et le mode de prise en charge UNIQUEMENT dans la liste de la règle choisie.", ""];
+    for (const r of regles) { const m = modesDe(r); L.push("- " + r.regle + " (" + r.famille + (r.specificite ? " — " + r.specificite : "") + ") : modes possibles : " + (m.dp ? ["DP"] : []).concat(m.codes.map((c) => c.code)).join(", ")); }
+    L.push("", "Réponds uniquement par un objet JSON : {\"regle\": \"…\", \"mode_prise_en_charge\": \"…\"}.");
+    return L.join("\n");
+  }
+  function appliquerCorrectionCaracteristiques(analyse, texteReponse, regles) {
+    let obj; try { let t = String(texteReponse).trim(); const f = t.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i); if (f) t = f[1]; obj = JSON.parse(t); } catch (e) { return { ok: false }; }
+    const regle = regles.find((x) => x.regle === (obj && typeof obj.regle === "string" ? obj.regle.trim() : null));
+    if (!regle) return { ok: false };
+    const mode = obj.mode_prise_en_charge === "DP" ? "DP" : normaliserCode(obj.mode_prise_en_charge || "");
+    const m = modesDe(regle);
+    if (mode === "DP" ? !m.dp : !m.codes.some((c) => c.code === mode)) return { ok: false };
+    analyse.regle = regle.regle; analyse.mode = mode; analyse.aCorriger = false; analyse.anomalies = analyse.anomalies.filter((a) => !/hors/.test(a)); analyse.corrige = true;
+    return { ok: true };
+  }
+  // Applique la proposition au codage : règle et mode retenus (null, « à choisir », si la correction a échoué), et l'objet
+  // `caracteristiques` (SCHEMA.md §3.4 : calculee_sur, appel_llm, confiance, explication ; plus la règle et le mode proposés,
+  // pour afficher « Proposition de l'IA » après réouverture quand le codeur a changé l'un ou l'autre).
+  function appliquerCaracteristiques(codage, analyse, infos) {
+    const aChoisir = !analyse.ok || analyse.aCorriger;
+    codage.regle_hierarchisation = aChoisir ? null : analyse.regle;
+    codage.mode_prise_en_charge = aChoisir ? null : analyse.mode;
+    codage.caracteristiques = { calculee_sur: pathologiePrincipale(codage), appel_llm: infos.appel_llm || null,
+                                regle: aChoisir ? null : analyse.regle, mode_prise_en_charge: aChoisir ? null : analyse.mode,
+                                confiance: analyse.ok ? analyse.confiance : null, explication: analyse.ok ? analyse.explication : null };
+    return codage;
+  }
+  // « Règle à revoir » : la pathologie principale courante diffère de celle sur laquelle la règle a été calculée.
+  function regleARevoir(codage) {
+    const c = codage && codage.caracteristiques;
+    if (!c) return false;
+    return pathologiePrincipale(codage) !== (c.calculee_sur || null);
+  }
+
   const api = { preparerAppelRepete, assemblerAppelRepete, normaliserCode, construireMessageUtilisateur, analyserReponse, verifierCodes, construireMessageCorrection,
-                appliquerCorrection, construireCodage, compteurs, LIMITE_CANDIDATS };
+                appliquerCorrection, construireCodage, compteurs, LIMITE_CANDIDATS,
+                MODE_PROMPT_CARACTERISTIQUES, construireMessageCaracteristiques, analyserCaracteristiques, construireMessageCorrectionCaracteristiques,
+                appliquerCorrectionCaracteristiques, appliquerCaracteristiques, regleARevoir, pathologiePrincipale, modesDe, CIRCONSTANCES };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else racine.CodeurCodage = api;
 })(typeof window !== "undefined" ? window : globalThis);

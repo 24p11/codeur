@@ -229,3 +229,16 @@ button.bascule.actif { background: var(--accent); color: #fff; }
 
 /* Nature des preuves (codage_v2) : les preuves directes en gras, les indirectes ou sans nature en texte normal */
 .bloc-codage .code li.preuve.directe { font-weight: 600; }
+
+/* Bloc de la règle de hiérarchisation et du mode de prise en charge, en tête du pavé (brief 8) */
+.bloc-regle { margin: .25rem 0 .5rem; padding: .5rem .75rem; border-left: 3px solid var(--accent); background: var(--fond); }
+.bloc-regle .regle-ligne { margin: 0; }
+.bloc-regle .regle-mode { color: var(--encre); }
+.bloc-regle .regle-explication { margin: .25rem 0 0; }
+.bloc-regle .message { margin: .4rem 0 0; }
+.bloc-regle .regle-choix { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: .4rem; }
+.bloc-regle .regle-choix label { font-weight: 400; margin: 0; font-size: .9rem; color: var(--encre-douce); }
+.bloc-regle .regle-choix select { width: auto; max-width: 28rem; font-size: .9rem; padding: .2rem .4rem; margin-left: .3rem; }
+.regle-recalcul { margin: 0 0 .75rem; }
+.regle-recalcul textarea { max-width: none; font-size: .92rem; }
+.regle-recalcul .boutons-ligne { margin-top: .3rem; align-items: baseline; gap: .75rem; }

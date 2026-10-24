@@ -53,6 +53,21 @@ process.stdin.on("end", () => {
     }
   }
   if (cas.compteursSeuls) sortie.compteurs = C.compteurs(cas.compteursSeuls.avant, cas.compteursSeuls.apres);
+  if (cas.caracteristiques) {
+    const k = cas.caracteristiques; const codage = JSON.parse(JSON.stringify(k.codage));
+    const r = {};
+    r.message = C.construireMessageCaracteristiques("DOC", k.texte || "texte", codage, k.regles, k.extraits || [], k.commentaire || null, k.mode);
+    const an = C.analyserCaracteristiques(k.reponse, k.regles);
+    r.analyse = an;
+    if (an.ok && an.aCorriger && k.reponseCorrection !== undefined) {
+      r.messageCorrection = C.construireMessageCorrectionCaracteristiques(an, k.regles);
+      r.correction = C.appliquerCorrectionCaracteristiques(an, k.reponseCorrection, k.regles);
+    }
+    C.appliquerCaracteristiques(codage, an, { appel_llm: "appel-test" });
+    r.codage = codage; r.aRevoir = C.regleARevoir(codage);
+    if (k.nouvellePP !== undefined) { codage.ensembles.find((e) => e.categorie === "pathologie_principale").code = k.nouvellePP; r.aRevoirApres = C.regleARevoir(codage); }
+    sortie.caracteristiques = r;
+  }
   if (cas.message) sortie.message = C.construireMessageUtilisateur("DOC", cas.message.texte, cas.passages, cas.message.contexte);
   process.stdout.write(JSON.stringify(sortie));
 });

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>codeur</title>
-  <link rel="stylesheet" href="style.css?v=A2-0.21">
+  <link rel="stylesheet" href="style.css?v=A2-0.22">
 </head>
 <body>
   <header class="entete">
@@ -200,6 +200,11 @@
               <h2>Codage</h2>
               <span id="codage-etat" class="discret"></span>
             </div>
+            <div id="bloc-regle" class="bloc-regle"></div>
+            <div id="regle-recalcul" class="regle-recalcul" hidden>
+              <textarea id="regle-commentaire" rows="2" maxlength="500" placeholder="Commentaire facultatif pour le recalcul (par exemple « séjour programmé pour la seconde cure »)…"></textarea>
+              <div class="boutons-ligne"><button id="bouton-recalculer" class="secondaire">Recalculer la règle</button><span class="discret">Aucune donnée concernant un patient réel.</span></div>
+            </div>
             <p id="codage-reprise" class="message" hidden><span id="codage-reprise-texte"></span> <button id="bouton-reprendre-local" class="secondaire">Reprendre mes modifications</button> <button id="bouton-oublier-local" class="secondaire">Les abandonner</button></p>
             <div id="codage-contenu"></div>
             <div id="codage-non-codes" class="non-codes" hidden></div>
@@ -244,10 +249,10 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@18.0.14/lib/marked.umd.js"></script>
-  <script src="positions.js?v=A2-0.21"></script>
-  <script src="markdown.js?v=A2-0.21"></script>
-  <script src="codage.js?v=A2-0.21"></script>
-  <script src="config.js?v=A2-0.21"></script>
-  <script src="app.js?v=A2-0.21"></script>
+  <script src="positions.js?v=A2-0.22"></script>
+  <script src="markdown.js?v=A2-0.22"></script>
+  <script src="codage.js?v=A2-0.22"></script>
+  <script src="config.js?v=A2-0.22"></script>
+  <script src="app.js?v=A2-0.22"></script>
 </body>
 </html>

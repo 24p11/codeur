@@ -497,6 +497,8 @@
     $("texte-dossier").classList.toggle("mode-simple", !MODE_PANNEAU);
     montrer("ecran-dossier");
     codageUI.commentairesOuverts = new Set(); codageUI.commentaireDossierOuvert = false; codageUI.couleurs = new Map();
+    codageUI.alerteDR = null; codageUI.etatRegle = ""; codageUI.caracteristiquesEnCours = false; $("regle-recalcul").hidden = true; $("regle-commentaire").value = "";
+    try { await lireToutesRegles(); } catch (e) { message("message-dossier", e.message, true); }
     montrerVue("codage");
     rendre(); cacherBarre();
     await chargerCodageExistant();
@@ -1098,6 +1100,14 @@
         if (ass.completes.length) avertissements.push("L'IA a ajouté des passages aux preuves de codes déjà retenus : " + ass.completes.join(", ") + " (vous pouvez les retirer).");
         if (ass.reproposes.length) avertissements.push("Code(s) déjà rejeté(s) par vous, reproposé(s) par l'IA : " + ass.reproposes.join(", ") + " (signalés, à vous de décider).");
       }
+      if (!repete) {
+        // Second appel (SCHEMA.md §3.6, brief 8) : les codes s'affichent dès maintenant, le bloc de la règle indique
+        // « calcul en cours… » ; la ligne ia_humain n'est enregistrée qu'une fois, après les deux appels.
+        travail.courant = codage; codageUI.caracteristiquesEnCours = true; rendreCodage();
+        const car = await calculerCaracteristiques(codage, null, reglages, fournisseur);
+        codageUI.caracteristiquesEnCours = false;
+        avertissements.push(...car.avertissements);
+      }
       codage.affichage = varianteAffichage();
       const compteurs = K.compteurs(precedent ? precedent.codage : null, codage);
       etatCodage("Enregistrement du codage…");
@@ -1124,6 +1134,159 @@
       finAppel();
     }
   }
+  // ---- Second appel : la règle de hiérarchisation et le mode de prise en charge (brief 8, SCHEMA.md §3.4 et §3.6) ----
+  let extraitsGuide = null, toutesRegles = null;
+  const compatibles = new Map(); // pathologie principale (ou "") -> lignes compatibles (regles_compatibles)
+  async function lireExtraitsGuide() {
+    if (extraitsGuide) return extraitsGuide;
+    const rep = await fetch("situations/extraits_guide.json", { cache: "no-store" });
+    if (!rep.ok) throw new Error("extraits du guide méthodologique introuvables (HTTP " + rep.status + ")");
+    extraitsGuide = (await rep.json()).extraits;
+    return extraitsGuide;
+  }
+  async function lireToutesRegles() {
+    if (toutesRegles) return toutesRegles;
+    const r = await base.from("regles_situations").select("code, famille, libelle, type, specificite, pathologie, code_z, details, regle_officielle, evaluable").order("type").order("code");
+    if (r.error) throw new Error("guide des situations cliniques illisible : " + r.error.message);
+    toutesRegles = r.data.map((x) => ({ ...x, regle: x.code }));
+    return toutesRegles;
+  }
+  async function lireReglesCompatibles(pp) {
+    const cle = pp || "";
+    if (!compatibles.has(cle)) {
+      const r = await base.rpc("regles_compatibles", { code: pp });
+      if (r.error) throw new Error("règles compatibles illisibles : " + r.error.message);
+      compatibles.set(cle, r.data);
+    }
+    return compatibles.get(cle);
+  }
+  function etatRegle(t) { codageUI.etatRegle = t; rendreRegle(); }
+  // Calcule la règle et le mode pour un codage (modifié en place) : un appel, un tour de correction au plus, contrôles signalés
+  // sans rien refuser ; en cas d'échec, règle vide et « Recalculer ». Retourne { avertissements, appel_llm }.
+  async function calculerCaracteristiques(codage, commentaire, reglages, fournisseur) {
+    const avertissements = [];
+    try {
+      const [pc, extraits, regles] = await Promise.all([lirePrompt("caracteristiques_v1"), lireExtraitsGuide(), lireReglesCompatibles(K.pathologiePrincipale(codage))]);
+      const utilisateur = K.construireMessageCaracteristiques(dossier.doc.id_source, dossier.doc.texte, codage, regles, extraits, commentaire);
+      const messages = [{ role: "system", content: pc.texte }, { role: "user", content: utilisateur }];
+      const id = uuid(); let appelId = id;
+      etatRegle("calcul en cours… (" + regles.length + " règle" + (regles.length > 1 ? "s" : "") + " candidate" + (regles.length > 1 ? "s" : "") + ")");
+      let res = await appelerEtEnregistrer(reglages, fournisseur, messages, { id, appel_initial: null, version_prompt: pc.version, tache: "caracteristiques_sejour", passages: [] });
+      const an = K.analyserCaracteristiques(res.contenu, regles);
+      if (an.ok && an.aCorriger) {
+        etatRegle("correction : règle ou mode hors liste…");
+        messages.push({ role: "assistant", content: res.contenu }, { role: "user", content: K.construireMessageCorrectionCaracteristiques(an, regles) });
+        appelId = uuid();
+        res = await appelerEtEnregistrer(reglages, fournisseur, messages, { id: appelId, appel_initial: id, version_prompt: pc.version, tache: "caracteristiques_sejour", passages: [], tour: 1 });
+        if (!K.appliquerCorrectionCaracteristiques(an, res.contenu, regles).ok) avertissements.push("Règle ou mode de prise en charge hors liste après correction : à choisir.");
+      }
+      K.appliquerCaracteristiques(codage, an, { appel_llm: appelId });
+      if (!an.ok) avertissements.push("Réponse du modèle illisible pour la règle (" + an.erreur + ") : règle à choisir, ou « Recalculer ».");
+      else if (an.anomalies.length) avertissements.push("Règle : " + an.anomalies.join(" ; ") + ".");
+      // dr_conforme est un contrôle qualité affiché au moment du calcul, non enregistré dans le codage (rum.controles au lot A4)
+      codageUI.alerteDR = an.ok && an.dr_conforme === false ? (an.explication || "le modèle estime que la pathologie principale ne respecte pas la définition du DR") : null;
+      codageUI.etatRegle = "";
+      return { avertissements, appel_llm: appelId };
+    } catch (e) {
+      K.appliquerCaracteristiques(codage, { ok: false, erreur: e.message }, {});
+      codageUI.etatRegle = ""; codageUI.alerteDR = null;
+      avertissements.push("Le calcul de la règle a échoué (" + e.message + ") : règle vide, vous pouvez « Recalculer ».");
+      return { avertissements, appel_llm: null };
+    }
+  }
+  // « Recalculer » : second appel seul, avec un commentaire facultatif (ajouté aux commentaires du codage, auteur humain) ;
+  // les modifications non enregistrées sont d'abord enregistrées comme revue ; le résultat crée une nouvelle ligne ia_humain.
+  async function recalculer() {
+    if (!travail.courant || codageUI.appelEnCours) return;
+    etat.reglages = etat.reglages || lireReglages();
+    if (!etat.reglages) { afficherReglages("ecran-dossier", "Indiquez d'abord l'adresse du service, le modèle et votre clé."); return; }
+    const commentaire = $("regle-commentaire").value.trim() || null;
+    codageUI.appelEnCours = true; $("bouton-codage").disabled = true; $("bouton-recalculer").disabled = true;
+    message("message-dossier", "");
+    try {
+      if (commentaire) { travail.courant.commentaires = travail.courant.commentaires || []; travail.courant.commentaires.push({ auteur: "humain", etape: null, texte: commentaire, _nouveau: true }); travail.modifie = true; }
+      if (travail.modifie) { etatRegle("enregistrement de vos modifications (revue) avant le recalcul…"); await enregistrerRevue(); }
+      const codage = copier(travail.courant);
+      codageUI.caracteristiquesEnCours = true; rendreCodage();
+      const car = await calculerCaracteristiques(codage, commentaire, etat.reglages, fournisseurDe(etat.reglages.adresse));
+      codageUI.caracteristiquesEnCours = false;
+      codage.affichage = varianteAffichage();
+      const compteurs = K.compteurs(travail.base ? travail.base.codage : null, codage);
+      const ins = await base.from("codages").insert({ document: dossier.doc.id, etape: "ia_humain", utilisateur: etat.utilisateur.id, codage_precedent: travail.base ? travail.base.id : null,
+        appel_llm: car.appel_llm, valide: false, compteurs, codage }).select("id, cree_le").single();
+      if (ins.error) throw new Error("le recalcul n'a pas pu être enregistré : " + ins.error.message);
+      effacerLocalCodage();
+      installerCodage({ id: ins.data.id, etape: "ia_humain", codage, cree_le: ins.data.cree_le }, null);
+      $("regle-commentaire").value = "";
+      $("codage-etat").textContent = "Règle recalculée par l'IA (" + new Date().toLocaleTimeString("fr-FR") + ")." + (car.avertissements.length ? " À noter : " + car.avertissements.join(" ") : "");
+      rendreCodage();
+    } catch (e) {
+      codageUI.caracteristiquesEnCours = false; message("message-dossier", e.message, true); rendreCodage();
+    } finally {
+      codageUI.appelEnCours = false; $("bouton-recalculer").disabled = false; majBoutons();
+    }
+  }
+  $("bouton-recalculer").addEventListener("click", recalculer);
+  // Le bloc de la règle, en tête du pavé : règle et mode retenus, explication de l'IA, alertes, listes déroulantes.
+  function rendreRegle() {
+    const zone = $("bloc-regle"); zone.textContent = "";
+    const c = travail.courant; if (!c) return;
+    const ligne = (code) => (toutesRegles || []).find((r) => r.code === code) || null;
+    const p = document.createElement("p"); p.className = "regle-ligne";
+    if (codageUI.caracteristiquesEnCours || codageUI.etatRegle) {
+      p.innerHTML = "<span class='attente'></span>Règle de hiérarchisation : " + (codageUI.etatRegle || "calcul en cours…"); zone.appendChild(p); return;
+    }
+    const car = c.caracteristiques || null;
+    const regle = c.regle_hierarchisation, mode = c.mode_prise_en_charge;
+    const lr = regle ? ligne(regle) : null;
+    const strong = document.createElement("strong");
+    strong.textContent = regle ? "Règle " + regle + (lr && (lr.specificite || lr.libelle) ? " – " + (lr.specificite || lr.libelle) : "") : "Règle de hiérarchisation : à choisir";
+    p.appendChild(strong);
+    const libZ = (code, r) => { const m = r ? K.modesDe(r).codes.find((x) => x.code === code) : null; return m ? m.libelle : ""; };
+    const modeTexte = !mode ? "à choisir" : mode === "DP" ? "DP" : mode + (libZ(mode, lr) ? " – " + libZ(mode, lr) : "");
+    const span = document.createElement("span"); span.className = "regle-mode"; span.textContent = " · Mode de prise en charge : " + modeTexte; p.appendChild(span);
+    zone.appendChild(p);
+    // explication de l'IA : telle quelle si la règle et le mode sont ceux de sa proposition, sinon « Proposition de l'IA : … »
+    if (car) {
+      const memeChoix = car.regle === regle && car.mode_prise_en_charge === mode;
+      const ex = document.createElement("p"); ex.className = "discret regle-explication";
+      if (memeChoix && (mode === "DP" || !mode)) ex.textContent = car.explication ? "Explication de l'IA : " + car.explication + (car.confiance != null ? " (confiance " + car.confiance + ")" : "") : "L'IA n'a pas donné d'explication.";
+      else if (memeChoix) { ex.textContent = car.explication ? "Explication de l'IA : " + car.explication : ""; ex.title = ""; }
+      else ex.textContent = "Proposition de l'IA : " + (car.regle || "règle à choisir") + ", " + (car.mode_prise_en_charge || "mode à choisir") + (car.explication ? " – " + car.explication : "");
+      if (ex.textContent) zone.appendChild(ex);
+    }
+    // alertes
+    if (K.regleARevoir(c)) { const a = document.createElement("p"); a.className = "message alerte"; a.textContent = "Règle à revoir : la pathologie principale a changé depuis le calcul (règle calculée sur " + (car.calculee_sur || "aucune pathologie principale") + ")."; zone.appendChild(a); }
+    if (codageUI.alerteDR) { const a = document.createElement("p"); a.className = "message alerte"; a.textContent = "Pathologie principale à revoir : ne peut pas être DR — " + codageUI.alerteDR; zone.appendChild(a); }
+    // listes déroulantes : règles compatibles avec la pathologie principale courante, puis toutes les règles ; modes de la règle choisie
+    const pp = K.pathologiePrincipale(c);
+    const comp = compatibles.get(pp || "");
+    if (!comp) { lireReglesCompatibles(pp).then(() => rendreRegle()).catch(() => {}); }
+    const choix = document.createElement("div"); choix.className = "regle-choix";
+    const selR = document.createElement("select"); selR.title = "Changer la règle de hiérarchisation";
+    const optVide = document.createElement("option"); optVide.value = ""; optVide.textContent = "— règle à choisir —"; selR.appendChild(optVide);
+    const gC = document.createElement("optgroup"); gC.label = "Règles compatibles avec la pathologie principale";
+    for (const r of (comp || [])) { const o = document.createElement("option"); o.value = r.regle; o.textContent = r.regle + " – " + (r.specificite || r.libelle); gC.appendChild(o); }
+    selR.appendChild(gC);
+    const gT = document.createElement("optgroup"); gT.label = "Toutes les règles";
+    for (const r of (toutesRegles || [])) if (!(comp || []).some((x) => x.regle === r.code)) { const o = document.createElement("option"); o.value = r.code; o.textContent = r.code + " – " + (r.specificite || r.libelle) + (r.evaluable ? "" : " (non évaluable)"); gT.appendChild(o); }
+    selR.appendChild(gT);
+    selR.value = regle || "";
+    selR.addEventListener("change", () => { c.regle_hierarchisation = selR.value || null; const m = K.modesDe(ligne(selR.value) || {}); c.mode_prise_en_charge = m.dp ? "DP" : (m.codes.length === 1 ? m.codes[0].code : null); marquerModifie(); });
+    const selM = document.createElement("select"); selM.title = "Changer le mode de prise en charge (liste de la règle choisie)";
+    const o0 = document.createElement("option"); o0.value = ""; o0.textContent = "— mode à choisir —"; selM.appendChild(o0);
+    const modes = K.modesDe(lr || {});
+    if (modes.dp) { const o = document.createElement("option"); o.value = "DP"; o.textContent = "DP – la pathologie principale motive le séjour"; selM.appendChild(o); }
+    for (const x of modes.codes) { const o = document.createElement("option"); o.value = x.code; o.textContent = x.code + " – " + x.libelle; selM.appendChild(o); }
+    if (mode && ![...selM.options].some((o) => o.value === mode)) { const o = document.createElement("option"); o.value = mode; o.textContent = mode + " (hors de la liste de la règle)"; selM.appendChild(o); }
+    selM.value = mode || ""; selM.disabled = !lr;
+    selM.addEventListener("change", () => { c.mode_prise_en_charge = selM.value || null; marquerModifie(); });
+    const l1 = document.createElement("label"); l1.textContent = "Règle "; l1.appendChild(selR);
+    const l2 = document.createElement("label"); l2.textContent = "Mode "; l2.appendChild(selM);
+    choix.append(l1, l2); zone.appendChild(choix);
+    $("regle-recalcul").hidden = false;
+  }
+
   // Un appel : envoi, enregistrement dans appels_llm (réussi ou échoué), retour du résultat.
   async function appelerEtEnregistrer(reglages, fournisseur, messages, infos) {
     const requete = { modele: reglages.modele, adresse: reglages.adresse, temperature: 0, response_format: "json_object", tour: infos.tour || 0,
@@ -1260,6 +1423,7 @@
     for (const v of ["A", "B", "C"]) $("texte-dossier").classList.toggle(v, variante === v);
     // pathologie principale en tête
     c.ensembles.sort((a, b) => (b.categorie === "pathologie_principale") - (a.categorie === "pathologie_principale"));
+    rendreRegle();
     const zone = $("codage-contenu"); zone.textContent = "";
     if (!c.ensembles.length) { const p = document.createElement("p"); p.className = "discret"; p.textContent = "Aucun code. Sélectionnez un passage dans le texte pour en créer un."; zone.appendChild(p); }
     c.ensembles.forEach((e, i) => zone.appendChild(rendreCode(e, i)));
@@ -1646,7 +1810,7 @@
     return { id: ins.data.id, compteurs };
   }
   $("bouton-enregistrer-codage").addEventListener("click", async () => {
-    if (!travail.courant) return;
+    if (!travail.courant || codageUI.appelEnCours) return;
     const b = $("bouton-enregistrer-codage"); b.disabled = true;
     const sansModification = !travail.modifie;
     try {

@@ -262,6 +262,73 @@ def main() -> None:
     r = node({**base, "reponse": reponse([{"code": "I10", "categorie": "diagnostic_associe", "passages": [1], "confiance": 0.9}, {"code": "K409", "categorie": "pathologie_principale", "passages": [1, 2], "confiance": 0.9}], [{"passage": 3}, {"passage": 4}, {"passage": 5}])})
     controle("passage cité par deux codes seulement : pas de garde-fou", r["analyse"]["anomalies"]["passagesTropCites"] == [] and not any("cité par" in k["texte"] for e in r["codage"]["ensembles"] for k in e["commentaires"]))
 
+    # 14. Second appel : règle de hiérarchisation et mode de prise en charge (brief 8, SCHEMA.md §3.4 et §3.6)
+    def regle(code, type_, spec, dp, codes, officielle=None, patho="chapitres I à XVII, XIX et XXII"):
+        return {"regle": code, "regle_officielle": officielle or code.split("-")[0], "famille": "HOSPITALISATION POUR " + type_.upper(), "type": type_, "libelle": spec, "specificite": spec,
+                "pathologie": patho, "code_z": " ".join(c[0] for c in codes) or "Aucun", "motif": "chapitre XI",
+                "details": {"mode_prise_en_charge": {"dp": dp, "codes": [{"code": c, "libelle": l} for c, l in codes]}}}
+    regles = [regle("T3", "traitement", "traitement unique chirurgical", True, []),
+              regle("T1", "traitement", "traitement répétitif", False, [("Z511", "Séance de chimiothérapie pour tumeur"), ("Z491", "Dialyse extra-corporelle")]),
+              regle("S1-Chronic", "surveillance", "surveillance d'une affection connue", True, [("Z080", "Examen de contrôle après chirurgie pour tumeur maligne")], "S1"),
+              regle("D5", "diagnostic", "poussée aiguë d'une maladie chronique", True, [])]
+    extraits = [{"type": "preambule", "regle_officielle": "", "lignes": "", "section": "IV §1.1", "page": "63", "extrait": "Le diagnostic principal (DP) du RUM est…"},
+                {"type": "regle", "regle_officielle": "T3", "lignes": "", "section": "VI §1.2.2.1", "page": "129", "extrait": "Dans la situation de traitement unique chirurgical, le DP est en général la maladie opérée."},
+                {"type": "regle", "regle_officielle": "T9", "lignes": "T9-diabetes", "section": "VI §1.2.3, 2°", "page": "134", "extrait": "Chez les patients diabétiques…"},
+                {"type": "commun", "regle_officielle": "T1 T2 T3", "lignes": "", "section": "VI §1.2", "page": "127", "extrait": "La situation est celle d'un patient atteint d'une affection connue…"},
+                {"type": "commun", "regle_officielle": "T9 T12", "lignes": "T9-diabetes T12", "section": "VI §1.2.3", "page": "133", "extrait": "On assimile au traitement unique…"}]
+    codage_k409 = {"regle_hierarchisation": None, "mode_prise_en_charge": None, "commentaires": [], "passages_non_codes": [], "ensembles": [
+        {"code": "K409", "libelle": "Hernie inguinale", "categorie": "pathologie_principale", "preuves": [PASSAGES[1]], "commentaires": []},
+        {"code": "I10", "libelle": "HTA", "categorie": "diagnostic_associe", "preuves": [PASSAGES[0]], "commentaires": []}]}
+    rep_ok = json.dumps({"situation": "traitement", "circonstance": "traitement_unique", "regle": "T3", "mode_prise_en_charge": "DP", "dr_conforme": None, "confiance": 0.9, "explication": "Cure de hernie programmée."})
+    base_k = {"passages": PASSAGES, "index": INDEX, "descendants": DESC, "caracteristiques": {"codage": codage_k409, "regles": regles, "extraits": extraits, "reponse": rep_ok}}
+    r = node(base_k)["caracteristiques"]
+    controle("second appel : réponse conforme → règle T3, mode DP, caracteristiques (calculee_sur K409, appel, confiance, explication), aucune anomalie",
+             r["codage"]["regle_hierarchisation"] == "T3" and r["codage"]["mode_prise_en_charge"] == "DP" and r["codage"]["caracteristiques"]["calculee_sur"] == "K409"
+             and r["codage"]["caracteristiques"]["appel_llm"] == "appel-test" and r["codage"]["caracteristiques"]["confiance"] == 0.9 and r["analyse"]["anomalies"] == [] and r["aRevoir"] is False, str(r["analyse"]["anomalies"]))
+    m = r["message"]
+    controle("message du second appel : texte, codage avec preuves, préambule, règles candidates avec extraits propres et modes, passages communs une fois, extrait d'une seule ligne non envoyé",
+             "Pathologie principale : K409" in m and "« hernie inguinale droite »" in m and "PRÉAMBULE OFFICIEL" in m and "--- Règle T3" in m and "la maladie opérée" in m
+             and "Modes de prise en charge possibles : Z511 (Séance de chimiothérapie pour tumeur), Z491" in m and m.count("La situation est celle d'un patient atteint") == 1
+             and "Chez les patients diabétiques" not in m and "On assimile au traitement unique" not in m and "COMMENTAIRE DU CODEUR" not in m)
+    r = node({**base_k, "caracteristiques": {**base_k["caracteristiques"], "mode": "table"}})["caracteristiques"]
+    controle("mode de prompt « table » (option c, à venir) : règles sans extraits ni passages communs", "--- Règle T3" in r["message"] and "la maladie opérée" not in r["message"] and "PASSAGES OFFICIELS COMMUNS" not in r["message"])
+    # règle hors des candidates → correction
+    rep_hors = json.dumps({"situation": "traitement", "circonstance": "traitement_unique", "regle": "T8", "mode_prise_en_charge": "DP", "dr_conforme": None, "confiance": 0.7, "explication": "x"})
+    r = node({**base_k, "caracteristiques": {**base_k["caracteristiques"], "reponse": rep_hors, "reponseCorrection": json.dumps({"regle": "T3", "mode_prise_en_charge": "DP"})}})["caracteristiques"]
+    controle("règle hors des candidates (T8) : anomalie, message de correction avec les candidates et leurs modes, correction appliquée → T3",
+             "règle hors des candidates (T8)" in r["messageCorrection"] and "- T1 (" in r["messageCorrection"] and "Z511, Z491" in r["messageCorrection"] and r["correction"]["ok"] is True and r["analyse"]["corrige"] is True and r["codage"]["regle_hierarchisation"] == "T3")
+    r = node({**base_k, "caracteristiques": {**base_k["caracteristiques"], "reponse": rep_hors, "reponseCorrection": json.dumps({"regle": "T8", "mode_prise_en_charge": "DP"})}})["caracteristiques"]
+    controle("correction qui insiste hors liste : règle et mode à choisir (null), caracteristiques présentes sans règle", r["correction"]["ok"] is False and r["codage"]["regle_hierarchisation"] is None and r["codage"]["mode_prise_en_charge"] is None and r["codage"]["caracteristiques"]["regle"] is None)
+    # code Z hors liste ; code Z non codable (hors liste aussi)
+    rep_z = json.dumps({"situation": "traitement", "circonstance": "traitement_repetitif", "regle": "T1", "mode_prise_en_charge": "Z51.2", "dr_conforme": True, "confiance": 0.8, "explication": "x"})
+    r = node({**base_k, "caracteristiques": {**base_k["caracteristiques"], "reponse": rep_z, "reponseCorrection": json.dumps({"regle": "T1", "mode_prise_en_charge": "Z511"})}})["caracteristiques"]
+    controle("code Z hors de la liste de la règle (Z512 pour T1) : normalisé, signalé, corrigé en Z511", "hors de la liste de la règle T1 (Z512)" in r["messageCorrection"] and r["analyse"]["corrige"] is True and r["codage"]["mode_prise_en_charge"] == "Z511")
+    rep_nc = json.dumps({"situation": "traitement", "circonstance": "traitement_repetitif", "regle": "T1", "mode_prise_en_charge": "Z51", "dr_conforme": True, "confiance": 0.8, "explication": "x"})
+    r = node({**base_k, "caracteristiques": {**base_k["caracteristiques"], "reponse": rep_nc, "reponseCorrection": json.dumps({"regle": "T1", "mode_prise_en_charge": "Z51"})}})["caracteristiques"]
+    controle("code Z non codable (Z51, catégorie) : hors liste, correction en échec → mode à choisir", r["analyse"]["aCorriger"] is True and r["codage"]["mode_prise_en_charge"] is None)
+    # pas de pathologie principale
+    codage_sans_pp = {**codage_k409, "ensembles": [{"code": "I10", "libelle": "HTA", "categorie": "diagnostic_associe", "preuves": [PASSAGES[0]], "commentaires": []}]}
+    regles_null = [regle("S1-Chronic", "surveillance", "surveillance", True, [("Z080", "x")], "S1", "Aucun ou chapitres I à XVII"), regle("S4", "surveillance", "transfert postpartum", False, [("Z3908", "Soins post-partum")], "S4", "")]
+    rep_null = json.dumps({"situation": "surveillance", "circonstance": "surveillance_negative", "regle": "S4", "mode_prise_en_charge": "Z3908", "dr_conforme": True, "confiance": 0.6, "explication": "x"})
+    r = node({**base_k, "caracteristiques": {"codage": codage_sans_pp, "regles": regles_null, "extraits": extraits, "reponse": rep_null}})["caracteristiques"]
+    controle("pas de pathologie principale : message « aucune », règle S4 et mode Z3908 acceptés, calculee_sur null",
+             "Pathologie principale : aucune" in r["message"] and r["codage"]["regle_hierarchisation"] == "S4" and r["codage"]["caracteristiques"]["calculee_sur"] is None and r["analyse"]["anomalies"] == [])
+    # pathologie principale changée après calcul → règle à revoir
+    r = node({**base_k, "caracteristiques": {**base_k["caracteristiques"], "nouvellePP": "K401"}})["caracteristiques"]
+    controle("pathologie principale changée après le calcul (K409 → K401) : « règle à revoir »", r["aRevoir"] is False and r["aRevoirApres"] is True)
+    # recalcul avec commentaire
+    r = node({**base_k, "caracteristiques": {**base_k["caracteristiques"], "commentaire": "séjour programmé pour la seconde cure"}})["caracteristiques"]
+    controle("recalcul avec commentaire : le commentaire du codeur termine le message", r["message"].rstrip().endswith("COMMENTAIRE DU CODEUR :\nséjour programmé pour la seconde cure"))
+    # réponse illisible
+    r = node({**base_k, "caracteristiques": {**base_k["caracteristiques"], "reponse": "La règle est T3."}})["caracteristiques"]
+    controle("réponse illisible : règle et mode vides, caracteristiques sans explication, à recalculer", r["analyse"]["ok"] is False and r["codage"]["regle_hierarchisation"] is None and r["codage"]["caracteristiques"]["explication"] is None)
+    # contrôles de cohérence signalés sans refus
+    rep_inc = json.dumps({"situation": "diagnostic", "circonstance": "traitement_unique", "regle": "T3", "mode_prise_en_charge": "DP", "dr_conforme": True, "confiance": 0.9, "explication": "x"})
+    r = node({**base_k, "caracteristiques": {**base_k["caracteristiques"], "reponse": rep_inc}})["caracteristiques"]
+    an = r["analyse"]["anomalies"]
+    controle("incohérences signalées sans refus : situation ≠ famille de la règle, circonstance hors situation, dr_conforme non null avec DP ; règle T3 gardée",
+             any("incohérente avec la famille" in a for a in an) and any("hors de la situation" in a for a in an) and any("dr_conforme" in a for a in an) and r["codage"]["regle_hierarchisation"] == "T3", str(an))
+
     # 12. Message utilisateur
     r = node({"passages": PASSAGES[:2], "index": INDEX, "descendants": DESC, "message": {"texte": "Texte du CRH.", "contexte": {"codesRetenus": [{"code": "I10", "libelle": "Hypertension essentielle (primitive)", "categorie": "pathologie_principale"}]}}})
     controle("message utilisateur : texte, passages numérotés, codes déjà retenus", "1. « HTA traitée »" in r["message"] and "2. « hernie inguinale droite »" in r["message"] and "I10 — Hypertension" in r["message"] and "déjà désignée" in r["message"])

@@ -207,6 +207,12 @@ def main() -> None:
             for para in l["extrait"].split("\n"): md += [para, ""]
             md += ["---", ""]
     SORTIE.with_suffix(".md").write_text("\n".join(md), encoding="utf-8")
+    # version JSON lue par la page (web/situations/extraits_guide.json) : mêmes champs, même contenu
+    import json
+    JSON_PAGE = RACINE / "web" / "situations" / "extraits_guide.json"
+    JSON_PAGE.parent.mkdir(parents=True, exist_ok=True)
+    JSON_PAGE.write_text(json.dumps({"source": "guide méthodologique MCO 2026, version provisoire (docs/referentiels/situations_cliniques/extraits_guide_methodologique_2026.csv)",
+                                     "version": "2026-provisoire", "extraits": lignes}, ensure_ascii=False, indent=1), encoding="utf-8")
     total = sum(len(l["extrait"]) for l in lignes)
     print("\n".join(bilan)); print(f"\n{len(lignes)} extraits écrits dans {SORTIE.relative_to(RACINE)} (et sa version .md de relecture) ; total {total} caractères ≈ {total // 4} tokens")
 
