@@ -1,45 +1,44 @@
 Règle,Type d'hospitalisation,Spécificité,Pathologie,Mode de prise en charge
-D1,HOSPITALISATION POUR DIAGNOSTIC,le séjour a permis le diagnostic de l’affection causale,chapitres I à XVII et XIX,Aucun
+D1,HOSPITALISATION POUR DIAGNOSTIC,le séjour a permis le diagnostic de l’affection causale,"chapitres I à XVII, XIX et XXII",Aucun
 D2,HOSPITALISATION POUR DIAGNOSTIC,il n’a pas été fait de diagnostic étiologique,chapitre XVIII,Aucun
-D3-1,HOSPITALISATION POUR DIAGNOSTIC,Séjour programmé pour exploration nocturne,Aucun ou chapitres I à XVII ,Z04800 Z04801
-D3-2,HOSPITALISATION POUR DIAGNOSTIC,séjour programmé pour tests allergologique,Aucun ou chapitres I à XVII ,Z015
+D3-1,HOSPITALISATION POUR DIAGNOSTIC,Séjour programmé pour exploration nocturne,"Aucun ou chapitres I à XVII, XIX et XXII",Z04800 Z04801
+D3-2,HOSPITALISATION POUR DIAGNOSTIC,séjour programmé pour tests allergologique,"Aucun ou chapitres I à XVII, XIX et XXII",Z015
 D3-3,HOSPITALISATION POUR DIAGNOSTIC,séjour programmé pour bilan pré-opératoire,Aucun,Z04802
 D4,HOSPITALISATION POUR DIAGNOSTIC,séjour est motivée par un antécédent personnel ou familial,Z80-Z99,Aucun
-D5,HOSPITALISATION POUR DIAGNOSTIC,situation de poussée aiguë d’une maladie chronique,chapitres I à XVII ,Aucun
+D5,HOSPITALISATION POUR DIAGNOSTIC,situation de poussée aiguë d’une maladie chronique,"chapitres I à XVII, XIX et XXII",Aucun
 D6,HOSPITALISATION POUR DIAGNOSTIC,situation de poussée aigue d'une maladie chronique pour les cas où la CIM10 prévoit Code spécifique poussée aigue,Code spécifique poussée aigue,Aucun
-D7,HOSPITALISATION POUR DIAGNOSTIC,complication d’une maladie chronique,chapitres I à XVII ,Aucun
-D8,HOSPITALISATION POUR DIAGNOSTIC,affection ou lésion intercurrente concomitante,chapitres I à XVII ,Aucun
+D7,HOSPITALISATION POUR DIAGNOSTIC,complication d’une maladie chronique,"chapitres I à XVII, XIX et XXII",Aucun
+D8,HOSPITALISATION POUR DIAGNOSTIC,affection ou lésion intercurrente concomitante,"chapitres I à XVII, XIX et XXII",Aucun
 D9,HOSPITALISATION POUR DIAGNOSTIC,bilan initial d’extension d’un cancer,chapitres II,Aucun
-T1,HOSPITALISATION POUR TRAITEMENT,traitement répétitif,chapitres I à XVII ,Z511 Z512 Z513 Z491 Z5131 Z492 Z4920 Z4921 Z5100 Z5101 Z5180
+T1,HOSPITALISATION POUR TRAITEMENT,traitement répétitif,"chapitres I à XVII, XIX et XXII",Z511 Z512 Z513 Z491 Z5131 Z492 Z4920 Z4921 Z5100 Z5101 Z5180
 T2-R52,HOSPITALISATION POUR TRAITEMENT,traitement de la douleur chronique rebelle,R5210 R5218,Aucun
 T2-R18,HOSPITALISATION POUR TRAITEMENT,évacuation d’une ascite,R18,Aucun
 T2-J9,HOSPITALISATION POUR TRAITEMENT,évacuation d’un épanchement pleural,J90 J91 J94,Aucun
-T2-Toxine,HOSPITALISATION POUR TRAITEMENT,injection de toxine botulique,chapitres I à XVII ,Aucun
-T3,HOSPITALISATION POUR TRAITEMENT,traitement unique chirurgical,chapitres I à XVII ,Aucun
-T4,HOSPITALISATION POUR TRAITEMENT,traitement unique chirurgical à des fins esthétiques,chapitres I à XVII ,Z410 Z411
-T5,HOSPITALISATION POUR TRAITEMENT,chirurgie plastique non esthétique,chapitres I à XVII ,Aucun Z42
+T2-Toxine,HOSPITALISATION POUR TRAITEMENT,injection de toxine botulique,"chapitres I à XVII, XIX et XXII",Aucun
+T3,HOSPITALISATION POUR TRAITEMENT,traitement unique chirurgical,"chapitres I à XVII, XIX et XXII",Aucun
+T4,HOSPITALISATION POUR TRAITEMENT,traitement unique chirurgical à des fins esthétiques,"chapitres I à XVII, XIX et XXII",Z410 Z411
+T5,HOSPITALISATION POUR TRAITEMENT,chirurgie plastique non esthétique,"chapitres I à XVII, XIX et XXII",Aucun Z42
 T6,HOSPITALISATION POUR TRAITEMENT,opération est réalisée pour des raisons non médicale,Aucun,Z4180
 T7,HOSPITALISATION POUR TRAITEMENT,soins spécifiques de stomies,Aucun,Z43 Z44 Z45 Z46 Z47 Z490
 IVG,HOSPITALISATION POUR IVG,,icd_codes_legal_abortion,Aucun
 ITG,HOSPITALISATION POUR ITG,,icd_codes_medical_abortion,Aucun
-T8,HOSPITALISATION POUR TRAITEMENT,"acte thérapeutique par voie endoscopique, endovasculaire ou d'imagerie interventionnelle",chapitres I à XVII ,Aucun
-T9,HOSPITALISATION POUR TRAITEMENT,traitement médical unique,chapitres I à XVII ,Aucun
-T9-initiation-tt-chronic,HOSPITALISATION POUR TRAITEMENT,mise en route du traitement d’une maladie chronique,chapitres I à XVII ,Aucun
+T8,HOSPITALISATION POUR TRAITEMENT,"acte thérapeutique par voie endoscopique, endovasculaire ou d'imagerie interventionnelle","chapitres I à XVII, XIX et XXII",Aucun
+T9,HOSPITALISATION POUR TRAITEMENT,traitement médical unique,"chapitres I à XVII, XIX et XXII",Aucun
+T9-initiation-tt-chronic,HOSPITALISATION POUR TRAITEMENT,mise en route du traitement d’une maladie chronique,"chapitres I à XVII, XIX et XXII",Aucun
 T9-diabetes,HOSPITALISATION POUR TRAITEMENT,changement de la stratégie thérapeutique,icd_codes_diabetes_chronic,Aucun
 T10-irradiations,HOSPITALISATION POUR TRAITEMENT,curiethérapie et ou d'une irradiation en dose unique,"procedure_curitherapy, procedure_single_irradiation",Z5101
 T10-fer,HOSPITALISATION POUR TRAITEMENT,injection de fer,icd_codes_iron_deficiency_anemia,Z512
-T11,HOSPITALISATION POUR TRAITEMENT,soins palliatifs,chapitres I à XVII ,Z515
+T11,HOSPITALISATION POUR TRAITEMENT,soins palliatifs,"chapitres I à XVII, XIX et XXII",Z515
 T12,HOSPITALISATION POUR ACCOUCHEMENT,,icd_codes_spontaneous_vertex_delivery,Aucun
 T13,HOSPITALISATION D'UN NOUVEAU NE,,icd_codes_liveborn_infants,Aucun
-T14,HOSPITALISATION POUR TRAITEMENT,« reprise » d’un traitement unique chirurgical ou lorsque celui-ci se déroule en deux temps,chapitres I à XVII ,Aucun
-T15,HOSPITALISATION POUR TRAITEMENT,intervention prophylactique,Aucun ou chapitres I à XVII ,Z40
-S1-Chronic,HOSPITALISATION POUR SURVEILLANCE,surveillance d’un patient atteint d'une affection connue,Aucun ou chapitres I à XVII ,Z08 Z09 Z48 Z71
-S1-Chir,HOSPITALISATION POUR SURVEILLANCE,patient atteint d'une affection connue ayant bénéficié d'un traitement chirurgical,Aucun ou chapitres I à XVII ,Z48
+T14,HOSPITALISATION POUR TRAITEMENT,« reprise » d’un traitement unique chirurgical ou lorsque celui-ci se déroule en deux temps,"chapitres I à XVII, XIX et XXII",Aucun
+T15,HOSPITALISATION POUR TRAITEMENT,intervention prophylactique,"Aucun ou chapitres I à XVII, XIX et XXII",Z40
+S1-Chronic,HOSPITALISATION POUR SURVEILLANCE,surveillance d’un patient atteint d'une affection connue,"Aucun ou chapitres I à XVII, XIX et XXII",Z08 Z09 Z48 Z71
+S1-Chir,HOSPITALISATION POUR SURVEILLANCE,patient atteint d'une affection connue ayant bénéficié d'un traitement chirurgical,"Aucun ou chapitres I à XVII, XIX et XXII",Z48
 S1-Preg,HOSPITALISATION POUR SURVEILLANCE,surveillance négative de grossesse,Aucun,Z34-Z35
 S1-Postpartum,HOSPITALISATION POUR SURVEILLANCE,surveillance négative post accouchement,Aucun,Z39
-S2,HOSPITALISATION POUR SURVEILLANCE,surveillance négative d'un patient ayant bénéficié d'une greffe,Aucun ou chapitres I à XVII ,Z94
-S3,HOSPITALISATION POUR SURVEILLANCE,surveillance négative d'un patient porteur d’un implant ou d’une greffe cardiovasculaire,Aucun ou chapitres I à XVII ,Z95
-S4,HOSPITALISATION POUR SURVEILLANCE,transfert  pour soins du postpartum ,,Z3908 Z762
-SD1,HOSPITALISATION POUR SURVEILLANCE,Découverte d'une affection non connue,chapitres I à XVII ,Aucun
-SD2,HOSPITALISATION POUR SURVEILLANCE,"surveillance positive les cas de séjours motivés par un antécédent de cancer, au cours desquels est découverte une récidive.
-",chapitre II,Aucun
+S2,HOSPITALISATION POUR SURVEILLANCE,surveillance négative d'un patient ayant bénéficié d'une greffe,"Aucun ou chapitres I à XVII, XIX et XXII",Z94
+S3,HOSPITALISATION POUR SURVEILLANCE,surveillance négative d'un patient porteur d’un implant ou d’une greffe cardiovasculaire,"Aucun ou chapitres I à XVII, XIX et XXII",Z95
+S4,HOSPITALISATION POUR SURVEILLANCE,transfert  pour soins du postpartum,,Z3908 Z762
+SD1,HOSPITALISATION POUR SURVEILLANCE,Découverte d'une affection non connue,"chapitres I à XVII, XIX et XXII",Aucun
+SD2,HOSPITALISATION POUR SURVEILLANCE,"surveillance positive les cas de séjours motivés par un antécédent de cancer, au cours desquels est découverte une récidive.",chapitre II,Aucun

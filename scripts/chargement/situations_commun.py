@@ -53,7 +53,7 @@ def chapitres_de(texte: str) -> list[str]:
     """« chapitres I à XVII et XIX » -> ['I', …, 'XVII', 'XIX'] ; « chapitre XVIII » -> ['XVIII']."""
     t = texte.replace("chapitres", "").replace("chapitre", "").strip()
     out = []
-    for part in re.split(r"\s+et\s+|,", t):
+    for part in re.split(r"\s+et\s+|\s*,\s*", t):
         part = part.strip()
         if not part: continue
         m = re.fullmatch(r"([IVX]+)\s+à\s+([IVX]+)", part)
@@ -72,16 +72,19 @@ def lire_pathologie(code_regle: str, brut: str) -> dict:
     t = brut.strip()
     if not t:
         p["aucun"] = True; p["vide_dans_le_guide"] = True; return p
-    for morceau in [m.strip() for m in re.split(r"\s+ou\s+|,", t) if m.strip()]:
-        if morceau.lower() == "aucun": p["aucun"] = True
-        elif morceau.lower().startswith("chapitre"): p["chapitres"] += chapitres_de(morceau)
-        elif morceau.startswith("icd_"): p["listes"].append(morceau)
-        elif morceau.startswith("procedure_"): p["actes"].append(morceau)
-        else:
-            for tok in morceau.split():
-                if re.fullmatch(r"[A-Z]\d{2}-[A-Z]\d{2}", tok): a, b = tok.split("-"); p["intervalles"].append([a, b])
-                elif re.fullmatch(r"[A-Z]\d{2}[A-Z0-9+]*", tok): p["codes"].append(tok)
-                else: raise ValueError(f"pathologie illisible : {tok!r} ({code_regle})")
+    for part in [m.strip() for m in re.split(r"\s+ou\s+", t) if m.strip()]:
+        if part.lower().startswith("chapitre"):
+            p["chapitres"] += chapitres_de(part)   # « chapitres I à XVII, XIX et XXII » se lit en entier
+            continue
+        for morceau in [m.strip() for m in part.split(",") if m.strip()]:
+            if morceau.lower() == "aucun": p["aucun"] = True
+            elif morceau.startswith("icd_"): p["listes"].append(morceau)
+            elif morceau.startswith("procedure_"): p["actes"].append(morceau)
+            else:
+                for tok in morceau.split():
+                    if re.fullmatch(r"[A-Z]\d{2}-[A-Z]\d{2}", tok): a, b = tok.split("-"); p["intervalles"].append([a, b])
+                    elif re.fullmatch(r"[A-Z]\d{2}[A-Z0-9+]*", tok): p["codes"].append(tok)
+                    else: raise ValueError(f"pathologie illisible : {tok!r} ({code_regle})")
     return p
 
 
