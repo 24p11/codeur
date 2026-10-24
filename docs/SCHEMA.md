@@ -1,5 +1,7 @@
 # Schéma de la base de données
 
+*Version 1.6 — 24 octobre 2026 : table `commentaires` et sortie des commentaires et explications du JSON (§3.4, §5.5, §7, §8) ; mode de prise en charge avec libellé et `caracteristiques` (§3.4) ; second appel : règle et mode de prise en charge (§3.6) ; guide des situations cliniques, listes de codes, chapitres et `regles_compatibles` (§6) ; précisions 29 à 33 (§10). Relu par Rémi le 24 octobre 2026.*
+
 *Version 1.5 — 23 octobre 2026 : appels répétés révisés : un seul bouton « Codage », codage existant conservé, codes rejetés, température nulle (§3.6) ; nature directe ou indirecte des preuves (§3.4).*
 
 *Version 1.4 — 22 octobre 2026 : clés des notes et `version_grille` (§5.3) ; fonction `valeurs_filtres()` et plafond de 1 000 lignes (§6, §10 point 28) ; champs `affichage` et `libelle_propose` (§3.4), table `recherches` (§5.4), colonnes MCO de `fiches`, table `descendants_codables` et fonctions de recherche (§6), fin du lot A2-A3 (commit `1811f57`).*
@@ -84,7 +86,7 @@ Une ligne correspond à **l'état complet du codage d'un document, à l'issue d'
 | `scenario` | Le script de chargement | Le codage initial, tiré de la source (jamais visible des testeurs) |
 | `humain` | L'humain seul, sans IA | Campagne d'annotation (cahier des charges n° 1) |
 | `ia` | L'IA seule, sur tout le texte | Pré-codification |
-| `ia_humain` | L'IA, sur les passages surlignés par l'humain | Clic sur « Faire le codage » |
+| `ia_humain` | L'IA, sur les passages surlignés par l'humain | Clic sur « Codage » (deux appels : les codes, puis la règle et le mode de prise en charge, §3.6) |
 | `revue_humain` | L'humain | Après qu'il a accepté, corrigé, retiré ou ajouté des codes |
 | `revue_ia` | L'IA | Avis de l'IA sur le codage de l'humain : le codage qu'elle recommande, avec ses commentaires |
 | `revue_humain_ia` | L'humain | Le codage final, après sa réponse aux recommandations de l'IA |
@@ -114,49 +116,52 @@ Les lignes de cette table ne sont **jamais modifiées ni supprimées** ; seules 
 
 ### 3.4 Le contenu du JSON
 
+Format des lignes écrites par la page depuis le 24 octobre 2026 :
+
 ```json
 {
   "regle_hierarchisation": "T3",
   "mode_prise_en_charge": "DP",
-  "commentaires": [
-    { "auteur": "humain", "etape": "revue_humain", "texte": "Séjour ambulatoire programmé." }
-  ],
+  "libelle_mode_prise_en_charge": "Cure chirurgicale programmée de la hernie inguinale",
+  "caracteristiques": {
+    "calculee_sur": "K409", "appel_llm": "7f3c…", "confiance": 0.85,
+    "regle": "T3", "mode_prise_en_charge": "DP"
+  },
   "ensembles": [
     {
       "code": "K409",
       "libelle": "Hernie inguinale unilatérale ou SAI, sans occlusion ni gangrène",
       "categorie": "pathologie_principale",
       "preuves": [
-        { "debut": 1532, "fin": 1560, "texte": "hernie inguinale droite" }
+        { "debut": 1532, "fin": 1560, "texte": "hernie inguinale droite", "nature": "directe" }
       ],
-      "confiance": null,
-      "explication": null,
-      "commentaires": [
-        { "auteur": "ia", "etape": "revue_ia", "texte": "Le côté ne change pas le code ; K409 est adapté." }
-      ]
+      "confiance": 0.9
     },
     {
       "code": "I10",
       "libelle": "Hypertension essentielle (primitive)",
       "categorie": "diagnostic_associe",
-      "preuves": [ { "debut": 210, "fin": 225, "texte": "HTA traitée" } ],
-      "confiance": null,
-      "explication": null,
-      "commentaires": []
+      "preuves": [ { "debut": 210, "fin": 225, "texte": "HTA traitée", "nature": "directe" } ],
+      "confiance": 0.9
     }
   ],
   "passages_non_codes": [
     { "debut": 88, "fin": 118, "texte": "appendicectomie dans l'enfance",
       "raison": "Antécédent sans incidence sur le séjour", "auteur": "ia" }
-  ]
+  ],
+  "codes_rejetes": [],
+  "affichage": "C"
 }
 ```
+
+Les explications de l'IA, les remarques du codeur et les alertes de l'outil ne sont plus dans le JSON : elles sont dans la table `commentaires` (§5.5). **Ancien format** (lignes antérieures au 24 octobre 2026, dont les codages `scenario` chargés) : un champ `commentaires` au niveau du codage et sur chaque code (`{ "auteur", "etape", "texte" }`), et un champ `explication` sur chaque code ; la page continue de les lire.
 
 | Champ | Contenu |
 |---|---|
 | `regle_hierarchisation` | Le code de la règle du guide des situations cliniques (`D1`, `T3`, `S1-Chronic`…), ou vide |
 | `mode_prise_en_charge` | Le code Z de prise en charge, ou `DP` quand le diagnostic principal motive lui-même le séjour, ou vide |
-| `commentaires` | *(ancien format, lignes antérieures au 24 octobre 2026)* Commentaires sur l'ensemble du codage. **Depuis le 24 octobre 2026, les commentaires sont dans la table `commentaires` (§5.5) et ne figurent plus dans le JSON des lignes nouvelles** ; les codages `scenario` déjà chargés gardent leurs commentaires d'auteur `generateur`, et la page continue de lire les anciennes lignes |
+| `libelle_mode_prise_en_charge` | Le libellé du mode de prise en charge, comme pour un diagnostic : pour un code Z, le libellé officiel de l'index (jamais celui du modèle) ; pour `DP`, un texte court (dix mots au plus) écrit par le modèle, qui décrit la prise en charge (`libelle_mode` de la réponse du second appel) ; après un échec de l'appel ou un changement du mode par le codeur, le texte fixe « La pathologie principale motive elle-même le séjour » |
+| `caracteristiques` | La dernière proposition de l'IA pour la règle et le mode de prise en charge (second appel, §3.6) : `calculee_sur` (le code de la pathologie principale sur lequel la règle a été calculée, `null` si aucune ; s'il diffère de la pathologie principale courante, la page affiche « règle à revoir »), `appel_llm` (l'identifiant de l'appel, qui permet aux scripts d'analyse de retrouver la requête et la réponse complètes : situation, circonstance, `dr_conforme`, règles candidates, version du prompt, anomalies), `confiance`, et la règle et le mode proposés (`regle`, `mode_prise_en_charge`, pour afficher « Proposition de l'IA : … » quand le codeur a changé l'un ou l'autre). L'explication du modèle est un commentaire (§5.5), pas un champ. Recopié tel quel d'une ligne à la suivante, jamais modifié par le codeur, remplacé seulement par un nouveau calcul. `regle_hierarchisation` et `mode_prise_en_charge` restent le codage retenu |
 | `ensembles` | La liste des codes, chacun avec ses éléments de preuve |
 | `code` | Sans point, extension PMSI collée. Peut être `null` dans une ligne `ia_humain` quand le code proposé par l'IA est resté non codable après la boucle de correction (« code à choisir », §3.10) ; le codeur choisit alors le code |
 | `code_propose_non_codable` | Facultatif : le code non codable proposé par l'IA, conservé quand `code` est `null` |
@@ -164,21 +169,18 @@ Les lignes de cette table ne sont **jamais modifiées ni supprimées** ; seules 
 | `libelle` | Le libellé officiel, au moment du codage |
 | `categorie` | `pathologie_principale` (une seule par codage) ou `diagnostic_associe` |
 | `preuves` | Les éléments de preuve : position de début et de fin dans le texte, et texte cité. Un champ facultatif `introuvable: true` signale une citation qui n'a pas pu être retrouvée dans le texte. Un champ facultatif `nature` (`directe` ou `indirecte`) indique si la preuve nomme l'affection ou l'étaye seulement (résultat d'examen, traitement…) ; rempli par l'IA à partir du prompt `codage_v2`, vide sinon |
-| `confiance` | Remplie par l'IA quand elle propose un code ; vide sinon. *(24 octobre 2026)* `explication` n'est plus un champ : l'explication de l'IA est un commentaire (§5.5, objet `code`, type `explication`), lu dans le JSON seulement pour les anciennes lignes |
-| `commentaires` | *(ancien format)* Commentaires sur ce code ; dans la table `commentaires` depuis le 24 octobre 2026 |
+| `confiance` | Remplie par l'IA quand elle propose un code (de 0 à 1) ; vide sinon. L'explication de l'IA n'est pas un champ : c'est un commentaire (§5.5, objet `code`, type `explication`) |
 | `passages_non_codes` | Les passages surlignés que l'IA (ou l'utilisateur) a déclarés **non codés** : position, texte cité, `raison` et `auteur` (`ia` ou `humain`). Liste vide si aucun. Absente des codages `scenario` |
 | `codes_rejetes` | Les codes **proposés par l'IA** que l'utilisateur a supprimés : `code`, `libelle`, `categorie`, `preuves`, `etape` (celle où le rejet a été enregistré). Transmise d'une ligne à la suivante ; sert à demander au modèle de ne pas les reproposer lors d'un appel répété (§3.6). Un code ajouté par l'utilisateur puis supprimé n'y entre pas |
-| `libelle_mode_prise_en_charge` | *(24 octobre 2026, à relire)* Le libellé du mode de prise en charge, comme pour un diagnostic : pour un code Z, le libellé officiel de l'index (jamais celui du modèle) ; pour `DP`, un texte court (dix mots au plus) écrit par le modèle, qui décrit la prise en charge (`libelle_mode` de la réponse du second appel) ; après un échec de l'appel ou un changement du mode par le codeur, le texte fixe « La pathologie principale motive elle-même le séjour » |
-| `caracteristiques` | *(brief 8, à relire)* La dernière proposition de l'IA pour la règle et le mode de prise en charge (second appel, §3.6) : `calculee_sur` (le code de la pathologie principale sur lequel la règle a été calculée, `null` si aucune ; s'il diffère de la pathologie principale courante, la page affiche « règle à revoir »), `appel_llm` (l'identifiant de l'appel, qui permet aux scripts d'analyse de retrouver la requête et la réponse complètes : situation, circonstance, `dr_conforme`, règles candidates, version du prompt, anomalies), `confiance`, et la règle et le mode proposés (`regle`, `mode_prise_en_charge`, pour afficher « Proposition de l'IA : … » quand le codeur a changé l'un ou l'autre). L'explication du modèle est un commentaire (§5.5), pas un champ. Recopié tel quel d'une ligne à la suivante, jamais modifié par le codeur, remplacé seulement par un nouveau calcul. `regle_hierarchisation` et `mode_prise_en_charge` restent le codage retenu |
 | `affichage` | La variante d'affichage utilisée par le codeur (`A` liste simple sans encadré, `B` encadrés aux couleurs d'origine, `C` encadrés avec une couleur par code, reprise dans le surlignage du texte), dans les lignes écrites par la page ; permet de comparer les affichages |
 
-**Les commentaires** portent toujours leur auteur (`ia`, `humain`, `generateur` pour les remarques issues du chargement des CRH synthétiques, ou `outil` pour les remarques de la page : correction d'un code « M142 → M1427 », « code à choisir », « code plus précis possible », passage non traité par l'IA) et l'étape où ils ont été écrits. Ils passent d'une version à la suivante, sauf si le code auquel ils sont attachés est retiré. Les commentaires d'auteur `outil` qui portent sur le choix du code (« code à choisir », « code plus précis possible ») disparaissent quand le codeur change le code ; la trace d'une correction (« M142 → M1427 ») est conservée.
+**Les commentaires de l'ancien format** portent leur auteur (`ia`, `humain`, `generateur` pour les remarques issues du chargement des CRH synthétiques, `outil` pour les remarques de la page) et l'étape où ils ont été écrits. Dans le nouveau format, ces informations sont des colonnes de la table `commentaires` (§5.5), et la règle « un commentaire reste attaché au code sur lequel il a été écrit » y est appliquée uniformément.
 
 Le même format sert pour **toutes les étapes**, ce qui rend toutes les versions comparables entre elles.
 
 ### 3.5 Les passages surlignés et les ensembles
 
-Avant l'appel au LLM, l'utilisateur **surligne des passages sans les regrouper**. Ces passages restent dans le navigateur (sauvegarde locale) et n'entrent pas dans la base. Au clic sur « Faire le codage », la page envoie au LLM le texte et la liste des passages (positions et texte cité).
+Avant l'appel au LLM, l'utilisateur **surligne des passages sans les regrouper**. Ces passages restent dans le navigateur (sauvegarde locale) et n'entrent pas dans la base. Au clic sur « Codage », la page envoie au LLM le texte et la liste des passages (positions et texte cité).
 
 **C'est le LLM qui forme les ensembles** : il regroupe les passages qui décrivent une même affection et propose un code pour chaque ensemble. Il peut aussi déclarer un passage **non codé**, avec une raison (par exemple, un antécédent sans incidence sur le séjour).
 
@@ -212,7 +214,7 @@ Le bouton « Codage » reste **toujours disponible** dès qu'au moins un passage
 5. **C'est l'outil qui assemble** le nouveau codage : codage existant inchangé, plus les nouvelles propositions. Une proposition identique à un code existant ajoute ses passages aux preuves de ce code, de façon visible. Une proposition de pathologie principale alors qu'il y en a déjà une passe en diagnostic associé, avec un commentaire d'auteur `outil`. L'outil écarte toute proposition qui ne porte pas sur un passage envoyé, et tout code invalide (la vérification des codes codables et sa boucle de correction, §3.10, s'appliquent comme au premier appel).
 6. Avant l'appel, la page indique ce qui va se passer (« 2 passages envoyés à l'IA, 5 codes conservés ») ; s'il n'y a aucun passage à envoyer, elle le dit et n'appelle pas le modèle. S'il existe des modifications non enregistrées, elle enregistre d'abord une ligne `revue_humain`.
 
-**Le second appel** *(brief 8, à relire)* : au premier clic sur « Codage », après le premier appel et dès que les codes sont affichés, la page appelle le modèle une seconde fois (prompt `caracteristiques_v1`, tâche `caracteristiques_sejour`) avec le texte, le codage, les préambules officiels et les règles du guide des situations cliniques compatibles avec la pathologie principale (`regles_compatibles`, §6), leurs extraits officiels et les passages communs ; il choisit la règle de hiérarchisation et le mode de prise en charge (et, pour `DP`, le libellé court du mode). La ligne `ia_humain` est enregistrée une seule fois, après les deux appels ; si le second échoue, avec une règle vide. Les appels suivants sur « Codage » ne recalculent pas la règle. « Recalculer » (commentaire facultatif du codeur, enregistré comme commentaire d'objet `regle`, auteur `humain`) relance le second appel seul et crée une nouvelle ligne `ia_humain`. Contrôles : règle parmi les candidates et mode dans la liste de la règle (sinon un tour de correction, puis « à choisir ») ; cohérence situation / famille de la règle, circonstance / situation, `dr_conforme` nul si et seulement si le mode est `DP`, signalées sans rien refuser. `dr_conforme` est un contrôle qualité affiché au moment du calcul, non enregistré dans le codage ; il deviendra un contrôle enregistré dans `rum.controles` quand le RUM partiel sera construit (lot A4). Température 0.
+**Le second appel** : au premier clic sur « Codage », après le premier appel et dès que les codes sont affichés, la page appelle le modèle une seconde fois (prompt `caracteristiques_v1`, tâche `caracteristiques_sejour`) avec le texte, le codage, les préambules officiels et les règles du guide des situations cliniques compatibles avec la pathologie principale (`regles_compatibles`, §6), leurs extraits officiels et les passages communs ; il choisit la règle de hiérarchisation et le mode de prise en charge (et, pour `DP`, le libellé court du mode). La ligne `ia_humain` est enregistrée une seule fois, après les deux appels ; si le second échoue, avec une règle vide. Les appels suivants sur « Codage » ne recalculent pas la règle. « Recalculer » (commentaire facultatif du codeur, enregistré comme commentaire d'objet `regle`, auteur `humain`) relance le second appel seul et crée une nouvelle ligne `ia_humain`. Contrôles : règle parmi les candidates et mode dans la liste de la règle (sinon un tour de correction, puis « à choisir ») ; cohérence situation / famille de la règle, circonstance / situation, `dr_conforme` nul si et seulement si le mode est `DP`, signalées sans rien refuser. `dr_conforme` est un contrôle qualité affiché au moment du calcul, non enregistré dans le codage ; il deviendra un contrôle enregistré dans `rum.controles` quand le RUM partiel sera construit (lot A4). Température 0.
 
 Un nouveau passage surligné qui chevauche une preuve d'un code existant complète les preuves de ce code, de façon visible ; il n'est pas envoyé au modèle.
 
@@ -277,9 +279,9 @@ Chaque correction de ce type est enregistrée : la fréquence des codes non coda
 
 - le tour de correction se fait **dans la même conversation** que l'appel de codage (le modèle garde le texte, les passages et sa première réponse), avec le prompt `correction_v1` ; le modèle ne renvoie que ses corrections, sous la forme `{"corrections": {"Z992": "Z992+0", "C50": "C504"}}`, et c'est la page qui les applique ; un choix hors de la liste fournie est ignoré et signalé ;
 - la liste fournie pour un code compte **au plus 60 codes**, dans l'ordre du kit (table `descendants_codables`, sinon les codes codables de la catégorie), avec la mention « les 60 premiers sur N » au-delà ;
-- un code **resté non codable** est enregistré avec `code` à `null`, `code_propose_non_codable`, ses preuves, et un commentaire d'auteur `outil` « code à choisir par le codeur » ;
-- un code **codable mais affinable** (code souche qui a des descendants plus précis, comme `Z992`) est accepté tel quel, avec un commentaire d'auteur `outil` « code plus précis possible » et la liste de ses descendants ; la page les propose dans la recherche 🔍 ;
-- **plusieurs pathologies principales** dans la réponse : la page garde celle de plus forte confiance (la première à égalité), passe les autres en diagnostic associé, et le signale au codeur ;
+- un code **resté non codable** est enregistré avec `code` à `null`, `code_propose_non_codable`, ses preuves, et une alerte de l'outil « code à choisir par le codeur » (table `commentaires`, type `alerte`) ;
+- un code **codable mais affinable** (code souche qui a des descendants plus précis, comme `Z992`) est accepté tel quel, avec une alerte de l'outil « code plus précis possible » et la liste de ses descendants ; la page les propose dans la recherche 🔍 ;
+- **plusieurs pathologies principales** dans la réponse : depuis `codage_v3`, le prompt demande au modèle d'appliquer les règles M1 et M2 du guide méthodologique (celle qui a mobilisé l'essentiel des soins ; en cas d'efforts comparables, un choix motivé avec une confiance baissée) ; si la réponse en contient quand même plusieurs, la page garde celle de plus forte confiance (la première à égalité), passe les autres en diagnostic associé, et le signale au codeur ;
 - un **passage absent de la réponse** est rangé dans `passages_non_codes`, avec l'auteur `outil` et la raison « Passage non traité par l'IA ».
 
 ---
@@ -312,7 +314,7 @@ Une ligne correspond à **un RUM construit à partir d'une ligne validée de la 
 | Sorte | Exemples | Où | Enregistré ? |
 |---|---|---|---|
 | Vérifications de saisie | Code inexistant, code non codable | Dans l'interface, au moment de la saisie ou de la proposition de l'IA | Non : un code invalide n'entre pas dans le codage |
-| Contrôles qualité PMSI | Cohérence entre la règle et la pathologie principale, incompatibilité avec l'âge ou le sexe, contrôles plus complexes à venir | Sur le RUM | Oui, dans la colonne `controles` du RUM |
+| Contrôles qualité PMSI | Cohérence entre la règle et la pathologie principale, conformité du DR quand le DP est un code Z (aujourd'hui `dr_conforme`, jugé par l'IA au second appel et seulement affiché, §3.6), incompatibilité avec l'âge ou le sexe, contrôles plus complexes à venir | Sur le RUM | Oui, dans la colonne `controles` du RUM (dès que le RUM partiel sera construit, lot A4) |
 
 Le résultat du groupage, quand il sera mis en place, sera rangé dans la table des RUM.
 
@@ -376,11 +378,9 @@ Chaque recherche de code faite par un testeur avec 🔍. Sert à mesurer l'effic
 
 Le testeur ajoute ses propres lignes, sans pouvoir les relire.
 
----
-
 ### 5.5 `commentaires`
 
-*(24 octobre 2026, à relire)* Les commentaires d'un travail de codage, hors du JSON du codage (qui les recopiait à chaque ligne) : un commentaire est rattaché au **document** et, s'il porte sur un code, au **code lui-même** (pas d'identifiant nouveau pour les codes) ; des fils de discussion sont possibles (`reponse_a`), pour les échanges avec l'IA au lot A4.
+Les commentaires d'un travail de codage, hors du JSON du codage (qui les recopiait à chaque ligne) : un commentaire est rattaché au **document** et, s'il porte sur un code, au **code lui-même** (pas d'identifiant nouveau pour les codes) ; des fils de discussion sont possibles (`reponse_a`), pour les échanges avec l'IA au lot A4.
 
 | Colonne | Contenu |
 |---|---|
@@ -398,6 +398,10 @@ Le testeur ajoute ses propres lignes, sans pouvoir les relire.
 
 **Règles** : insertion seulement, ni modification ni suppression. **Retirer un commentaire** = ajouter une ligne de type `retrait` dont `reponse_a` le désigne ; la règle d'accès n'autorise un retrait que sur un commentaire d'auteur `humain` du testeur lui-même (fonction `commentaire_retirable`, migration 25) ; la page masque le commentaire retiré et le retrait. Les remarques du testeur sont écrites avec « Enregistrer mon codage » (brouillons modifiables jusque-là) ; les explications de l'IA et les alertes de l'outil, juste après la ligne de codage qu'elles accompagnent. Accès : un testeur lit et ajoute les commentaires de son travail (les siens, ceux de l'IA et de l'outil) ; rien pour les visiteurs (§7).
 
+**Pour plus tard (lot A4)** : les types `discussion` et `reponse_a` serviront aux échanges entre le codeur et l'IA qui relit le codage ; les explications de l'IA sur les codes et sur les caractéristiques du séjour, les remarques et les alertes seront ainsi toutes au même endroit, avec la même présentation.
+
+---
+
 ## 6. Les tables de référence
 
 | Table | Contenu |
@@ -406,11 +410,11 @@ Le testeur ajoute ses propres lignes, sans pouvoir les relire.
 | `fiches` | L'index des codes de recode-icd et leurs fiches : code (complet, sans point), libellé, **codable ou non**, contenu de la fiche (vide si elle n'apporte rien), version de la livraison (`version_livraison`), date de chargement (`charge_le`). La liste des codes codables est tirée de cette table. Le format exact dépend du chantier ouvert dans recode-icd pour les besoins de `codeur`. Colonnes ajoutées au lot B3 : `statut_mco` (codable, cause_externe, pere_interdit, interdit_dp_dr, interdit_dp, supprime), `interdit_dp`, `interdit_dr`, `interdit_das` (migration 12) |
 | `synonymes` | Les formulations associées à chaque code : `origine` (type : libelle, inclusion, index, synonyme), **`source` (provenance : CépiDc, AP-HP, LLM…)**, le code (qui doit exister dans `fiches`), et une forme normalisée indexée pour une recherche insensible aux accents et tolérante aux fautes de frappe. Contient les formulations de recode-icd et une ligne par code pour son libellé officiel (origine `libelle`, source « ATIH kit 2025 »), avec `version_livraison`. *Malgré son nom, ce sont des formulations rattachées à un code, pas un dictionnaire d'équivalences entre mots (lot B6, où la table pourra être renommée `formulations`)* |
 | `descendants_codables` | Pour chaque code non codable ou souche (nœud), ses descendants codables avec libellé et ordre du kit, tels que livrés par recode-icd (jamais recalculés) ; sert à la boucle de correction et aux suggestions de 🔍 |
-| `regles_situations` | Le guide des situations cliniques (version 1, 43 lignes), une ligne par règle : code, famille (colonne « Type d'hospitalisation » du guide), libellé, type (`diagnostic`, `traitement`, `surveillance`, `accouchement`, `nouveau_ne`, `ivg`, `itg`), spécificité, pathologie et code Z (colonnes brutes), `details` (JSON : pathologie lue par la machine, chapitres, intervalles, codes, **noms** des listes ; modes de prise en charge avec la liste résolue des codes Z codables et leurs libellés ; référence des extraits officiels), version, **`regle_officielle`** (étiquette du guide méthodologique : D1 à D9, T1 à T15, S1 à S4, SD1, SD2, IVG, IMG ; migration 22) et **`evaluable`** (faux pour T10-irradiations, fondée sur des listes d'actes absentes). Source : `docs/referentiels/situations_cliniques/` ; chargée par `situations_charger.py` |
-| `listes_codes` | *(brief 8, à relire)* Les listes de codes citées par le guide (et à venir) : `liste` (nom du fichier), `nature` (`cim` ou `ccam`), `code`, `libelle`, `source`, `version` ; clé `liste` + `code` ; codes CIM à la forme `codeur`, contrôlés contre `fiches`. Source : `docs/referentiels/cim/listes_codes/` (migration 21) |
-| `chapitres` | *(brief 8, à relire)* Les 22 chapitres de la CIM-10 : numéro romain, ordre, intitulé, premier et dernier code ; sert à lire « chapitres I à XVII » (migration 21) |
+| `regles_situations` | Le guide des situations cliniques (version 1, 43 lignes), une ligne par règle du tableau, sous-règles comprises (`D3-1`, `S1-Chronic`…) : code, famille (colonne « Type d'hospitalisation » du guide), libellé, type (`diagnostic`, `traitement`, `surveillance`, `accouchement`, `nouveau_ne`, `ivg`, `itg`), spécificité, pathologie et code Z (colonnes brutes), `details` (JSON : pathologie lue par la machine, chapitres, intervalles, codes, **noms** des listes ; modes de prise en charge avec la liste résolue des codes Z codables et leurs libellés ; référence des extraits officiels), version, **`regle_officielle`** (étiquette du guide méthodologique : D1 à D9, T1 à T15, S1 à S4, SD1, SD2, IVG, IMG ; migration 22) et **`evaluable`** (faux pour T10-irradiations, fondée sur des listes d'actes absentes). Source : `docs/referentiels/situations_cliniques/` (tableau, et extraits officiels du guide méthodologique MCO 2026 dans `extraits_guide_methodologique_2026.csv`, lus par la page pour le second appel) ; chargée par `situations_charger.py` |
+| `listes_codes` | Les listes de codes citées par le guide (et à venir) : `liste` (nom du fichier), `nature` (`cim` ou `ccam`), `code`, `libelle`, `source`, `version` ; clé `liste` + `code` ; codes CIM à la forme `codeur`, contrôlés contre `fiches`. Source : `docs/referentiels/cim/listes_codes/` (migration 21) |
+| `chapitres` | Les 22 chapitres de la CIM-10 : numéro romain, ordre, intitulé, premier et dernier code ; sert à lire « chapitres I à XVII » (migration 21) |
 
-**Fonctions de recherche** (droits de l'appelant, chemin de recherche fixé, exécutables par les testeurs connectés) : `rechercher_codes(recherche, limite, seuil)` par ressemblance (trigrammes ; seuil 0,15 pour la boucle de correction, 0,3 pour 🔍), et `rechercher_codes_morceaux` : formulations contenant tous les morceaux tapés, accents et casse ignorés, morceaux de trois lettres ou moins en début de mot seulement ; classement : mot entier, début de mot, libellé officiel, autre formulation, formulation la plus courte ; codes codables seulement, un résultat par code. La fonction `valeurs_filtres()` (migration 19, mêmes règles) renvoie, par lot, les spécialités et types de prise en charge distincts des dossiers disponibles, avec leur effectif, pour les menus de recherche de la page. *(brief 8, à relire)* La fonction **`regles_compatibles(code)`** (migration 23, mêmes règles) renvoie, pour une pathologie principale (forme `codeur`, ou `null` : aucune), les lignes du guide des situations cliniques compatibles avec leur motif (« aucune pathologie principale », chapitre, intervalle, code, liste), règles non évaluables exclues ; la page l'appelle pour le second appel et les listes déroulantes de la règle, au lieu de charger les listes (§10, point 28).
+**Fonctions de recherche** (droits de l'appelant, chemin de recherche fixé, exécutables par les testeurs connectés) : `rechercher_codes(recherche, limite, seuil)` par ressemblance (trigrammes ; seuil 0,15 pour la boucle de correction, 0,3 pour 🔍), et `rechercher_codes_morceaux` : formulations contenant tous les morceaux tapés, accents et casse ignorés, morceaux de trois lettres ou moins en début de mot seulement ; classement : mot entier, début de mot, libellé officiel, autre formulation, formulation la plus courte ; codes codables seulement, un résultat par code. La fonction `valeurs_filtres()` (migration 19, mêmes règles) renvoie, par lot, les spécialités et types de prise en charge distincts des dossiers disponibles, avec leur effectif, pour les menus de recherche de la page. La fonction **`regles_compatibles(code)`** (migration 23, mêmes règles) renvoie, pour une pathologie principale (forme `codeur`, ou `null` : aucune), les lignes du guide des situations cliniques compatibles avec leur motif (« aucune pathologie principale », chapitre, intervalle, code, liste), règles non évaluables exclues ; la page l'appelle pour le second appel et les listes déroulantes de la règle, au lieu de charger les listes (§10, point 28).
 
 ---
 
@@ -422,12 +426,12 @@ Ces règles sont appliquées **par la base elle-même**, et non seulement par l'
 |---|---|
 | `documents` | lire **toutes les colonnes sauf `nettoyage`** (droits accordés colonne par colonne) ; ajouter une nouvelle version de document (page d'édition) |
 | `dossiers_disponibles` (vue) | lire : pour chaque document, sa dernière version, sans les documents signalés `a_corriger`, avec le nombre de documents d'origine et la longueur, calculés par la base sans transmettre ni `nettoyage` ni le texte |
-| `lots`, `fiches`, `synonymes`, `regles_situations` | lire |
+| `lots`, `fiches`, `synonymes`, `descendants_codables`, `regles_situations`, `listes_codes`, `chapitres` | lire |
 | `codages` | lire et ajouter **ses propres lignes**, sauf l'étape `scenario`, qu'il ne peut ni lire ni écrire. Aucune ligne ne peut être modifiée ni supprimée |
 | `rum` | lire et ajouter ses propres lignes |
 | `appels_llm` | ajouter ses propres lignes, sans pouvoir les relire |
 | `evaluations` | ajouter ses propres lignes ; relire uniquement celles dont il est l'auteur humain, jamais celles de l'IA |
-| `commentaires` | *(à relire)* lire et ajouter les commentaires de son travail (`utilisateur` = lui, y compris ceux de l'IA et de l'outil) ; aucune modification ni suppression ; un retrait seulement sur ses propres commentaires humains |
+| `commentaires` | lire et ajouter les commentaires de son travail (`utilisateur` = lui, y compris ceux de l'IA et de l'outil) ; aucune modification ni suppression ; un retrait seulement sur ses propres commentaires humains |
 | `profils` | créer (à l'inscription), lire son propre profil, et en modifier seulement `nom`, `prenom`, `statut` et `etablissement` ; l'accord se renouvelle par la fonction `accepter_mention` |
 
 Le chargement des données de référence et du codage initial se fait par les scripts Python, avec la clé secrète, sur l'ordinateur du responsable du projet.
@@ -442,6 +446,7 @@ Pas de gestion des rôles dans le prototype : tous les testeurs ont les mêmes d
 - Index sur `documents (lot, id_source, version)` (unicité), `documents (specialite)`, `documents (type_prise_en_charge)`.
 - Index sur `codages (document, utilisateur, etape)`.
 - Index de recherche textuelle sur `synonymes`, insensible aux accents et tolérant aux fautes de frappe.
+- Index sur `commentaires (document, utilisateur)`, `commentaires (codage)`, `commentaires (reponse_a)`.
 
 ---
 
@@ -489,7 +494,12 @@ Interprétations retenues lors de la création de la base (migrations de `supaba
 24. **Les preuves des codages `ia_humain`** sont recopiées par la page à partir des passages envoyés, que le LLM désigne par leur numéro (§3.5).
 25. **Ligne `ia_humain` et tours de correction** : `codages.appel_llm` désigne le **dernier tour**, celui dont la réponse a donné le codage enregistré ; les tours d'un même codage sont reliés par `appels_llm.appel_initial` (migration 13).
 26. **`codage_precedent`** : la dernière ligne de codage du testeur sur ce document, quelle que soit son étape ; les compteurs sont calculés par rapport à elle.
-27. **Auteur `outil`** : s'ajoute aux auteurs `ia`, `humain`, `generateur`, pour les commentaires et les passages non codés (§3.4, §3.10).
+27. **Auteur `outil`** : s'ajoute aux auteurs `ia`, `humain`, `generateur`, pour les commentaires (table `commentaires`, type `alerte`) et les passages non codés (§3.4, §3.10).
 28. **Plafond de 1 000 lignes** : le service qui répond à la page (PostgREST) ne renvoie jamais plus de 1 000 lignes par demande, quelle que soit la limite demandée. Toute requête de la page qui pourrait dépasser ce nombre doit être paginée, découpée, ou remplacée par une fonction de la base qui renvoie un résultat agrégé (exemple : `valeurs_filtres()`). Contrôle fait le 22 octobre 2026 (`docs/page_web.md` §12).
+29. **Listes de codes et chapitres** (migration 21) : tables `listes_codes` et `chapitres`, en lecture seule pour les testeurs ; les fichiers de `docs/referentiels/` restent la source, la base en est une copie chargée par script, rechargeable sans doublon. Le guide chargé ne garde que les **noms** des listes, jamais leur contenu.
+30. **Guide des situations cliniques** (migration 22) : colonnes `regle_officielle` et `evaluable` ; une règle non évaluable (fondée sur des listes d'actes absentes) est chargée mais jamais proposée. Les lignes « chapitres I à XVII » du tableau d'origine ont été étendues à « I à XVII, XIX et XXII », conformément au guide méthodologique (le chapitre XVIII, symptômes, reste exclu).
+31. **`regles_compatibles(code)`** (migration 23) : fonction de la base, droits de l'appelant, chemin de recherche fixé, exécutable par les testeurs connectés ; la page l'appelle au lieu de charger les listes.
+32. **Table `commentaires`** (migration 24) : insertion seulement ; une contrainte impose `code` vide si et seulement si `objet` vaut `sejour` ; `appel_llm` obligatoire pour une explication de l'IA ; un retrait est une ligne de type `retrait` qui désigne le commentaire retiré. Les commentaires d'auteur `ia` et `outil` sont écrits par la page avec la session du testeur, comme les lignes `ia_humain` (limite acceptée pour le prototype).
+33. **`commentaire_retirable(cible)`** (migration 25) : fonction en droits du propriétaire, chemin de recherche vide, qui dit seulement si le commentaire visé est un commentaire d'auteur `humain` du testeur connecté ; elle évite la récursion de la règle de sécurité (une règle qui relit sa propre table) ; exécution retirée au public et aux visiteurs, accordée aux testeurs connectés.
 
 *Base créée le 18 octobre 2026 : projet `codeur`, région Irlande (Union européenne), PostgreSQL 17 ; sept migrations appliquées (la septième ne fait que mettre à jour le commentaire de `rum.rum` après le déplacement du fichier ATIH) ; vérification du schéma conforme ; tests d'accès : 32 essais réussis sur 32 (commit `3918a2c`).*
