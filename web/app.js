@@ -475,6 +475,7 @@
     dossier.doc = data; dossier.passages = []; dossier.ensembles = []; dossier.prochainNumero = 1; dossier.actif = null; dossier.selection = null; dossier.codage = null;
     $("bloc-codage").hidden = true; $("codage-contenu").textContent = ""; $("codage-etat").textContent = ""; $("codage-reprise").hidden = true;
     $("codage-non-codes").textContent = ""; $("codage-non-codes").hidden = true; $("codage-sauvegarde").textContent = "";
+    $("bloc-regle").textContent = ""; $("commentaire-dossier").textContent = ""; $("texte-dossier").textContent = "";
     travail.base = null; travail.courant = null; travail.modifie = false; travail.localEnAttente = null;
     $("dossier-titre").textContent = data.id_source;
     $("dossier-infos").textContent = enClair(data.specialite) + "\n" + enClair(data.type_prise_en_charge) + "\n" +
@@ -495,15 +496,16 @@
     $("panneau-ensembles").hidden = !MODE_PANNEAU;
     document.querySelector(".dossier-corps").classList.toggle("sans-panneau", !MODE_PANNEAU);
     $("texte-dossier").classList.toggle("mode-simple", !MODE_PANNEAU);
-    montrer("ecran-dossier");
     codageUI.commentairesOuverts = new Set(); codageUI.commentaireDossierOuvert = false; codageUI.couleurs = new Map();
     codageUI.alerteDR = null; codageUI.etatRegle = ""; codageUI.caracteristiquesEnCours = false; codageUI.modeChangerOuvert = false; codageUI.commentairesModeOuverts = false;
     $("regle-recalcul").hidden = true; $("regle-commentaire").value = "";
-    try { await lireToutesRegles(); } catch (e) { message("message-dossier", e.message, true); }
     commentairesDoc.lignes = []; commentairesDoc.retires = new Set();
-    await lireCommentaires();
     montrerVue("codage");
-    rendre(); cacherBarre();
+    montrer("ecran-dossier");
+    rendre(); cacherBarre();   // le nouveau texte s'affiche tout de suite, avant les lectures en base
+    try { await lireToutesRegles(); } catch (e) { message("message-dossier", e.message, true); }
+    await lireCommentaires();
+    if (!dossier.doc || dossier.doc.id !== data.id) return; // un autre dossier a été ouvert entre-temps
     await chargerCodageExistant();
     majBoutons();
     chargerEvaluationExistante();
@@ -1001,7 +1003,7 @@
     bouton.disabled = true;
     montrerVue("codage");
     $("bloc-codage").hidden = false;
-    $("codage-contenu").textContent = "";
+    $("codage-contenu").textContent = ""; $("bloc-regle").textContent = ""; $("commentaire-dossier").textContent = "";
     const etatCodage = (t) => { $("codage-etat").innerHTML = "<span class='attente'></span>" + t; };
     message("message-dossier", "");
     const reglages = etat.reglages;
@@ -1485,7 +1487,7 @@
   // ---- Rendu
   function rendreCodage() {
     const c = travail.courant;
-    if (!c) { $("bloc-codage").hidden = true; return; }
+    if (!c) { $("bloc-codage").hidden = true; $("bloc-regle").textContent = ""; $("commentaire-dossier").textContent = ""; $("codage-contenu").textContent = ""; return; }
     const variante = varianteAffichage();
     $("bloc-codage").hidden = false;
     $("bloc-codage").className = "bloc-codage " + variante;
