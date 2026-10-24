@@ -2,7 +2,7 @@
 
 *Version de relecture, produite depuis `extraits_guide_methodologique_2026.csv` (qui reste le fichier de référence) par `scripts/referentiels/extraire_guide.py`. Mot pour mot ; seules les coupures de l'extraction ont été réparées. Pages : numéros imprimés. Lors de l'appel au LLM, la page envoie le préambule, les extraits des règles candidates, et une seule fois chaque passage commun qui concerne au moins l'une d'elles.*
 
-# Préambule (2 extraits, 1781 caractères, ≈ 445 tokens)
+# Préambule (3 extraits, 6072 caractères, ≈ 1518 tokens)
 
 ## toutes les règles — IV §1.1, p. 63-64 (1529 car.)
 
@@ -23,6 +23,48 @@ Le DP peut être :
 En revanche, l’emploi du chapitre XX Causes externes de morbidité et de mortalité (codes commençant par les lettres V, W, X et Y) n’est pas autorisé pour le codage du DP.
 
 Le DP est déterminé à la fin du séjour du patient dans l’unité médicale, conformément au guide des situations cliniques du chapitre VI. Il est énoncé en connaissance de l'ensemble des informations médicales le concernant, y compris les résultats d'examens effectués pendant le séjour qui parviendraient postérieurement à la sortie (anatomopathologie, virologie...).
+
+---
+
+## toutes les règles — IV §1.2, p. 64-65 (4291 car.)
+
+> **Note :** Définition du diagnostic relié (chapitre IV, §1.2), du titre jusqu'avant la remarque sur le double codage dague-astérisque. Appels des notes 2 et 3 retirés.
+
+1.2. LE DIAGNOSTIC RELIÉ
+
+Le diagnostic relié (DR) a pour rôle, en association avec le DP, de rendre compte de la prise en charge du patient lorsque celui-ci n’y suffit pas en termes médicoéconomiques. Sa détermination repose sur trois principes :
+
+• il n’y a lieu de mentionner un DR que lorsque le DP est codé avec le chapitre XXI de la CIM–10 ;
+
+• le DR est une maladie chronique ou de longue durée ou un état permanent, présent au moment du séjour objet du résumé ;
+
+• le DR répond à la question : « pour quelle maladie ou état la prise en charge enregistrée comme DP a-t-elle été effectuée ? ».
+
+1) Il n’y a lieu de mentionner un DR que lorsque le DP est codé avec le chapitre XXI de la CIM–10 (« codes Z »). En effet, l’imprécision médicale de certains codes Z a parfois pour corollaire une imprécision au regard de la classification des groupes homogènes de malades (GHM). C’est par ce défaut que le PMSI est concerné.
+
+Toutefois, le fait qu’un DR ne doive être mentionné que lorsque le DP est un code Z ne signifie pas qu’un DR soit obligatoire chaque fois que le DP est un code Z. Le DR doit aussi respecter les deux autres principes énoncés ci-après.
+
+2) Le DR est une maladie chronique ou de longue durée ou un état permanent, présent au moment du séjour objet du résumé. Une maladie justifiant des soins palliatifs entre dans ce cadre. Une séquelle — c’est-à-dire un code intitulé « Séquelles de... » dans la CIM–10 (voir Les séquelles de maladies et de lésions traumatiques dans le point 2 du chapitre V) — peut aussi être codée comme DR à partir du 1er mars 2013.
+
+À l’exception d’une hémopathie maligne, le DR ne peut pas être une affection aigüe. En effet, si une telle affection est présente lors de l’hospitalisation, ou bien elle est le motif de l’hospitalisation et elle est alors le DP, ou bien une autre affection a rang de DP et elle est alors un diagnostic associé. S’il s’agit d’un antécédent, l’affection n’existe plus et elle ne peut figurer dans le RUM que codée comme un antécédent, avec le chapitre XXI de la CIM–10. Seule une maladie chronique en cours (« active ») au moment de l’hospitalisation, un état permanent ou une maladie justifiant des soins palliatifs peut être mentionné comme DR. En conséquence, au terme d’un séjour conclu par la non-confirmation d’une affection suspectée, celle-ci ne peut pas être codée comme DR. Par « état permanent » on entend :
+
+• certaines entités classées dans le chapitre XXI de la CIM–10, telles un antécédent personnel ou familial (catégories Z80 et suivantes), un état postopératoire (stomie, présence d’implant ou de greffe, absence acquise d’un membre ou d’un organe…) ;
+
+• une séquelle : code de la CIM–10 intitulé « Séquelles de... » ;
+
+• éventuellement d’exceptionnels symptômes sans diagnostic étiologique (chapitre XVIII, codes « R ») : ronflement, troubles de la sensibilité cutanée, amnésie…
+
+Un état peut être qualifié de permanent dans la mesure où, lors de l’hospitalisation au cours de laquelle il est enregistré, l’état des connaissances ne permet pas de lui prévoir un terme ou autorise à estimer qu’il peut durer jusqu’à la fin de la vie du patient.
+
+Par « maladie justifiant des soins palliatifs » on entend toute affection recevant des soins conformes aux références citées infra dans la note 22 (point 1.2.2.3, chapitre VI).
+
+3) Le DR répond à la question : « pour quelle maladie ou état la prise en charge enregistrée comme DP a-t-elle été faite ? ».
+
+Le DR est l’affection motivant la prise en charge indiquée par le DP. Pour autant, le rôle du DR n’est pas d’accroitre le sens médical du codage (même s’il y concourt), par exemple de traduire la filiation entre causes et effets ; il est de compléter le diagnostic principal lorsqu’il est susceptible de ne pas suffire seul, au regard de la classification des GHM, à traduire quelle a été la prise en charge en termes d’utilisation des moyens.
+
+Depuis la version 11 des GHM (2009), le DR intervient dans l’algorithme de la classification pour orienter des séjours entre les catégories majeures de diagnostic plus précisément que ne le permettrait leur DP.
+
+Il résulte de ce qui vient d’être exposé qu’il existe une différence fondamentale de sens entre DR et diagnostic associé. Pour plus d’information, voir le point 2 (Les diagnostics associés) de ce chapitre.
 
 ---
 

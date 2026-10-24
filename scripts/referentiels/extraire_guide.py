@@ -37,6 +37,7 @@ NOTE_16 = "Note du guide : La plupart des séjours pour intervention plastique r
 EXTRAITS = [
     # --- préambules
     ("preambule", "", "", "IV §1.1", (71, 72), r"Le diagnostic principal \(DP\) du RUM est le problème", r"\(anatomopathologie,\s*virologie\.\.\.\)\.", "Définition du diagnostic principal (chapitre IV, §1.1), jusqu'à la fin du §1.1. « chapitre 0 » (renvoi au guide des situations cliniques) est tel quel dans la version provisoire."),
+    ("preambule", "", "", "IV §1.2", (72, 73), r"1\.2\. LE DIAGNOSTIC RELIÉ", r"voir le point 2 \(Les\s*diagnostics associés\) de ce chapitre\.", "Définition du diagnostic relié (chapitre IV, §1.2), du titre jusqu'avant la remarque sur le double codage dague-astérisque. Appels des notes 2 et 3 retirés."),
     ("preambule", "", "", "VI §1.5", (148, 148), r"EN CONCLUSION : le diagnostic principal", r"la situation de diagnostic\)\.", "Conclusion du chapitre VI : les trois situations cliniques."),
     # --- passages communs
     ("commun", "", "D1 D2 D3 D4 D5 D6 D7 D8 D9", "VI §1.1", (130, 130), r"1\.1\. HOSPITALISATION POUR DIAGNOSTIC", r"la règle est\s*la même\.", "Introduction du §1.1 : la situation de diagnostic."),
