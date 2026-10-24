@@ -215,6 +215,9 @@ def main() -> None:
               lambda: rows(c1.table("listes_codes").insert({"liste": "x", "nature": "cim", "code": "I10"}, returning="minimal").execute()))
         essai("non connecté : lire les chapitres (interdit)", "refus", lambda: rows(anon.table("chapitres").select("numero").execute()))
         essai("non connecté : lire une liste (interdit)", "refus", lambda: rows(anon.table("listes_codes").select("code").limit(1).execute()))
+        essai("règles compatibles avec une pathologie (fonction, connecté)", "succès",
+              lambda: [x for x in rows(c1.rpc("regles_compatibles", {"code": "K409"}).execute()) if x["regle"] == "T3"])
+        essai("non connecté : règles compatibles (interdit)", "refus", lambda: rows(anon.rpc("regles_compatibles", {"code": "K409"}).execute()))
 
         # ---------------------------------------------------------------- 2 bis. le lot des CRH synthétiques (s'il est chargé)
         LOT_SYNTH = "synthetiques-run08-e500"
