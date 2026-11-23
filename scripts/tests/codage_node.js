@@ -34,6 +34,10 @@ process.stdin.on("end", () => {
       if (cas.precedent !== undefined) sortie.compteurs = C.compteurs(cas.precedent, sortie.codage);
     }
   }
+  if (cas.requete) {
+    const q = cas.requete;
+    sortie.requete = { corps: C.corpsRequete(q.modele, q.messages, q.json), enregistree: C.requeteEnregistree(q.modele, q.adresse, q.messages, q.tour, q.passages) };
+  }
   if (cas.repete) sortie.repete = C.assemblerAppelRepete(cas.repete.retenu, cas.repete.nouveau, "ia_humain");
   if (cas.preparer) {
     const courant = JSON.parse(JSON.stringify(cas.preparer.courant));

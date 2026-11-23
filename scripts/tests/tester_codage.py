@@ -346,6 +346,24 @@ def main() -> None:
     r = node({"passages": PASSAGES[:2], "index": INDEX, "descendants": DESC, "message": {"texte": "Texte du CRH.", "contexte": {"codesRetenus": [{"code": "I10", "libelle": "Hypertension essentielle (primitive)", "categorie": "pathologie_principale"}]}}})
     controle("message utilisateur : texte, passages numérotés, codes déjà retenus", "1. « HTA traitée »" in r["message"] and "2. « hernie inguinale droite »" in r["message"] and "I10 — Hypertension" in r["message"] and "déjà désignée" in r["message"])
 
+    # 13. Forme de la requête envoyée au modèle (aucun appel réel) : temperature 0 et top_p 1, aucun autre paramètre
+    # d'échantillonnage (Mistral, code 3054 : « top_p must be 1 when using greedy sampling »).
+    msgs = [{"role": "system", "content": "S"}, {"role": "user", "content": "U"}]
+    q = {"modele": "mistral-large-latest", "adresse": "https://api.mistral.ai/v1", "messages": msgs, "tour": 1, "passages": PASSAGES[:1]}
+    r = node({"index": INDEX, "descendants": DESC, "requete": {**q, "json": True}})["requete"]
+    controle("requête : exactement model, temperature 0, top_p 1, messages, response_format json_object",
+             r["corps"] == {"model": "mistral-large-latest", "temperature": 0, "top_p": 1, "messages": msgs, "response_format": {"type": "json_object"}}, str(sorted(r["corps"])))
+    sans = node({"index": INDEX, "descendants": DESC, "requete": {**q, "json": False}})["requete"]["corps"]
+    controle("requête sans JSON demandé : exactement model, temperature 0, top_p 1, messages", sans == {"model": "mistral-large-latest", "temperature": 0, "top_p": 1, "messages": msgs}, str(sorted(sans)))
+    controle("requête enregistrée (appels_llm.requete) : mêmes valeurs que le corps envoyé, adresse, tour, passages, pas de clé",
+             r["enregistree"] == {"modele": "mistral-large-latest", "adresse": "https://api.mistral.ai/v1", "temperature": 0, "top_p": 1, "response_format": "json_object", "tour": 1,
+                                  "passages": [{"numero": 1, **PASSAGES[0]}], "messages": msgs}, str(sorted(r["enregistree"])))
+    # la page ne construit le corps qu'à un seul endroit, et aucun paramètre d'échantillonnage n'est écrit ailleurs
+    source = (RACINE / "web" / "app.js").read_text(encoding="utf-8")
+    interdits = [m for m in ("temperature", "top_p", "top_k", "max_tokens", "random_seed", "seed:", "presence_penalty", "frequency_penalty", "safe_prompt", "response_format") if m in source]
+    controle("app.js : un seul envoi au modèle, corps construit par corpsRequete, aucun paramètre écrit dans app.js",
+             source.count("/chat/completions\"") == 1 and source.count("corpsRequete(") == 1 and source.count("requeteEnregistree(") == 1 and not interdits, f"paramètres trouvés : {interdits}")
+
     ok, total = sum(RESULTATS), len(RESULTATS)
     print(f"\nBILAN : {ok} contrôles réussis sur {total}")
     sys.exit(0 if ok == total else 1)

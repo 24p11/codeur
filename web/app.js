@@ -230,8 +230,7 @@
   // Appel au format commun /chat/completions. Retourne { contenu, usage, duree_ms, modele, brut } ou lève une erreur
   // dont le message ne contient jamais la clé.
   async function appelerLLM(reglages, messages, options) {
-    const corps = { model: reglages.modele, temperature: 0, messages };
-    if (options && options.json) corps.response_format = { type: "json_object" };
+    const corps = window.CodeurCodage.corpsRequete(reglages.modele, messages, !!(options && options.json)); // forme de la requête : web/codage.js
     const debut = performance.now();
     let rep;
     try {
@@ -1359,8 +1358,7 @@
 
   // Un appel : envoi, enregistrement dans appels_llm (réussi ou échoué), retour du résultat.
   async function appelerEtEnregistrer(reglages, fournisseur, messages, infos) {
-    const requete = { modele: reglages.modele, adresse: reglages.adresse, temperature: 0, response_format: "json_object", tour: infos.tour || 0,
-                      passages: infos.passages.map((p, i) => ({ numero: i + 1, debut: p.debut, fin: p.fin, texte: p.texte })), messages };
+    const requete = K.requeteEnregistree(reglages.modele, reglages.adresse, messages, infos.tour, infos.passages);
     let res = null, erreur = null;
     try { res = await appelerLLM(reglages, messages, { json: true }); } catch (e) { erreur = e.message; }
     await enregistrerAppel({

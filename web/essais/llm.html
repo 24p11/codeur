@@ -35,6 +35,7 @@
       const corps = {
         model: modele,
         temperature: 0,
+        top_p: 1, // obligatoire chez Mistral avec temperature 0 (code 3054 sinon) ; voir corpsRequete dans web/codage.js
         messages: [
           { role: "system", content: "Tu réponds en français, très brièvement." },
           { role: "user", content: json

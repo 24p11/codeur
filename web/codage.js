@@ -476,7 +476,25 @@
     return pathologiePrincipale(codage) !== (c.calculee_sur || null);
   }
 
-  const api = { preparerAppelRepete, assemblerAppelRepete, normaliserCode, construireMessageUtilisateur, analyserReponse, verifierCodes, construireMessageCorrection,
+  // Forme de la requête au modèle, en un seul endroit (test de connexion, codage, correction, caractéristiques).
+  // Paramètres d'échantillonnage : temperature 0 ET top_p 1, tous deux écrits. Depuis novembre 2026, Mistral refuse
+  // temperature 0 quand top_p ne vaut pas 1 (HTTP 400, code 3054, « top_p must be 1 when using greedy sampling ») ;
+  // la page n'envoyait pas top_p, et la valeur appliquée par défaut par le service n'était donc pas 1. Rien d'autre
+  // (ni max_tokens, ni random_seed, ni pénalités) : scripts/tests/tester_codage.py vérifie cette forme.
+  const ECHANTILLONNAGE = { temperature: 0, top_p: 1 };
+  function corpsRequete(modele, messages, json) {
+    const corps = { model: modele, temperature: ECHANTILLONNAGE.temperature, top_p: ECHANTILLONNAGE.top_p, messages };
+    if (json) corps.response_format = { type: "json_object" };
+    return corps;
+  }
+  // Ce qui est enregistré dans appels_llm.requete : le corps envoyé (mêmes valeurs), l'adresse, le tour et les passages ; jamais la clé.
+  function requeteEnregistree(modele, adresse, messages, tour, passages) {
+    const corps = corpsRequete(modele, messages, true);
+    return { modele: corps.model, adresse, temperature: corps.temperature, top_p: corps.top_p, response_format: corps.response_format.type, tour: tour || 0,
+             passages: (passages || []).map((p, i) => ({ numero: i + 1, debut: p.debut, fin: p.fin, texte: p.texte })), messages: corps.messages };
+  }
+
+  const api = { corpsRequete, requeteEnregistree, preparerAppelRepete, assemblerAppelRepete, normaliserCode, construireMessageUtilisateur, analyserReponse, verifierCodes, construireMessageCorrection,
                 appliquerCorrection, construireCodage, compteurs, LIMITE_CANDIDATS,
                 MODE_PROMPT_CARACTERISTIQUES, construireMessageCaracteristiques, analyserCaracteristiques, construireMessageCorrectionCaracteristiques,
                 appliquerCorrectionCaracteristiques, appliquerCaracteristiques, regleARevoir, pathologiePrincipale, modesDe, CIRCONSTANCES,
