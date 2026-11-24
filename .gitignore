@@ -30,3 +30,6 @@ web/mention_information.md
 
 # --- Livraisons recode-icd : jamais dans le dépôt (docs/referentiels/README.md : donnees/referentiels/)
 docs/referentiels/recode-icd/
+
+# --- Node : la commande Supabase installée dans le projet (npm install ; lancée par « npx supabase »)
+node_modules/

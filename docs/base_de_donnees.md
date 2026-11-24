@@ -34,9 +34,10 @@ Le schéma est écrit sous forme de **migrations** : des fichiers SQL numéroté
 
 ## 2. Ce qu'il faut sur l'ordinateur
 
-- L'outil en ligne de commande de Supabase : `brew install supabase/tap/supabase`.
-- Une connexion au compte Supabase : `supabase login` (ouvre le navigateur ; à faire une fois).
-- Le dépôt relié au projet : `supabase link --project-ref <identifiant du projet>` (à faire une fois ; crée `supabase/.temp/`, ignoré par git).
+- Node (pour `npx`) et l'outil en ligne de commande de Supabase, **installé dans le projet** : `npm install` à la racine (lit `package.json` et `package-lock.json`, installe dans `node_modules/`, ignoré par git). L'outil se lance par **`npx supabase …`**, depuis la racine du dépôt. Depuis le 24 novembre 2026 on ne passe plus par Homebrew, qui ne fournit plus de paquets pour les Mac Intel. Version installée : 3.3.0.
+- Une connexion au compte Supabase : `npx supabase login` (ouvre le navigateur ; à faire une fois par ordinateur, par le responsable).
+- Le dépôt relié au projet : `npx supabase link --project-ref <identifiant du projet>` (à faire une fois ; crée `supabase/.temp/`, ignoré par git ; demande la connexion au compte).
+- **Sans connexion au compte ni liaison**, les migrations se vérifient quand même par connexion directe à la base (§3, seconde forme), et les scripts de test se connectent par l'adresse par défaut du « pooler » (`scripts/tests/connexion.py`).
 - Le fichier `.env` à la racine, jamais versionné, avec les variables listées dans `.env.exemple` :
   `SUPABASE_URL`, `SUPABASE_PROJECT_REF`, `SUPABASE_PUBLISHABLE_KEY` (clé publique), `SUPABASE_SECRET_KEY` (clé secrète), `SUPABASE_DB_PASSWORD` (mot de passe de la base). L'outil Supabase lit lui-même `SUPABASE_DB_PASSWORD` s'il est présent dans l'environnement : les commandes ci-dessous le chargent avec `set -a && . ./.env && set +a`.
 
@@ -44,12 +45,22 @@ Le schéma est écrit sous forme de **migrations** : des fichiers SQL numéroté
 
 ```
 set -a && . ./.env && set +a
-supabase migration list          # compare les fichiers locaux et ce que la base a déjà appliqué
-supabase db push --dry-run       # affiche les migrations qui seraient appliquées, sans rien faire
-supabase db push                 # applique les migrations manquantes, dans l'ordre
+npx supabase migration list          # compare les fichiers locaux et ce que la base a déjà appliqué
+npx supabase db push --dry-run       # affiche les migrations qui seraient appliquées, sans rien faire
+npx supabase db push                 # applique les migrations manquantes, dans l'ordre
 ```
 
-Règles du projet : avant chaque `supabase db push`, montrer la liste des migrations qui vont être appliquées ; ne jamais lancer une commande qui réinitialise, vide ou supprime la base distante (`supabase db reset` sur le projet relié, par exemple) sans accord explicite du responsable.
+Seconde forme, sans liaison : la même commande avec l'adresse de la base, construite à partir du `.env` par `scripts/tests/connexion.py` (le mot de passe ne doit jamais être affiché ni recopié) :
+
+```
+URL=$(uv run --group tests python -I -c "import sys; sys.path.insert(0, 'scripts/tests'); from connexion import charger_env, url_postgres; print(url_postgres(charger_env()))")
+npx supabase migration list --db-url "$URL"
+npx supabase db push --dry-run --db-url "$URL"
+```
+
+La version 3.3.0 annonce que `--db-url` sera remplacé par `--remote=<adresse>` en version 4, et signale deux réglages anciens dans `supabase/config.toml` (`auth.email.enable_signup`, `auth.sms.enable_signup`) : simples avertissements, rien n'a été changé.
+
+Règles du projet : avant chaque `npx supabase db push`, montrer la liste des migrations qui vont être appliquées ; ne jamais lancer une commande qui réinitialise, vide ou supprime la base distante (`supabase db reset` sur le projet relié, par exemple) sans accord explicite du responsable.
 
 Pour faire évoluer le schéma : créer un nouveau fichier `supabase/migrations/<AAAAMMJJHHMMSS>_<nom>.sql`, mettre `docs/SCHEMA.md` à jour, puis appliquer.
 
@@ -73,7 +84,7 @@ Deux colonnes de `documents` sont **générées par la base** à partir de `nett
 ## 4. Vérifier le schéma
 
 ```
-uv run python -I scripts/tests/verifier_schema.py
+uv run --group tests python -I scripts/tests/verifier_schema.py
 ```
 
 Lecture seule. Le script se connecte directement à la base (via l'adresse enregistrée par `supabase link` et le mot de passe du `.env`) et affiche les tables avec l'état de la RLS et des commentaires, les colonnes, les contraintes, les index, les déclencheurs, les règles par ligne et les droits des rôles `anon` et `authenticated`.
@@ -81,12 +92,12 @@ Lecture seule. Le script se connecte directement à la base (via l'adresse enreg
 ## 5. Tester les règles d'accès
 
 ```
-uv run python -I scripts/tests/tester_acces.py
+uv run --group tests python -I scripts/tests/tester_acces.py
 ```
 
 Le script crée deux comptes de test et des données de test avec la clé secrète, puis, avec la clé publique et le premier compte connecté, vérifie chaque règle de `docs/SCHEMA.md` §7 : lecture des documents et des référentiels, ajout de ses propres lignes de codage, invisibilité de l'étape `scenario` et des lignes des autres comptes, impossibilité de modifier ou supprimer, enregistrement d'un appel au LLM avec un UUID fourni par la page puis d'un codage qui y fait référence, impossibilité de relire les appels et les évaluations de l'IA, RUM, profil, nouvelle version de document, visiteur non connecté. Il supprime ensuite les données et les comptes de test, même si un essai a échoué. Chaque essai affiche le résultat attendu et le résultat obtenu ; le script se termine en erreur si un essai échoue.
 
-Les bibliothèques nécessaires (`supabase`, `psycopg`) sont dans le groupe de dépendances `tests` du `pyproject.toml` ; `uv run` les installe automatiquement.
+Les bibliothèques nécessaires (`supabase`, `psycopg`) sont dans le groupe de dépendances `tests` du `pyproject.toml` ; `uv run --group tests` les installe automatiquement (sans `--group tests`, sur un ordinateur neuf, `psycopg` manque ; il en va de même pour `scripts/tests/tester_regles.py`).
 
 ## 6. Points à connaître pour la page web
 
