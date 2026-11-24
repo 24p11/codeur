@@ -8,6 +8,7 @@ Le schéma est écrit sous forme de **migrations** : des fichiers SQL numéroté
 
 | Fichier | Contenu |
 |---|---|
+| `20261124100000_appels_llm_test_connexion.sql` | Tâche `test_connexion` dans `appels_llm` ; colonne `document` facultative pour cette seule tâche (contrainte `appels_llm_document_obligatoire`) ; droits inchangés |
 | `20261018100000_extensions_et_fonctions.sql` | Extensions `unaccent` et `pg_trgm` ; fonctions `normaliser_texte` et `empreinte_texte` |
 | `20261018100100_tables_reference.sql` | `lots`, `documents`, `fiches`, `synonymes`, `regles_situations` ; déclencheur « texte figé » |
 | `20261018100200_tables_travail.sql` | `profils`, `appels_llm`, `codages`, `rum`, `evaluations` |
@@ -45,10 +46,12 @@ Le schéma est écrit sous forme de **migrations** : des fichiers SQL numéroté
 
 ```
 set -a && . ./.env && set +a
-npx supabase migration list          # compare les fichiers locaux et ce que la base a déjà appliqué
-npx supabase db push --dry-run       # affiche les migrations qui seraient appliquées, sans rien faire
-npx supabase db push                 # applique les migrations manquantes, dans l'ordre
+npx supabase migration list --remote       # compare les fichiers locaux et ce que la base a déjà appliqué
+npx supabase db push --dry-run --remote    # affiche les migrations qui seraient appliquées, sans rien faire
+npx supabase db push --remote              # applique les migrations manquantes, dans l'ordre
 ```
+
+**`--remote` est indispensable depuis la version 3 de l'outil** : sans lui, la commande vise une base locale (Docker), absente de ce projet, et échoue avec « failed to connect to 127.0.0.1:54322 ». La première ligne de la réponse dit toujours quelle base est visée (`Target: project codeur (…) · production`) : la lire avant d'aller plus loin.
 
 Seconde forme, sans liaison : la même commande avec l'adresse de la base, construite à partir du `.env` par `scripts/tests/connexion.py` (le mot de passe ne doit jamais être affiché ni recopié) :
 

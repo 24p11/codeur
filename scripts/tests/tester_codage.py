@@ -388,6 +388,33 @@ def main() -> None:
     controle("app.js : chaque tentative est enregistrée (enregistrerAppel dans la tentative), pauses d'une seconde avant le second appel et les tours de correction",
              "async function tenterEtEnregistrer" in source and source.count("await pause(K.ESPACEMENT_MS)") == 3 and source.count("K.avecReessais(") + source.count("R.avecReessais(") == 2, "")
 
+    # 15. Les deux formes de la réponse du modèle : content en chaîne, ou en liste de morceaux {type, text}
+    def rep(content):
+        return {"id": "x", "model": "m", "choices": [{"index": 0, "message": {"role": "assistant", "content": content}, "finish_reason": "stop"}], "usage": {"total_tokens": 9}}
+    json_ok = '{"ok": true}'
+    r = node({"index": INDEX, "descendants": DESC, "contenus": [
+        rep(json_ok),
+        rep([{"type": "text", "text": json_ok}]),
+        rep([{"type": "thinking", "thinking": [{"type": "text", "text": "je réfléchis"}]}, {"type": "text", "text": '{"ok":'}, {"type": "text", "text": " true}"}]),
+        rep(None), rep(""), rep([]), rep([{"type": "thinking", "thinking": [{"type": "text", "text": "rien d'autre"}]}]),
+        {"choices": []}, {"object": "error", "message": "x"}, None,
+    ]})["contenus"]
+    controle("réponse en chaîne : le texte tel quel", r[0] == json_ok, str(r[0]))
+    controle("réponse en liste de morceaux {type: text, text} : le texte du morceau", r[1] == json_ok, str(r[1]))
+    controle("liste avec raisonnement puis deux morceaux de texte : raisonnement ignoré, textes mis bout à bout", r[2] == json_ok, str(r[2]))
+    controle("sans texte (null, chaîne vide, liste vide, raisonnement seul, pas de choix, erreur, rien) : null", r[3:] == [None] * 7, str(r[3:]))
+    # la même réponse de codage sous les deux formes donne la même analyse
+    brute = reponse([{"code": "I10", "libelle": "HTA", "categorie": "pathologie_principale", "passages": [1]}])
+    formes = node({"index": INDEX, "descendants": DESC, "contenus": [rep(brute), rep([{"type": "text", "text": brute}])]})["contenus"]
+    a1, a2 = (node({"passages": PASSAGES[:1], "index": INDEX, "descendants": DESC, "reponse": f})["analyse"] for f in formes)
+    controle("codage : même analyse que la réponse arrive en chaîne ou en morceaux", a1["ok"] and a1 == a2, str(a1.get("ok")))
+    x = node({"index": INDEX, "descendants": DESC, "extrait": {"brut": '{"a":  "' + "z" * 700 + ' cle-SECRETE"}', "cle": "cle-SECRETE", "longueur": 500}})["extrait"]
+    controle("réponse brute montrée au test : tronquée à 500 caractères, longueur totale indiquée", len(x) < 560 and "caractères en tout" in x, str(len(x)))
+    x = node({"index": INDEX, "descendants": DESC, "extrait": {"brut": '{"cle": "cle-SECRETE"}', "cle": "cle-SECRETE"}})["extrait"]
+    controle("réponse brute montrée au test : la clé n'y figure jamais", "SECRETE" not in x and "***" in x, x)
+    controle("app.js : contenu lu par contenuDeReponse en un seul endroit ; test de connexion enregistré (tâche test_connexion) avec un prompt qui demande un JSON",
+             source.count("contenuDeReponse(") == 1 and "choices[0]" not in source and 'tache: "test_connexion"' in source and "R.MESSAGE_TEST_CONNEXION" in source, "")
+
     ok, total = sum(RESULTATS), len(RESULTATS)
     print(f"\nBILAN : {ok} contrôles réussis sur {total}")
     sys.exit(0 if ok == total else 1)

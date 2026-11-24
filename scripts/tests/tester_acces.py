@@ -113,6 +113,13 @@ def main() -> None:
         essai("enregistrer un appel en demandant la ligne en retour (impossible : pas de relecture)", "refus",
               lambda: rows(c1.table("appels_llm").insert({"id": str(uuid.uuid4()), "utilisateur": u1, "document": doc_id, "tache": "codage"}).execute()))
         essai("relire ses appels au LLM (interdit)", "refus", lambda: rows(c1.table("appels_llm").select("id").execute()))
+        essai("enregistrer un test de connexion sans document (tâche test_connexion, migration 26)", "vide",
+              lambda: rows(c1.table("appels_llm").insert({"id": str(uuid.uuid4()), "utilisateur": u1, "document": None, "tache": "test_connexion",
+                                                          "fournisseur": "test", "modele": "test", "reponse": "{}"}, returning="minimal").execute()))
+        essai("enregistrer un appel de codage sans document (interdit : document obligatoire hors test de connexion)", "refus",
+              lambda: rows(c1.table("appels_llm").insert({"id": str(uuid.uuid4()), "utilisateur": u1, "document": None, "tache": "codage"}, returning="minimal").execute()))
+        essai("enregistrer un test de connexion au nom d'un autre testeur (interdit)", "refus",
+              lambda: rows(c1.table("appels_llm").insert({"id": str(uuid.uuid4()), "utilisateur": u2, "document": None, "tache": "test_connexion"}, returning="minimal").execute()))
         essai("ajouter une ligne de codage ia_humain qui référence l'appel", "succès",
               lambda: rows(c1.table("codages").insert({"document": doc_id, "etape": "ia_humain", "utilisateur": u1,
                                                        "appel_llm": appel_id, "codage_precedent": ma_ligne,
@@ -277,6 +284,8 @@ def main() -> None:
                 for src in ("DOC-A-CORRIGER", "DOC-TEST-RET"):
                     admin.table("documents").delete().eq("lot", lot_id).eq("id_source", src).execute()
             admin.table("lots").delete().eq("id", lot_id).execute()
+            if ids_users:  # tests de connexion des comptes de test : lignes sans document (migration 26)
+                admin.table("appels_llm").delete().in_("utilisateur", ids_users).is_("document", "null").execute()
             for uid in ids_users:
                 admin.auth.admin.delete_user(uid)  # supprime aussi le profil (ON DELETE CASCADE)
             reste = admin.table("documents").select("id").eq("lot", lot_id).execute().data

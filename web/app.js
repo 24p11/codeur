@@ -242,6 +242,7 @@
   async function appelerLLM(reglages, messages, options) {
     const corps = window.CodeurCodage.corpsRequete(reglages.modele, messages, !!(options && options.json)); // forme de la requête : web/codage.js
     const debut = performance.now();
+    const sansCle = (t) => (reglages.cle ? t.split(reglages.cle).join("***") : t); // la clé ne doit figurer dans rien de ce qui est enregistré
     let rep;
     try {
       rep = await fetch(reglages.adresse + "/chat/completions", {
@@ -255,13 +256,15 @@
     if (!rep.ok) {
       // statut et Retry-After servent aux nouveaux essais (429, 503) ; l'en-tête n'est lisible que si le service l'expose aux pages web
       const err = new Error("le service a répondu HTTP " + rep.status + " : " + brut.replace(reglages.cle, "***").slice(0, 300));
-      err.statut = rep.status; err.retryAfter = rep.headers.get("Retry-After");
+      err.statut = rep.status; err.retryAfter = rep.headers.get("Retry-After"); err.brut = sansCle(brut); err.duree_ms = duree_ms;
       throw err;
     }
+    // Une réponse reçue mais inexploitable garde son texte brut (err.brut) : il est enregistré dans appels_llm.reponse.
+    const inexploitable = (texte) => { const err = new Error(texte); err.brut = sansCle(brut); err.duree_ms = duree_ms; return err; };
     let donnees;
-    try { donnees = JSON.parse(brut); } catch (e) { throw new Error("réponse du service illisible"); }
-    const contenu = donnees && donnees.choices && donnees.choices[0] && donnees.choices[0].message ? donnees.choices[0].message.content : null;
-    if (typeof contenu !== "string") throw new Error("réponse du service sans contenu");
+    try { donnees = JSON.parse(brut); } catch (e) { throw inexploitable("réponse du service illisible"); }
+    const contenu = window.CodeurCodage.contenuDeReponse(donnees); // chaîne, ou liste de morceaux de texte (web/codage.js)
+    if (contenu === null) throw inexploitable("réponse du service sans contenu");
     return { contenu, usage: donnees.usage || {}, duree_ms, modele: donnees.model || reglages.modele, brut };
   }
   $("formulaire-reglages").addEventListener("submit", (ev) => {
@@ -279,12 +282,20 @@
     message("message-reglages", "Test en cours…");
     try {
       const R = window.CodeurCodage;
+      // Le test demande explicitement un petit objet JSON (le format JSON imposé au service l'exige) et est enregistré dans
+      // appels_llm (tâche test_connexion, sans document, réponse brute comprise), chaque tentative ayant sa ligne.
+      const messagesTest = [{ role: "user", content: R.MESSAGE_TEST_CONNEXION }];
+      const idTest = uuid();
       const res = await R.avecReessais(
-        () => appelerLLM(r, [{ role: "user", content: "Réponds uniquement par l'objet JSON {\"ok\": true}." }], { json: true }),
+        (tentative) => tenterEtEnregistrer(r, fournisseurDe(r.adresse), messagesTest, { id: idTest, appel_initial: null, version_prompt: "test_connexion", tache: "test_connexion", passages: [], document: null, facultatif: true }, tentative),
         (s, i) => decompte(s, (reste) => message("message-reglages", "Test en cours : " + R.messageAttente(reste, i.statut, i.prochaine, i.essais) + "…")));
       message("message-reglages", "Connexion réussie : " + res.modele + " a répondu en " + res.duree_ms + " ms (" + (res.usage.total_tokens || "?") + " tokens). Fournisseur enregistré : « " + fournisseurDe(r.adresse) + " ».");
     } catch (e) {
-      message("message-reglages", e.essaisEpuises ? window.CodeurCodage.messageEchecReessais(e.statut, fournisseurDe(r.adresse)).replace("cliquez sur « Réessayer »", "relancez le test") : "Échec du test : " + e.message, true);
+      // En cas d'échec, la réponse brute du service est montrée (tronquée, clé masquée) pour pouvoir être recopiée au responsable.
+      const R = window.CodeurCodage;
+      const dejaMontree = typeof e.statut === "number"; // une erreur HTTP porte déjà le début de la réponse dans son message
+      const brutMontre = e.brut && !dejaMontree ? " Réponse brute du service : " + R.extraitBrut(e.brut, r.cle, 500) : "";
+      message("message-reglages", e.essaisEpuises ? R.messageEchecReessais(e.statut, fournisseurDe(r.adresse)).replace("cliquez sur « Réessayer »", "relancez le test") : "Échec du test : " + e.message + "." + brutMontre, true);
     }
     $("bouton-tester-llm").disabled = false;
   });
@@ -1401,11 +1412,14 @@
     let res = null, echec = null;
     try { res = await appelerLLM(reglages, messages, { json: true }); } catch (e) { echec = e; }
     const erreur = echec ? echec.message : null;
-    await enregistrerAppel({
-      id: res ? infos.id : uuid(), utilisateur: etat.utilisateur.id, document: dossier.doc.id, tache: infos.tache, fournisseur, modele: res ? res.modele : reglages.modele,
-      version_prompt: infos.version_prompt, requete, reponse: res ? res.brut : null,
+    // infos.facultatif (test de connexion) : un enregistrement impossible ne doit pas faire échouer l'appel lui-même.
+    const enregistrer = infos.facultatif ? (ligne) => enregistrerAppel(ligne).catch(() => {}) : enregistrerAppel;
+    if (infos.facultatif && !(etat.utilisateur && etat.utilisateur.id)) { if (echec) throw echec; return res; }
+    await enregistrer({
+      id: res ? infos.id : uuid(), utilisateur: etat.utilisateur.id, document: infos.document !== undefined ? infos.document : dossier.doc.id, tache: infos.tache, fournisseur, modele: res ? res.modele : reglages.modele,
+      version_prompt: infos.version_prompt, requete, reponse: res ? res.brut : (echec.brut || null),
       tokens_entree: res ? (res.usage.prompt_tokens ?? null) : null, tokens_sortie: res ? (res.usage.completion_tokens ?? null) : null,
-      tokens_total: res ? (res.usage.total_tokens ?? null) : null, duree_ms: res ? res.duree_ms : null, erreur, appel_initial: infos.appel_initial,
+      tokens_total: res ? (res.usage.total_tokens ?? null) : null, duree_ms: res ? res.duree_ms : (echec.duree_ms ?? null), erreur, appel_initial: infos.appel_initial,
     });
     if (echec) throw echec;
     return res;

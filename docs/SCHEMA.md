@@ -1,5 +1,7 @@
 # Schéma de la base de données
 
+*Version 1.8 — 24 novembre 2026 (à relire par Rémi) : tâche `test_connexion` dans `appels_llm`, `document` facultatif pour cette seule tâche, réponse brute enregistrée aussi pour un appel en échec (§5.2, §10 point 8) ; migration 26.*
+
 *Version 1.7 — 24 novembre 2026 (à relire par Rémi) : contenu de `appels_llm.requete` (`top_p`, `tentative`, `appel_vise`) et identifiant des tentatives en échec (§5.2). Aucune migration.*
 
 *Version 1.6 — 24 octobre 2026 : table `commentaires` et sortie des commentaires et explications du JSON (§3.4, §5.5, §7, §8) ; mode de prise en charge avec libellé et `caracteristiques` (§3.4) ; second appel : règle et mode de prise en charge (§3.6) ; guide des situations cliniques, listes de codes, chapitres et `regles_compatibles` (§6) ; précisions 29 à 33 (§10). Relu par Rémi le 24 octobre 2026.*
@@ -337,12 +339,12 @@ Chaque appel au LLM, pour toutes les tâches.
 | Colonne | Contenu |
 |---|---|
 | `id` | **UUID fourni par la page avant l'insertion** (valeur par défaut générée par la base pour les scripts), afin que la page puisse relier un codage à son appel sans avoir à relire l'appel |
-| `cree_le`, `utilisateur`, `document` | `utilisateur` et `document` obligatoires |
-| `tache` | `evaluation_document`, `caracteristiques_sejour`, `codage`, `revue` |
+| `cree_le`, `utilisateur`, `document` | `utilisateur` obligatoire ; `document` obligatoire, sauf pour la tâche `test_connexion`, faite hors de tout dossier (migration 26) |
+| `tache` | `evaluation_document`, `caracteristiques_sejour`, `codage`, `revue`, `test_connexion` (le bouton « Tester la connexion » de l'écran des réglages, enregistré depuis A2-0.28) |
 | `fournisseur`, `modele` | Par exemple `mistral`, `mistral-large-latest` ; la version exacte si le service l'indique |
 | `version_prompt` | Le nom et la version du fichier de prompt utilisé |
 | `requete` | JSON : ce qui a été envoyé (sans la clé) : `modele`, `adresse`, `temperature` (0), `top_p` (1, depuis A2-0.26), `response_format`, `tour`, `passages`, `messages` ; depuis A2-0.27, `tentative` (1 à 3) et `appel_vise`. Sur une réponse 429 ou 503 du fournisseur, la page réessaie (3 essais au plus) et **chaque tentative a sa ligne** : la tentative réussie porte l'`id` prévu ; une tentative en échec porte un `id` à elle, son `erreur`, le même `appel_initial`, et `requete.appel_vise` donne l'`id` prévu. Pour compter les appels, ne garder que les lignes sans `erreur`, ou regrouper par `requete.appel_vise` |
-| `reponse` | La réponse brute complète |
+| `reponse` | La réponse brute complète ; depuis A2-0.28, aussi celle d'un appel en échec quand le service a répondu (erreur HTTP, réponse illisible ou sans texte), clé masquée |
 | `tokens_entree`, `tokens_sortie`, `tokens_total` | Tels qu'indiqués par le service |
 | `duree_ms` | Durée de l'appel |
 | `erreur` | Le message d'erreur éventuel |
@@ -475,7 +477,7 @@ Interprétations retenues lors de la création de la base (migrations de `supaba
 5. **Versions de documents** : `version = 1` si et seulement si `version_precedente` est vide.
 6. **Codage initial** : `codages.utilisateur` est vide si et seulement si l'étape est `scenario`.
 7. **Dérogation** : `rum.derogation` (booléen) et `rum.motif_derogation` (obligatoire si la dérogation est vraie).
-8. **Appels au LLM** : `appels_llm.document` est obligatoire.
+8. **Appels au LLM** : `appels_llm.document` est obligatoire, sauf pour la tâche `test_connexion` (contrainte `appels_llm_document_obligatoire`, migration 26).
 9. **Fiches** : la table contient tout l'index de recode-icd (codes non codables et codes sans fiche compris), une seule livraison à la fois ; clé = code ; `codable` booléen obligatoire ; `contenu` texte, vide pour un code sans fiche ; `version_livraison` en colonne.
 10. **Synonymes** : `origine` ∈ {libelle, inclusion, index, synonyme} ; `source` obligatoire ; `code` doit exister dans `fiches` ; colonne calculée `formulation_normalisee`, indexée par trigrammes.
 11. **Guide des situations cliniques** : `famille` est un texte libre issu de la colonne « Type d'hospitalisation » du guide, sans liste de valeurs imposée.

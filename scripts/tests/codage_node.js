@@ -48,6 +48,8 @@ process.stdin.on("end", async () => {
       sortie.reessais = { ok: false, appels, attentes, statut: e.statut === undefined ? null : e.statut, essaisEpuises: !!e.essaisEpuises, message: C.messageEchecReessais(e.statut, "mistral") };
     }
   }
+  if (cas.contenus) sortie.contenus = cas.contenus.map((d) => C.contenuDeReponse(d));
+  if (cas.extrait) sortie.extrait = C.extraitBrut(cas.extrait.brut, cas.extrait.cle, cas.extrait.longueur);
   if (cas.requete) {
     const q = cas.requete;
     sortie.requete = { corps: C.corpsRequete(q.modele, q.messages, q.json), enregistree: C.requeteEnregistree(q.modele, q.adresse, q.messages, q.tour, q.passages, q.tentative, q.appel_vise) };

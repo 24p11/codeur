@@ -497,6 +497,31 @@
              passages: (passages || []).map((p, i) => ({ numero: i + 1, debut: p.debut, fin: p.fin, texte: p.texte })), messages: corps.messages };
   }
 
+  // Le texte de la réponse du modèle, dans un corps /chat/completions déjà lu (objet). Deux formes sont acceptées pour
+  // choices[0].message.content : une chaîne (forme d'origine), ou une liste de morceaux [{ type: "text", text: "…" }, …]
+  // (forme utilisée par certains modèles, notamment ceux qui raisonnent : les morceaux d'un autre type, comme le
+  // raisonnement, ne font pas partie de la réponse et sont ignorés). Retourne la chaîne, ou null si la réponse n'a pas de texte.
+  function contenuDeReponse(donnees) {
+    const m = donnees && Array.isArray(donnees.choices) && donnees.choices[0] ? donnees.choices[0].message : null;
+    const c = m ? m.content : null;
+    if (typeof c === "string") return c.trim() ? c : null;
+    if (Array.isArray(c)) {
+      const textes = c.map((x) => (typeof x === "string" ? x : (x && (x.type === "text" || x.type === undefined) && typeof x.text === "string" ? x.text : "")));
+      const t = textes.join("");
+      return t.trim() ? t : null;
+    }
+    return null;
+  }
+  // Extrait d'une réponse brute pour un message à l'écran : espaces resserrés, clé masquée, tronqué.
+  function extraitBrut(brut, cle, longueur) {
+    let t = String(brut === null || brut === undefined ? "" : brut);
+    if (cle) t = t.split(cle).join("***");
+    t = t.replace(/\s+/g, " ").trim();
+    const n = longueur || 500;
+    return t.length > n ? t.slice(0, n) + "… (" + t.length + " caractères en tout)" : t;
+  }
+  const MESSAGE_TEST_CONNEXION = "Réponds uniquement par l'objet JSON {\"ok\": true}.";
+
   // ---- Nouveaux essais quand le fournisseur répond HTTP 429 (limite de débit du compte du testeur) ou 503 (service
   // momentanément indisponible) : 3 essais au plus ; attente dictée par l'en-tête Retry-After s'il est lisible (nombre de
   // secondes ou date), sinon 3 s puis 8 s ; jamais moins de 1 s ni plus de 60 s. Toute autre erreur n'est pas réessayée.
@@ -537,7 +562,7 @@
     return "L'appel a été refusé " + REESSAIS.essais + " fois de suite pour dépassement de la limite de débit (HTTP 429). Cette limite est celle de votre compte chez " + qui + " (nombre de demandes ou de tokens par minute), pas celle de codeur. Vos surlignages et votre codage sont intacts. Attendez une minute, puis cliquez sur « Réessayer ».";
   }
 
-  const api = { REESSAIS, ESPACEMENT_MS, secondesRetryAfter, delaiReessai, avecReessais, messageAttente, messageEchecReessais, corpsRequete, requeteEnregistree, preparerAppelRepete, assemblerAppelRepete, normaliserCode, construireMessageUtilisateur, analyserReponse, verifierCodes, construireMessageCorrection,
+  const api = { contenuDeReponse, extraitBrut, MESSAGE_TEST_CONNEXION, REESSAIS, ESPACEMENT_MS, secondesRetryAfter, delaiReessai, avecReessais, messageAttente, messageEchecReessais, corpsRequete, requeteEnregistree, preparerAppelRepete, assemblerAppelRepete, normaliserCode, construireMessageUtilisateur, analyserReponse, verifierCodes, construireMessageCorrection,
                 appliquerCorrection, construireCodage, compteurs, LIMITE_CANDIDATS,
                 MODE_PROMPT_CARACTERISTIQUES, construireMessageCaracteristiques, analyserCaracteristiques, construireMessageCorrectionCaracteristiques,
                 appliquerCorrectionCaracteristiques, appliquerCaracteristiques, regleARevoir, pathologiePrincipale, modesDe, CIRCONSTANCES,
