@@ -227,7 +227,17 @@
     message("message-reglages", raison || "", !!raison);
     montrer("ecran-reglages");
   }
-  // Appel au format commun /chat/completions. Retourne { contenu, usage, duree_ms, modele, brut } ou lève une erreur
+  // Nouveaux essais sur HTTP 429 ou 503 (règles dans web/codage.js : avecReessais) : la page patiente en affichant un décompte.
+  const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+  async function decompte(secondes, dire) { for (let r = Math.ceil(secondes); r > 0; r--) { dire(r); await pause(1000); } }
+  // Un message d'alerte suivi d'un bouton (« Réessayer ») ; le message suivant écrit au même endroit retire le bouton.
+  function messageAvecBouton(id, texte, libelle, action) {
+    message(id, texte + " ", true);
+    const b = document.createElement("button"); b.type = "button"; b.className = "secondaire"; b.textContent = libelle;
+    b.addEventListener("click", () => { message(id, ""); action(); });
+    $(id).appendChild(b);
+  }
+  // Appel au format commun /chat/completions (un seul essai). Retourne { contenu, usage, duree_ms, modele, brut } ou lève une erreur
   // dont le message ne contient jamais la clé.
   async function appelerLLM(reglages, messages, options) {
     const corps = window.CodeurCodage.corpsRequete(reglages.modele, messages, !!(options && options.json)); // forme de la requête : web/codage.js
@@ -242,7 +252,12 @@
     }
     const duree_ms = Math.round(performance.now() - debut);
     const brut = await rep.text();
-    if (!rep.ok) throw new Error("le service a répondu HTTP " + rep.status + " : " + brut.replace(reglages.cle, "***").slice(0, 300));
+    if (!rep.ok) {
+      // statut et Retry-After servent aux nouveaux essais (429, 503) ; l'en-tête n'est lisible que si le service l'expose aux pages web
+      const err = new Error("le service a répondu HTTP " + rep.status + " : " + brut.replace(reglages.cle, "***").slice(0, 300));
+      err.statut = rep.status; err.retryAfter = rep.headers.get("Retry-After");
+      throw err;
+    }
     let donnees;
     try { donnees = JSON.parse(brut); } catch (e) { throw new Error("réponse du service illisible"); }
     const contenu = donnees && donnees.choices && donnees.choices[0] && donnees.choices[0].message ? donnees.choices[0].message.content : null;
@@ -263,10 +278,13 @@
     $("bouton-tester-llm").disabled = true;
     message("message-reglages", "Test en cours…");
     try {
-      const res = await appelerLLM(r, [{ role: "user", content: "Réponds uniquement par l'objet JSON {\"ok\": true}." }], { json: true });
+      const R = window.CodeurCodage;
+      const res = await R.avecReessais(
+        () => appelerLLM(r, [{ role: "user", content: "Réponds uniquement par l'objet JSON {\"ok\": true}." }], { json: true }),
+        (s, i) => decompte(s, (reste) => message("message-reglages", "Test en cours : " + R.messageAttente(reste, i.statut, i.prochaine, i.essais) + "…")));
       message("message-reglages", "Connexion réussie : " + res.modele + " a répondu en " + res.duree_ms + " ms (" + (res.usage.total_tokens || "?") + " tokens). Fournisseur enregistré : « " + fournisseurDe(r.adresse) + " ».");
     } catch (e) {
-      message("message-reglages", "Échec du test : " + e.message, true);
+      message("message-reglages", e.essaisEpuises ? window.CodeurCodage.messageEchecReessais(e.statut, fournisseurDe(r.adresse)).replace("cliquez sur « Réessayer »", "relancez le test") : "Échec du test : " + e.message, true);
     }
     $("bouton-tester-llm").disabled = false;
   });
@@ -1050,7 +1068,7 @@
       let appelCourant = appelInitial;
       // ---- Tour 1 : le codage
       etatCodage("Appel au modèle " + reglages.modele + " (" + passages.length + " passage" + (passages.length > 1 ? "s" : "") + ")…");
-      let res = await appelerEtEnregistrer(reglages, fournisseur, messages, { id: appelInitial, appel_initial: null, version_prompt: pc.version, tache: "codage", passages });
+      let res = await appelerEtEnregistrer(reglages, fournisseur, messages, { id: appelInitial, appel_initial: null, version_prompt: pc.version, tache: "codage", passages, dire: etatCodage });
       let analyse = K.analyserReponse(res.contenu, passages);
       if (!analyse.ok) { afficherEchec("La réponse du modèle n'est pas exploitable : " + analyse.erreur + ". Aucun codage n'a été enregistré ; vous pouvez réessayer."); return; }
       let idx = await lireIndex(analyse.ensembles.map((e) => e.code));
@@ -1083,7 +1101,8 @@
         etatCodage("Correction (tour " + tour + ") : " + aCorriger.map((e) => e.code).join(", ") + " non codable" + (aCorriger.length > 1 ? "s" : "") + "…");
         messages.push({ role: "assistant", content: res.contenu }, { role: "user", content: pcorr.texte + "\n\n" + mc.message });
         appelCourant = uuid();
-        res = await appelerEtEnregistrer(reglages, fournisseur, messages, { id: appelCourant, appel_initial: appelInitial, version_prompt: pcorr.version, tache: "codage", passages, tour });
+        await pause(K.ESPACEMENT_MS); // espacer les appels : limite de débit du compte du testeur
+        res = await appelerEtEnregistrer(reglages, fournisseur, messages, { id: appelCourant, appel_initial: appelInitial, version_prompt: pcorr.version, tache: "codage", passages, tour, dire: etatCodage });
         // les candidats sont déjà vérifiés codables ; on recharge l'index pour les codes choisis
         const choisis = []; try { const o = JSON.parse(res.contenu.replace(/^```(?:json)?\s*|\s*```$/gi, "")); for (const v of Object.values(o.corrections || {})) if (v) choisis.push(K.normaliserCode(v)); } catch (e) { /* géré par appliquerCorrection */ }
         const idx2 = await lireIndex(choisis);
@@ -1108,6 +1127,7 @@
         // Second appel (SCHEMA.md §3.6, brief 8) : les codes s'affichent dès maintenant, le bloc de la règle indique
         // « calcul en cours… » ; la ligne ia_humain n'est enregistrée qu'une fois, après les deux appels.
         travail.courant = codage; codageUI.caracteristiquesEnCours = true; rendreCodage();
+        await pause(K.ESPACEMENT_MS); // espacer le second appel du premier
         caract = await calculerCaracteristiques(codage, null, reglages, fournisseur);
         codageUI.caracteristiquesEnCours = false;
         avertissements.push(...caract.avertissements);
@@ -1136,8 +1156,9 @@
       if (an.nonCodesRedondants.length) avertissements.push("Passage(s) déclaré(s) non codé(s) alors qu'ils appuient un code : déclaration écartée (" + an.nonCodesRedondants.map((k) => "n° " + k).join(", ") + ").");
       $("codage-etat").textContent = "Codage proposé par l'IA enregistré (" + new Date().toLocaleTimeString("fr-FR") + ")." + (avertissements.length ? " À noter : " + avertissements.join(" ") : "");
       rendreCodage();
+      if (caract && caract.limite) messageAvecBouton("message-dossier", "Les codes sont enregistrés, mais la règle et le mode de prise en charge n'ont pas pu être calculés. " + caract.limite, "Réessayer", () => recalculer());
     } catch (e) {
-      afficherEchec(e.message);
+      afficherEchec(e.message, e.essaisEpuises ? () => faireCodage() : null);
     } finally {
       finAppel();
     }
@@ -1215,13 +1236,14 @@
       const messages = [{ role: "system", content: pc.texte }, { role: "user", content: utilisateur }];
       const id = uuid(); let appelId = id;
       etatRegle("calcul en cours… (" + regles.length + " règle" + (regles.length > 1 ? "s" : "") + " candidate" + (regles.length > 1 ? "s" : "") + ")");
-      let res = await appelerEtEnregistrer(reglages, fournisseur, messages, { id, appel_initial: null, version_prompt: pc.version, tache: "caracteristiques_sejour", passages: [] });
+      let res = await appelerEtEnregistrer(reglages, fournisseur, messages, { id, appel_initial: null, version_prompt: pc.version, tache: "caracteristiques_sejour", passages: [], dire: etatRegle });
       const an = K.analyserCaracteristiques(res.contenu, regles);
       if (an.ok && an.aCorriger) {
         etatRegle("correction : règle ou mode hors liste…");
         messages.push({ role: "assistant", content: res.contenu }, { role: "user", content: K.construireMessageCorrectionCaracteristiques(an, regles) });
         appelId = uuid();
-        res = await appelerEtEnregistrer(reglages, fournisseur, messages, { id: appelId, appel_initial: id, version_prompt: pc.version, tache: "caracteristiques_sejour", passages: [], tour: 1 });
+        await pause(K.ESPACEMENT_MS);
+        res = await appelerEtEnregistrer(reglages, fournisseur, messages, { id: appelId, appel_initial: id, version_prompt: pc.version, tache: "caracteristiques_sejour", passages: [], tour: 1, dire: etatRegle });
         if (!K.appliquerCorrectionCaracteristiques(an, res.contenu, regles).ok) avertissements.push("Règle ou mode de prise en charge hors liste après correction : à choisir.");
       }
       const app = K.appliquerCaracteristiques(codage, an, { appel_llm: appelId }, regles);
@@ -1234,8 +1256,9 @@
     } catch (e) {
       K.appliquerCaracteristiques(codage, { ok: false, erreur: e.message }, {}, []);
       codageUI.etatRegle = ""; codageUI.alerteDR = null;
-      avertissements.push("Le calcul de la règle a échoué (" + e.message + ") : règle vide, vous pouvez « Recalculer ».");
-      return { avertissements, appel_llm: null, explication: null };
+      if (e.essaisEpuises) avertissements.push("Le calcul de la règle a échoué (limite du fournisseur) : règle vide.");
+      else avertissements.push("Le calcul de la règle a échoué (" + e.message + ") : règle vide, vous pouvez « Recalculer ».");
+      return { avertissements, appel_llm: null, explication: null, limite: e.essaisEpuises ? e.message : null };
     }
   }
   // « Recalculer » : second appel seul, avec un commentaire facultatif (ajouté aux commentaires du codage, auteur humain) ;
@@ -1265,8 +1288,9 @@
       try { await ecrireCommentaires(liste, ins.data.id); } catch (e) { car.avertissements.push(e.message); }
       installerCodage({ id: ins.data.id, etape: "ia_humain", codage: enregistre, cree_le: ins.data.cree_le }, null);
       $("regle-commentaire").value = "";
-      $("codage-etat").textContent = "Règle recalculée par l'IA (" + new Date().toLocaleTimeString("fr-FR") + ")." + (car.avertissements.length ? " À noter : " + car.avertissements.join(" ") : "");
+      $("codage-etat").textContent = (car.limite ? "Règle non recalculée (" : "Règle recalculée par l'IA (") + new Date().toLocaleTimeString("fr-FR") + ")." + (car.avertissements.length ? " À noter : " + car.avertissements.join(" ") : "");
       rendreCodage();
+      if (car.limite) messageAvecBouton("message-dossier", car.limite, "Réessayer", () => recalculer());
     } catch (e) {
       codageUI.caracteristiquesEnCours = false; message("message-dossier", e.message, true); rendreCodage();
     } finally {
@@ -1356,24 +1380,40 @@
     zone.appendChild(div);
   }
 
-  // Un appel : envoi, enregistrement dans appels_llm (réussi ou échoué), retour du résultat.
+  // Un appel : envoi, enregistrement dans appels_llm (réussi ou échoué), retour du résultat. Sur HTTP 429 ou 503, jusqu'à
+  // 3 essais (K.avecReessais), CHAQUE tentative ayant sa ligne dans appels_llm : la tentative réussie porte l'identifiant
+  // prévu (infos.id, auquel le codage et les tours de correction se réfèrent) ; une tentative en échec reçoit un identifiant
+  // à elle et se relie par requete.appel_vise et requete.tentative. infos.dire(texte) écrit dans la ligne d'état.
   async function appelerEtEnregistrer(reglages, fournisseur, messages, infos) {
-    const requete = K.requeteEnregistree(reglages.modele, reglages.adresse, messages, infos.tour, infos.passages);
-    let res = null, erreur = null;
-    try { res = await appelerLLM(reglages, messages, { json: true }); } catch (e) { erreur = e.message; }
+    const dire = infos.dire || (() => {});
+    try {
+      return await K.avecReessais(
+        (tentative) => { if (tentative > 1) dire("Nouvel essai (" + tentative + " sur " + K.REESSAIS.essais + ")…"); return tenterEtEnregistrer(reglages, fournisseur, messages, infos, tentative); },
+        (s, i) => decompte(s, (reste) => dire(K.messageAttente(reste, i.statut, i.prochaine, i.essais) + "…")));
+    } catch (e) {
+      const err = new Error(e.essaisEpuises ? K.messageEchecReessais(e.statut, fournisseur) : "appel au modèle en échec : " + e.message);
+      err.essaisEpuises = !!e.essaisEpuises;
+      throw err;
+    }
+  }
+  async function tenterEtEnregistrer(reglages, fournisseur, messages, infos, tentative) {
+    const requete = K.requeteEnregistree(reglages.modele, reglages.adresse, messages, infos.tour, infos.passages, tentative, infos.id);
+    let res = null, echec = null;
+    try { res = await appelerLLM(reglages, messages, { json: true }); } catch (e) { echec = e; }
+    const erreur = echec ? echec.message : null;
     await enregistrerAppel({
-      id: infos.id, utilisateur: etat.utilisateur.id, document: dossier.doc.id, tache: infos.tache, fournisseur, modele: res ? res.modele : reglages.modele,
+      id: res ? infos.id : uuid(), utilisateur: etat.utilisateur.id, document: dossier.doc.id, tache: infos.tache, fournisseur, modele: res ? res.modele : reglages.modele,
       version_prompt: infos.version_prompt, requete, reponse: res ? res.brut : null,
       tokens_entree: res ? (res.usage.prompt_tokens ?? null) : null, tokens_sortie: res ? (res.usage.completion_tokens ?? null) : null,
       tokens_total: res ? (res.usage.total_tokens ?? null) : null, duree_ms: res ? res.duree_ms : null, erreur, appel_initial: infos.appel_initial,
     });
-    if (erreur) throw new Error("appel au modèle en échec : " + erreur);
+    if (echec) throw echec;
     return res;
   }
   function finAppel() { codageUI.appelEnCours = false; majBoutons(); }
-  function afficherEchec(texte) {
+  function afficherEchec(texte, reessayer) {
     $("codage-etat").textContent = "";
-    message("message-dossier", texte, true);
+    if (reessayer) messageAvecBouton("message-dossier", texte, "Réessayer", reessayer); else message("message-dossier", texte, true);
     $("bloc-codage").hidden = !travail.base && !travail.courant;
   }
   // « Tout effacer » : un panneau de confirmation dit précisément ce qui sera effacé (surlignages non codés ;

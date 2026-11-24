@@ -488,13 +488,56 @@
     return corps;
   }
   // Ce qui est enregistré dans appels_llm.requete : le corps envoyé (mêmes valeurs), l'adresse, le tour et les passages ; jamais la clé.
-  function requeteEnregistree(modele, adresse, messages, tour, passages) {
+  // tentative : 1 à 3 (nouveaux essais sur 429 ou 503) ; appel_vise : l'identifiant prévu pour l'appel, que seule la tentative
+  // réussie porte dans appels_llm.id (une tentative en échec reçoit un identifiant à elle et se relie par appel_vise).
+  function requeteEnregistree(modele, adresse, messages, tour, passages, tentative, appelVise) {
     const corps = corpsRequete(modele, messages, true);
     return { modele: corps.model, adresse, temperature: corps.temperature, top_p: corps.top_p, response_format: corps.response_format.type, tour: tour || 0,
+             tentative: tentative || 1, appel_vise: appelVise || null,
              passages: (passages || []).map((p, i) => ({ numero: i + 1, debut: p.debut, fin: p.fin, texte: p.texte })), messages: corps.messages };
   }
 
-  const api = { corpsRequete, requeteEnregistree, preparerAppelRepete, assemblerAppelRepete, normaliserCode, construireMessageUtilisateur, analyserReponse, verifierCodes, construireMessageCorrection,
+  // ---- Nouveaux essais quand le fournisseur répond HTTP 429 (limite de débit du compte du testeur) ou 503 (service
+  // momentanément indisponible) : 3 essais au plus ; attente dictée par l'en-tête Retry-After s'il est lisible (nombre de
+  // secondes ou date), sinon 3 s puis 8 s ; jamais moins de 1 s ni plus de 60 s. Toute autre erreur n'est pas réessayée.
+  const REESSAIS = { statuts: [429, 503], essais: 3, attentes: [3, 8], plafond: 60 };
+  const ESPACEMENT_MS = 1000; // pause avant le second appel et avant chaque tour de correction
+  function secondesRetryAfter(valeur, maintenant) {
+    if (valeur === null || valeur === undefined) return null;
+    const t = String(valeur).trim();
+    if (/^\d+(\.\d+)?$/.test(t)) return Math.ceil(Number(t));
+    const d = Date.parse(t);
+    if (Number.isNaN(d)) return null;
+    return Math.max(0, Math.ceil((d - (maintenant === undefined ? Date.now() : maintenant)) / 1000));
+  }
+  function delaiReessai(retryAfter, tentative, maintenant) {
+    const s = secondesRetryAfter(retryAfter, maintenant);
+    const prevu = s !== null ? s : REESSAIS.attentes[Math.min(tentative, REESSAIS.attentes.length) - 1];
+    return Math.min(Math.max(prevu, 1), REESSAIS.plafond);
+  }
+  // essayer(tentative) fait UN appel : il rend le résultat, ou lève une erreur portant .statut (code HTTP) et .retryAfter.
+  // attendre(secondes, { tentative, prochaine, essais, statut }) patiente (et l'annonce). Après le dernier essai,
+  // l'erreur est relancée avec .essaisEpuises = true.
+  async function avecReessais(essayer, attendre, maintenant) {
+    for (let tentative = 1; ; tentative++) {
+      try { return await essayer(tentative); }
+      catch (e) {
+        if (!e || !REESSAIS.statuts.includes(e.statut)) throw e;
+        if (tentative >= REESSAIS.essais) { e.essaisEpuises = true; throw e; }
+        await attendre(delaiReessai(e.retryAfter, tentative, maintenant), { tentative, prochaine: tentative + 1, essais: REESSAIS.essais, statut: e.statut });
+      }
+    }
+  }
+  function messageAttente(secondes, statut, prochaine, essais) {
+    return (statut === 503 ? "service du fournisseur momentanément indisponible" : "limite de débit du fournisseur") + ", nouvel essai dans " + secondes + " s (essai " + prochaine + " sur " + essais + ")";
+  }
+  function messageEchecReessais(statut, fournisseur) {
+    const qui = fournisseur === "mistral" ? "Mistral" : "le fournisseur du modèle (" + fournisseur + ")";
+    if (statut === 503) return "Le service de " + qui + " est resté indisponible après " + REESSAIS.essais + " essais (HTTP 503). Le problème vient du fournisseur, pas de votre travail : vos surlignages et votre codage sont intacts. Attendez une minute, puis cliquez sur « Réessayer ».";
+    return "L'appel a été refusé " + REESSAIS.essais + " fois de suite pour dépassement de la limite de débit (HTTP 429). Cette limite est celle de votre compte chez " + qui + " (nombre de demandes ou de tokens par minute), pas celle de codeur. Vos surlignages et votre codage sont intacts. Attendez une minute, puis cliquez sur « Réessayer ».";
+  }
+
+  const api = { REESSAIS, ESPACEMENT_MS, secondesRetryAfter, delaiReessai, avecReessais, messageAttente, messageEchecReessais, corpsRequete, requeteEnregistree, preparerAppelRepete, assemblerAppelRepete, normaliserCode, construireMessageUtilisateur, analyserReponse, verifierCodes, construireMessageCorrection,
                 appliquerCorrection, construireCodage, compteurs, LIMITE_CANDIDATS,
                 MODE_PROMPT_CARACTERISTIQUES, construireMessageCaracteristiques, analyserCaracteristiques, construireMessageCorrectionCaracteristiques,
                 appliquerCorrectionCaracteristiques, appliquerCaracteristiques, regleARevoir, pathologiePrincipale, modesDe, CIRCONSTANCES,

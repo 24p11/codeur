@@ -357,12 +357,36 @@ def main() -> None:
     controle("requête sans JSON demandé : exactement model, temperature 0, top_p 1, messages", sans == {"model": "mistral-large-latest", "temperature": 0, "top_p": 1, "messages": msgs}, str(sorted(sans)))
     controle("requête enregistrée (appels_llm.requete) : mêmes valeurs que le corps envoyé, adresse, tour, passages, pas de clé",
              r["enregistree"] == {"modele": "mistral-large-latest", "adresse": "https://api.mistral.ai/v1", "temperature": 0, "top_p": 1, "response_format": "json_object", "tour": 1,
-                                  "passages": [{"numero": 1, **PASSAGES[0]}], "messages": msgs}, str(sorted(r["enregistree"])))
+                                  "tentative": 1, "appel_vise": None, "passages": [{"numero": 1, **PASSAGES[0]}], "messages": msgs}, str(sorted(r["enregistree"])))
     # la page ne construit le corps qu'à un seul endroit, et aucun paramètre d'échantillonnage n'est écrit ailleurs
     source = (RACINE / "web" / "app.js").read_text(encoding="utf-8")
     interdits = [m for m in ("temperature", "top_p", "top_k", "max_tokens", "random_seed", "seed:", "presence_penalty", "frequency_penalty", "safe_prompt", "response_format") if m in source]
     controle("app.js : un seul envoi au modèle, corps construit par corpsRequete, aucun paramètre écrit dans app.js",
              source.count("/chat/completions\"") == 1 and source.count("corpsRequete(") == 1 and source.count("requeteEnregistree(") == 1 and not interdits, f"paramètres trouvés : {interdits}")
+
+    # 14. Nouveaux essais sur HTTP 429 et 503 (réponses simulées, aucune attente réelle)
+    def essais(reponses, maintenant=None):
+        return node({"index": INDEX, "descendants": DESC, "reessais": {"reponses": reponses, **({"maintenant": maintenant} if maintenant is not None else {})}})
+    s = essais([{"statut": 429}, {"ok": True}])
+    r = s["reessais"]
+    controle("429 puis succès : 2 appels, une attente de 3 s, succès à la tentative 2", r == {"ok": True, "tentative": 2, "appels": 2, "attentes": [3]}, str(r))
+    controle("annonce dans la ligne d'état : « limite de débit du fournisseur, nouvel essai dans N s »", s["derniereAnnonce"].startswith("limite de débit du fournisseur, nouvel essai dans 3 s"), s["derniereAnnonce"])
+    r = essais([{"statut": 429}] * 4)["reessais"]
+    controle("429 trois fois : 3 appels et pas un de plus, attentes de 3 s puis 8 s, essais épuisés", r["ok"] is False and r["appels"] == 3 and r["attentes"] == [3, 8] and r["essaisEpuises"] and r["statut"] == 429, str({k: v for k, v in r.items() if k != "message"}))
+    controle("message final en clair : limite du compte Mistral du testeur, « Réessayer »", "votre compte chez Mistral" in r["message"] and "« Réessayer »" in r["message"] and "429" in r["message"], r["message"])
+    r = essais([{"statut": 429, "retryAfter": "12"}, {"ok": True}])["reessais"]
+    controle("Retry-After présent (12) : attente de 12 s au lieu de 3 s", r["ok"] and r["attentes"] == [12], str(r))
+    r = essais([{"statut": 429, "retryAfter": "Tue, 24 Nov 2026 12:00:20 GMT"}, {"statut": 429, "retryAfter": "600"}, {"statut": 429, "retryAfter": "0"}], maintenant=1795521600000)["reessais"]
+    controle("Retry-After en date (20 s plus tard) : 20 s ; Retry-After de 600 s : plafonné à 60 s", r["attentes"] == [20, 60] and r["appels"] == 3, str(r["attentes"]))
+    r = essais([{"statut": 503}, {"statut": 503, "retryAfter": "abc"}, {"ok": True}])["reessais"]
+    controle("503 réessayé comme 429 ; Retry-After illisible : 3 s puis 8 s", r["ok"] and r["tentative"] == 3 and r["attentes"] == [3, 8], str(r))
+    for statut in (400, 401, 500):
+        r = essais([{"statut": statut}, {"ok": True}])["reessais"]
+        controle(f"HTTP {statut} : pas de nouvel essai", r["ok"] is False and r["appels"] == 1 and not r["attentes"] and not r["essaisEpuises"], str({k: v for k, v in r.items() if k != "message"}))
+    r = node({"index": INDEX, "descendants": DESC, "requete": {**q, "json": True, "tentative": 2, "appel_vise": "id-prevu"}})["requete"]["enregistree"]
+    controle("requête enregistrée d'une tentative : tentative 2 et appel visé", r["tentative"] == 2 and r["appel_vise"] == "id-prevu", str((r["tentative"], r["appel_vise"])))
+    controle("app.js : chaque tentative est enregistrée (enregistrerAppel dans la tentative), pauses d'une seconde avant le second appel et les tours de correction",
+             "async function tenterEtEnregistrer" in source and source.count("await pause(K.ESPACEMENT_MS)") == 3 and source.count("K.avecReessais(") + source.count("R.avecReessais(") == 2, "")
 
     ok, total = sum(RESULTATS), len(RESULTATS)
     print(f"\nBILAN : {ok} contrôles réussis sur {total}")

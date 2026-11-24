@@ -1,5 +1,7 @@
 # Schéma de la base de données
 
+*Version 1.7 — 24 novembre 2026 (à relire par Rémi) : contenu de `appels_llm.requete` (`top_p`, `tentative`, `appel_vise`) et identifiant des tentatives en échec (§5.2). Aucune migration.*
+
 *Version 1.6 — 24 octobre 2026 : table `commentaires` et sortie des commentaires et explications du JSON (§3.4, §5.5, §7, §8) ; mode de prise en charge avec libellé et `caracteristiques` (§3.4) ; second appel : règle et mode de prise en charge (§3.6) ; guide des situations cliniques, listes de codes, chapitres et `regles_compatibles` (§6) ; précisions 29 à 33 (§10). Relu par Rémi le 24 octobre 2026.*
 
 *Version 1.5 — 23 octobre 2026 : appels répétés révisés : un seul bouton « Codage », codage existant conservé, codes rejetés, température nulle (§3.6) ; nature directe ou indirecte des preuves (§3.4).*
@@ -339,7 +341,7 @@ Chaque appel au LLM, pour toutes les tâches.
 | `tache` | `evaluation_document`, `caracteristiques_sejour`, `codage`, `revue` |
 | `fournisseur`, `modele` | Par exemple `mistral`, `mistral-large-latest` ; la version exacte si le service l'indique |
 | `version_prompt` | Le nom et la version du fichier de prompt utilisé |
-| `requete` | JSON : ce qui a été envoyé (sans la clé) |
+| `requete` | JSON : ce qui a été envoyé (sans la clé) : `modele`, `adresse`, `temperature` (0), `top_p` (1, depuis A2-0.26), `response_format`, `tour`, `passages`, `messages` ; depuis A2-0.27, `tentative` (1 à 3) et `appel_vise`. Sur une réponse 429 ou 503 du fournisseur, la page réessaie (3 essais au plus) et **chaque tentative a sa ligne** : la tentative réussie porte l'`id` prévu ; une tentative en échec porte un `id` à elle, son `erreur`, le même `appel_initial`, et `requete.appel_vise` donne l'`id` prévu. Pour compter les appels, ne garder que les lignes sans `erreur`, ou regrouper par `requete.appel_vise` |
 | `reponse` | La réponse brute complète |
 | `tokens_entree`, `tokens_sortie`, `tokens_total` | Tels qu'indiqués par le service |
 | `duree_ms` | Durée de l'appel |

@@ -5,7 +5,7 @@ const C = require(path.join(__dirname, "..", "..", "web", "codage.js"));
 let entree = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", (d) => { entree += d; });
-process.stdin.on("end", () => {
+process.stdin.on("end", async () => {
   const cas = JSON.parse(entree);
   const index = (code) => cas.index[code] || null;
   const descendants = (code) => cas.descendants[code] || [];
@@ -34,9 +34,23 @@ process.stdin.on("end", () => {
       if (cas.precedent !== undefined) sortie.compteurs = C.compteurs(cas.precedent, sortie.codage);
     }
   }
+  if (cas.reessais) {
+    // réponses simulées du service, dans l'ordre : { statut, retryAfter } pour un refus, { ok: true } pour un succès ; aucune attente réelle
+    const attentes = []; let appels = 0;
+    try {
+      const resultat = await C.avecReessais(async (tentative) => {
+        const x = cas.reessais.reponses[appels++];
+        if (x.statut) { const e = new Error("le service a répondu HTTP " + x.statut); e.statut = x.statut; e.retryAfter = x.retryAfter === undefined ? null : x.retryAfter; throw e; }
+        return { tentative };
+      }, async (secondes, i) => { attentes.push(secondes); sortie.derniereAnnonce = C.messageAttente(secondes, i.statut, i.prochaine, i.essais); }, cas.reessais.maintenant);
+      sortie.reessais = { ok: true, tentative: resultat.tentative, appels, attentes };
+    } catch (e) {
+      sortie.reessais = { ok: false, appels, attentes, statut: e.statut === undefined ? null : e.statut, essaisEpuises: !!e.essaisEpuises, message: C.messageEchecReessais(e.statut, "mistral") };
+    }
+  }
   if (cas.requete) {
     const q = cas.requete;
-    sortie.requete = { corps: C.corpsRequete(q.modele, q.messages, q.json), enregistree: C.requeteEnregistree(q.modele, q.adresse, q.messages, q.tour, q.passages) };
+    sortie.requete = { corps: C.corpsRequete(q.modele, q.messages, q.json), enregistree: C.requeteEnregistree(q.modele, q.adresse, q.messages, q.tour, q.passages, q.tentative, q.appel_vise) };
   }
   if (cas.repete) sortie.repete = C.assemblerAppelRepete(cas.repete.retenu, cas.repete.nouveau, "ia_humain");
   if (cas.preparer) {
