@@ -1,5 +1,13 @@
 # Publie le dossier web/ sur GitHub Pages à chaque push sur main.
 # Réglage à faire une fois dans le dépôt : Settings > Pages > Build and deployment > Source : « GitHub Actions ».
+#
+# Deux tâches : « construire » prépare et téléverse le paquet de la page, « publier » le met en ligne ensuite.
+# Elles sont séparées exprès : dans une seule tâche, la publication cherchait le paquet une fraction de seconde après
+# sa création et ne le trouvait pas (« No artifacts named "github-pages" were found », 24 novembre 2026 ;
+# défaut connu, actions/deploy-pages n° 451).
+#
+# En cas d'échec, ne pas utiliser « Re-run » (la relance ajoute un second paquet à la même exécution et échoue aussi) :
+# lancer une exécution neuve et complète, sans nouveau commit, par Actions > Publier la page web > Run workflow.
 name: Publier la page web
 
 on:
@@ -18,11 +26,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  publier:
+  construire:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploiement.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
       - name: Copier la mention d'information dans web/
@@ -34,5 +39,13 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with:
           path: web
+
+  publier:
+    needs: construire
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
       - id: deploiement
         uses: actions/deploy-pages@v5
